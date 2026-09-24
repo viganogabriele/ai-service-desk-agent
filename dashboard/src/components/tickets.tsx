@@ -24,7 +24,7 @@ export interface TicketFilters {
   service: string;
   rating: "all" | "Critical" | "Non-Critical";
   change: "all" | "service" | "work";
-  view: "table" | "board";
+  view: "table" | "board" | "priority";
 }
 
 const DEFAULT_FILTERS: TicketFilters = {

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Columns3, Rows3, Sparkles, UserPlus, X } from "lucide-react";
+import { Columns3, ListOrdered, Rows3, Sparkles, UserPlus, X } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Editable } from "../state";
 import { STATUSES, STATUS_DOTS, STATUS_HELP, STATUS_LABELS, serviceInfo } from "../domain";
@@ -18,6 +18,7 @@ import {
   useTicketRows,
 } from "../components/tickets";
 import type { TicketRow } from "../components/tickets";
+import { PriorityView } from "../components/priority";
 import { CommentEditor, Dialog, Menu, OutcomePicker } from "../components/ui";
 
 export const Route = createFileRoute("/tickets/")({ component: TicketList });
@@ -84,6 +85,13 @@ function TicketList() {
             >
               <Columns3 size={14} strokeWidth={1.75} />
               Board
+            </button>
+            <button
+              aria-pressed={filters.view === "priority"}
+              onClick={() => setFilters({ view: "priority", status: "all" })}
+            >
+              <ListOrdered size={14} strokeWidth={1.75} />
+              Priority
             </button>
           </div>
           <Menu
@@ -176,8 +184,10 @@ function TicketList() {
             {visible.length === 0 && <div className="empty">No tickets match these filters.</div>}
           </div>
         </section>
-      ) : (
+      ) : filters.view === "board" ? (
         <Board rows={visible} onMove={moveTo} />
+      ) : (
+        <PriorityView rows={visible} />
       )}
       {pending && <MoveDialog pending={pending} onClose={() => setPending(null)} />}
       {confirmReset && (

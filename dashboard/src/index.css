@@ -2219,6 +2219,126 @@ kbd {
   font-size: 12px;
 }
 
+/* Priority view: open tickets in lanes ordered by how soon they need an operator. Cards carry
+   only what decides the next click: priority, age, the request, one note, service and owner. */
+.priority-view {
+  display: grid;
+  gap: 32px;
+}
+.priority-lane header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-bottom: 12px;
+}
+.priority-lane h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: var(--tracking-snug);
+}
+.priority-lane h2 .num {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+.priority-lane header p {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+.priority-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.priority-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  background: var(--color-elevated);
+  box-shadow: var(--shadow-card);
+  transition: border-color 120ms ease;
+}
+.priority-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.priority-card .level {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-secondary);
+  font-weight: 500;
+}
+.priority-card .level.strong {
+  color: var(--color-foreground);
+}
+.priority-card .ticket-id {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.priority-card .age {
+  margin-left: auto;
+  color: var(--color-muted);
+}
+.priority-card b {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--color-foreground);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+  text-wrap: pretty;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.priority-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--color-secondary);
+  font-size: 12px;
+}
+.priority-note svg {
+  flex: none;
+  color: var(--color-primary-text);
+}
+.priority-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-divider);
+  font-size: 12px;
+}
+.priority-card-foot .service {
+  overflow: hidden;
+  color: var(--color-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.priority-foot {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .priority-card:hover {
+    border-color: var(--color-border-hover);
+    background: var(--color-elevated-hover);
+  }
+}
+
 /* Overview */
 .inline-facts {
   display: grid;
