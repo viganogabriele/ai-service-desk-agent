@@ -180,6 +180,7 @@ export function PriorityBadge({ triage }: { triage: Triage }) {
 export function CriticalBadge() {
   return (
     <span className="badge critical" data-tip="Business-critical service">
+      <i className="dot" />
       Critical service
     </span>
   );
