@@ -8,7 +8,7 @@ Build the demo around an agent's workflow: **incoming ticket → solver proposal
 
 Read [ADVISOR_REVIEW.md](ADVISOR_REVIEW.md) for the revised scope, demo, experiments and scaling assumptions, and [ANALYSIS.md](ANALYSIS.md) for corrected findings and evidence limits. These supersede recommendations in the archived chats and `report-20tickets.md`; [instructions.md](instructions.md) remains the official specification.
 
-The backend and `dashboard.html` explorer already exist. The queue's solver integration, persisted review/approval workflow and cost comparison are **planned**, not implemented. Approval of a proposal does not execute a repair or close a Jira ticket.
+The backend and `dashboard.html` explorer already exist. A new [React dashboard](dashboard/README.md) now implements the PRD's phase 1 queue and persisted review workflow using clearly marked mock proposals. Solver integration and cost comparison remain planned. Approval of a proposal does not execute a repair or close a Jira ticket.
 
 ## Run on the Mac
 

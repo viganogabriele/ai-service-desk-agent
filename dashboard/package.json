@@ -1,0 +1,38 @@
+{
+  "name": "dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@11.21.0",
+  "type": "module",
+  "scripts": {
+    "data": "python scripts/prepare_data.py",
+    "dev": "pnpm data && vp dev",
+    "build": "pnpm data && vp build && tsc -b",
+    "lint": "oxlint src --deny-warnings",
+    "format": "oxfmt 'src/**/*.tsx' src/domain.ts src/index.css vite.config.ts oxlint.config.ts && oxlint src --fix",
+    "format:check": "oxfmt --check 'src/**/*.tsx' src/domain.ts src/index.css vite.config.ts oxlint.config.ts",
+    "preview": "vp preview"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.103.2",
+    "@tanstack/react-router": "^1.170.39",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.81.0",
+    "@shadcn/lint": "^0.2.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/router-plugin": "^1.168.40",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.81.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.0.0-rc.0",
+    "vite-plus": "1.0.0-rc.0"
+  }
+}
