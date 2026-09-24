@@ -1,6 +1,9 @@
+import type { SQL } from "bun";
 import { Hono } from "hono";
 import { getHealthStatus } from "../services/health";
 
-export const healthRoute = new Hono().get("/", (c) => {
-	return c.json(getHealthStatus());
-});
+export function createHealthRoute(sql: SQL, coreConfigured: boolean) {
+	return new Hono().get("/", async (c) =>
+		c.json(await getHealthStatus(sql, coreConfigured)),
+	);
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { adf } from "../clients/jira/adf";
-import { fakeIssue } from "../clients/jira/jira-client.fake";
+import { fakeComment, fakeIssue } from "../clients/jira/jira-client.fake";
 import { isTicket, toTicketRecord } from "./tickets";
 
 describe("toTicketRecord", () => {
@@ -11,11 +11,8 @@ describe("toTicketRecord", () => {
 			),
 			comment: {
 				comments: [
-					{
-						body: adf("amelia.marcus@intcom.com: please hurry"),
-						jsdPublic: true,
-					},
-					{ body: adf("AI triage: internal note"), jsdPublic: false },
+					fakeComment("amelia.marcus@intcom.com: please hurry"),
+					fakeComment("AI triage: internal note", false),
 				],
 			},
 			status: { name: "In Progress", statusCategory: { key: "indeterminate" } },

@@ -1,50 +1,57 @@
 import { testClient } from "hono/testing";
 import { describe, expect, it } from "vitest";
-import { createApp } from "../app";
 import { adf } from "../clients/jira/adf";
 import { JiraApiError, type JiraClient } from "../clients/jira/jira-client";
 import {
 	createFakeJiraClient,
 	fakeIssue,
 } from "../clients/jira/jira-client.fake";
+import { testBackend } from "../db/test-db";
 import type { ErrorBody } from "../lib/errors";
 
-function setup(
+/** A backend whose Postgres copy is in sync with the fake Jira. */
+async function setup(
 	jira: JiraClient = createFakeJiraClient([
 		fakeIssue("SUP-1"),
 		fakeIssue("SUP-2"),
 	]),
 ) {
-	const app = createApp(jira);
-	return { app, client: testClient(app) };
+	const backend = await testBackend({ jira, withCore: false });
+	await backend.syncer.syncNow();
+	return { ...backend, client: testClient(backend.app) };
 }
 
-async function recordsByKey(client: ReturnType<typeof setup>["client"]) {
+async function recordsByKey(
+	client: Awaited<ReturnType<typeof setup>>["client"],
+) {
 	const body = await (await client.tickets.$get()).json();
 	return new Map(body.records.map((r) => [r.Key, r]));
 }
 
 describe("GET /tickets", () => {
-	it("returns every ticket in the challenge file envelope", async () => {
-		const res = await setup().client.tickets.$get();
+	it("returns the stored tickets in the challenge file envelope", async () => {
+		const res = await (await setup()).client.tickets.$get();
 		expect(res.status).toBe(200);
 		const body = await res.json();
 		expect(body.actualIssueCount).toBe(2);
 		expect(body.jql).toContain("project = SUP");
 		expect(body.records.map((r) => r.Key)).toEqual(["SUP-1", "SUP-2"]);
 	});
+});
 
+describe("POST /sync", () => {
 	it("maps a Jira failure to a 502 without leaking the Jira response", async () => {
 		const failing: JiraClient = {
 			...createFakeJiraClient(),
 			searchIssues: () =>
 				Promise.reject(new JiraApiError(401, "GET", "/search", "secret body")),
 		};
-		const res = await setup(failing).app.request("/tickets");
+		const { app } = await testBackend({ jira: failing, withCore: false });
+		const res = await app.request("/sync", { method: "POST" });
 		expect(res.status).toBe(502);
 		expect(await res.json()).toEqual({
 			error: {
-				message: "Reading tickets from Jira failed",
+				message: "Sync failed: Jira returned 401",
 				code: "upstream_error",
 			},
 		});
@@ -52,8 +59,24 @@ describe("GET /tickets", () => {
 });
 
 describe("POST /tickets", () => {
+	it("logs every write to Jira", async () => {
+		const { client, sql } = await setup();
+		await client.tickets.$post({
+			json: [
+				{ Key: "SUP-1", Summary: "Changed" },
+				{ Key: "SUP-99", Summary: "Unknown" },
+			],
+		});
+		const rows = await sql`
+			SELECT external_key, trigger, ok, changed FROM writebacks ORDER BY id`;
+		expect([...rows]).toEqual([
+			{ external_key: "SUP-1", trigger: "api", ok: true, changed: ["Summary"] },
+			{ external_key: "SUP-99", trigger: "api", ok: false, changed: [] },
+		]);
+	});
+
 	it("applies a single-ticket patch", async () => {
-		const { client } = setup();
+		const { client } = await setup();
 		const res = await client.tickets.$post({
 			json: {
 				Key: "SUP-1",
@@ -89,7 +112,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("keeps footer data when the description is edited", async () => {
-		const { client } = setup(
+		const { client } = await setup(
 			createFakeJiraClient([
 				fakeIssue("SUP-7", {
 					description: adf(
@@ -110,7 +133,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("derives priority from urgency and impact via the README matrix", async () => {
-		const { client } = setup();
+		const { client } = await setup();
 		// Lowest x High -> Low
 		await client.tickets.$post({
 			json: { Key: "SUP-1", Urgency: "Lowest", Impact: "High" },
@@ -123,7 +146,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("accepts a full record back and writes only what changed", async () => {
-		const { client } = setup();
+		const { client } = await setup();
 		await client.tickets.$post({
 			json: { Key: "SUP-1", "All Comments": ["first comment"] },
 		});
@@ -150,7 +173,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("appends comments and resolves the ticket", async () => {
-		const { client } = setup();
+		const { client } = await setup();
 		await client.tickets.$post({
 			json: {
 				Key: "SUP-2",
@@ -166,7 +189,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("applies a bulk patch and reports per-ticket outcomes", async () => {
-		const { client } = setup();
+		const { client } = await setup();
 		const res = await client.tickets.$post({
 			json: [
 				{ Key: "SUP-1", Priority: "High" },
@@ -185,7 +208,7 @@ describe("POST /tickets", () => {
 	});
 
 	it("rejects invalid bodies with the shared error shape", async () => {
-		const { app } = setup();
+		const { app } = await setup();
 		const invalid = [
 			{ Summary: "no key" },
 			{ Key: "SUP-1", Urgency: 3 },

@@ -10,7 +10,8 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run"
+		"test": "bun --bun vitest run",
+		"db:up": "docker compose up -d"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.14",

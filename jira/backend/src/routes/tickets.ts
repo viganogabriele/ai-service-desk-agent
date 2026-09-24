@@ -1,28 +1,15 @@
 import { zValidator } from "@hono/zod-validator";
+import type { SQL } from "bun";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { JiraApiError, type JiraClient } from "../clients/jira/jira-client";
-import {
-	applyTicketPatches,
-	ticketPatchBodySchema,
-} from "../services/ticket-patch";
-import { exportTickets } from "../services/tickets";
+import type { JiraClient } from "../clients/jira/jira-client";
+import { writeToJira } from "../services/jira-sync";
+import { ticketPatchBodySchema } from "../services/ticket-patch";
+import { storedTicketExport } from "../services/tickets";
 
-export function createTicketsRoute(jira: JiraClient) {
+export function createTicketsRoute(jira: JiraClient, sql: SQL) {
 	return new Hono()
-		.get("/", async (c) => {
-			try {
-				return c.json(await exportTickets(jira));
-			} catch (error) {
-				if (error instanceof JiraApiError) {
-					throw new HTTPException(502, {
-						message: "Reading tickets from Jira failed",
-						cause: error,
-					});
-				}
-				throw error;
-			}
-		})
+		.get("/", async (c) => c.json(await storedTicketExport(sql)))
 		.post(
 			"/",
 			zValidator("json", ticketPatchBodySchema, (result) => {
@@ -36,7 +23,12 @@ export function createTicketsRoute(jira: JiraClient) {
 				}
 			}),
 			async (c) => {
-				const results = await applyTicketPatches(jira, c.req.valid("json"));
+				const results = await writeToJira(
+					jira,
+					sql,
+					c.req.valid("json"),
+					"api",
+				);
 				return c.json({ results });
 			},
 		);

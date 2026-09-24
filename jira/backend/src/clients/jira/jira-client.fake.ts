@@ -64,13 +64,30 @@ const WORK_TYPES = [
 	{ id: "10012", name: "[System] Incident" },
 ];
 
+let commentSeq = 0;
+
+export function fakeComment(text: string, isPublic = true) {
+	commentSeq += 1;
+	const at = `2026-09-19T0${commentSeq % 10}:00:00.000+0200`;
+	return {
+		id: String(10000 + commentSeq),
+		author: { displayName: "Bianca Ianosel" },
+		body: adf(text),
+		jsdPublic: isPublic,
+		created: at,
+		updated: at,
+	};
+}
+
 export function fakeIssue(
 	key: string,
 	fields: Record<string, unknown> = {},
 ): JiraIssue {
 	return {
+		id: String(10000 + Number(key.split("-")[1] ?? 0)),
 		key,
 		fields: {
+			updated: "2026-09-18T23:36:00.000+0200",
 			summary: "Tax Reporting portal unreachable",
 			description: adf(
 				"Users in Germany cannot open the Tax Reporting portal.",
@@ -108,6 +125,10 @@ export function createFakeJiraClient(
 		if (!issue)
 			throw new JiraApiError(404, "GET", path, "Issue does not exist");
 		return issue;
+	}
+
+	function touch(issue: JiraIssue) {
+		issue.fields.updated = new Date().toISOString().replace("Z", "+0000");
 	}
 
 	function resolve(fieldId: string, value: unknown): unknown {
@@ -157,6 +178,7 @@ export function createFakeJiraClient(
 				}
 				issue.fields[fieldId] = resolve(fieldId, value);
 			}
+			touch(issue);
 		},
 
 		async addComment(key, text, internal = false) {
@@ -164,8 +186,9 @@ export function createFakeJiraClient(
 			const thread = issue.fields.comment as { comments?: unknown[] } | null;
 			const existing = thread?.comments ?? [];
 			issue.fields.comment = {
-				comments: [...existing, { body: adf(text), jsdPublic: !internal }],
+				comments: [...existing, fakeComment(text, !internal)],
 			};
+			touch(issue);
 		},
 
 		async getTransitions(key) {
@@ -185,6 +208,7 @@ export function createFakeJiraClient(
 				name: requested?.name ?? "Done",
 			};
 			issue.fields.resolutiondate = "2026-09-24T10:00:00.000+0200";
+			touch(issue);
 		},
 
 		async getWorkTypes() {

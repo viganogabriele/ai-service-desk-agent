@@ -67,7 +67,7 @@ CREATE INDEX ticket_comments_ticket_idx ON ticket_comments (external_key, create
 -- Every write the backend makes to Jira, and why.
 CREATE TABLE writebacks (
     id             bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    external_key   text NOT NULL REFERENCES tickets (external_key),
+    external_key   text NOT NULL,                  -- no FK: failed writes to unknown keys are logged too
     trigger        text NOT NULL CHECK (trigger IN ('core_auto_applied', 'core_override', 'core_comment', 'api')),
     core_event_seq bigint,                         -- the Core event that caused it, if any
     requested      jsonb NOT NULL,                 -- the patch sent

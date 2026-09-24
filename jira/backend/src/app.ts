@@ -1,3 +1,4 @@
+import type { SQL } from "bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -6,19 +7,32 @@ import { secureHeaders } from "hono/secure-headers";
 import type { JiraClient } from "./clients/jira/jira-client";
 import { env } from "./env";
 import { errorBody } from "./lib/errors";
-import { healthRoute } from "./routes/health";
+import { log } from "./lib/log";
+import { type CoreProxyConfig, createCoreRoute } from "./routes/core";
+import { createHealthRoute } from "./routes/health";
+import { createSyncRoute } from "./routes/sync";
 import { createTicketsRoute } from "./routes/tickets";
+import type { Syncer } from "./services/sync";
 
-export function createApp(jira: JiraClient) {
+export type AppDeps = {
+	jira: JiraClient;
+	sql: SQL;
+	syncer: Syncer;
+	core: CoreProxyConfig;
+};
+
+export function createApp({ jira, sql, syncer, core }: AppDeps) {
 	const app = new Hono();
 
-	app.use(logger());
+	app.use(logger((message) => log.info(message)));
 	app.use(secureHeaders());
 	app.use("*", cors({ origin: env.DASHBOARD_ORIGIN }));
 
 	const route = app
-		.route("/health", healthRoute)
-		.route("/tickets", createTicketsRoute(jira));
+		.route("/health", createHealthRoute(sql, Boolean(core.baseUrl)))
+		.route("/tickets", createTicketsRoute(jira, sql))
+		.route("/sync", createSyncRoute(syncer))
+		.route("/core", createCoreRoute(core));
 
 	app.notFound((c) => c.json(errorBody("Not found", "not_found"), 404));
 
@@ -26,11 +40,12 @@ export function createApp(jira: JiraClient) {
 		if (err instanceof HTTPException && err.status < 500) {
 			return c.json(errorBody(err.message, "http_error"), err.status);
 		}
-		// biome-ignore lint/suspicious/noConsole: this is the server-side error log
-		console.error(err);
 		if (err instanceof HTTPException) {
+			// Expected upstream trouble: one line, plus the upstream error if any.
+			log.error(`${c.req.method} ${c.req.path}: ${err.message}`, err.cause);
 			return c.json(errorBody(err.message, "upstream_error"), err.status);
 		}
+		log.error(`${c.req.method} ${c.req.path} failed`, err);
 		return c.json(errorBody("Internal server error", "internal_error"), 500);
 	});
 

@@ -33,6 +33,13 @@
 			}
 		}
 	},
+	"overrides": [
+		{
+			// The logging setup is the one place allowed to use the console.
+			"includes": ["src/lib/log.ts"],
+			"linter": { "rules": { "suspicious": { "noConsole": "off" } } }
+		}
+	],
 	"javascript": {
 		"formatter": {
 			"quoteStyle": "double"

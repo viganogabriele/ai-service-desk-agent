@@ -2,7 +2,11 @@ import { adf } from "./adf";
 import { JIRA_PROJECT_KEY } from "./field-config";
 
 export type JiraOption = { id: string; value?: string; name?: string };
-export type JiraIssue = { key: string; fields: Record<string, unknown> };
+export type JiraIssue = {
+	id: string;
+	key: string;
+	fields: Record<string, unknown>;
+};
 export type JiraFieldMeta = { allowedValues?: JiraOption[] };
 export type JiraTransition = { id: string; name: string; to: { name: string } };
 export type JiraWorkType = { id: string; name: string };

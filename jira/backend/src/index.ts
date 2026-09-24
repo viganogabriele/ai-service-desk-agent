@@ -1,20 +1,44 @@
+import { SQL } from "bun";
 import { createApp } from "./app";
+import { createRealCoreClient } from "./clients/core/core-client";
+import { RECORD_FIELD_MAP } from "./clients/jira/field-config";
 import { createRealJiraClient } from "./clients/jira/jira-client";
+import { migrate } from "./db/migrate";
+import { saveFieldMap } from "./db/store";
 import { env } from "./env";
+import { log } from "./lib/log";
+import { createSyncer } from "./services/sync";
 
-const app = createApp(
-	createRealJiraClient({
-		baseUrl: env.JIRA_BASE_URL,
-		email: env.JIRA_EMAIL,
-		apiToken: env.JIRA_API_TOKEN,
-	}),
-);
+const sql = new SQL(env.DATABASE_URL);
+const applied = await migrate(sql);
+if (applied.length > 0) log.info(`Applied migrations: ${applied.join(", ")}`);
+await saveFieldMap(sql, RECORD_FIELD_MAP);
+
+const jira = createRealJiraClient({
+	baseUrl: env.JIRA_BASE_URL,
+	email: env.JIRA_EMAIL,
+	apiToken: env.JIRA_API_TOKEN,
+});
+const core = env.CORE_BASE_URL ? createRealCoreClient(env.CORE_BASE_URL) : null;
+const syncer = createSyncer(jira, core, sql);
+
+const app = createApp({
+	jira,
+	sql,
+	syncer,
+	core: { baseUrl: env.CORE_BASE_URL },
+});
 
 Bun.serve({
 	fetch: app.fetch,
 	hostname: "127.0.0.1",
 	port: env.PORT,
+	// SSE from the Core's /events/stream must not be cut after the default 10 s.
+	idleTimeout: 0,
 });
 
-// biome-ignore lint/suspicious/noConsole: startup announcement, not app logging
-console.log(`Listening on http://127.0.0.1:${env.PORT}`);
+syncer.start(env.SYNC_SECONDS);
+log.info(
+	`Listening on http://127.0.0.1:${env.PORT}, syncing every ${env.SYNC_SECONDS}s` +
+		(core ? "" : " (Core not configured)"),
+);

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import type { SQL } from "bun";
 import { adfToText } from "../clients/jira/adf";
 import {
 	type ChallengeResolution,
@@ -5,12 +7,9 @@ import {
 	JIRA_PROJECT_KEY,
 	toChallengeResolution,
 } from "../clients/jira/field-config";
-import type {
-	JiraClient,
-	JiraIssue,
-	JiraOption,
-} from "../clients/jira/jira-client";
+import type { JiraIssue, JiraOption } from "../clients/jira/jira-client";
 import { optionLabel, toChallengeLevel } from "../clients/jira/matching";
+import { getCursor, JIRA_SYNC_CURSOR, loadTickets } from "../db/store";
 
 export type WorkType = "Incident" | "Service Request";
 export type TicketStatus = "open" | "in progress" | "done";
@@ -49,6 +48,7 @@ export const TICKET_FIELDS = [
 	"status",
 	"resolution",
 	"created",
+	"updated",
 	"resolutiondate",
 	"duedate",
 	"comment",
@@ -128,16 +128,41 @@ function statusOf(fields: Record<string, unknown>): TicketStatus {
 	return "open";
 }
 
-function commentsOf(value: unknown): string[] {
-	const comments = (
-		value as
-			| { comments?: { body?: unknown; jsdPublic?: boolean }[] }
-			| undefined
-	)?.comments;
-	return (comments ?? [])
-		.filter((c) => c.jsdPublic !== false)
-		.map((c) => adfToText(c.body).trim())
-		.filter((text) => text.length > 0);
+export type TicketComment = {
+	id: string;
+	author: string | null;
+	body: string;
+	isPublic: boolean;
+	createdAt: string;
+	updatedAt: string;
+};
+
+type RawComment = {
+	id?: string;
+	author?: { displayName?: string };
+	body?: unknown;
+	jsdPublic?: boolean;
+	created?: string;
+	updated?: string;
+};
+
+export function ticketComments(value: unknown): TicketComment[] {
+	const comments = (value as { comments?: RawComment[] } | null | undefined)
+		?.comments;
+	return (comments ?? []).flatMap((c) => {
+		const body = adfToText(c.body).trim();
+		if (!c.id || !c.created || body.length === 0) return [];
+		return [
+			{
+				id: c.id,
+				author: c.author?.displayName ?? null,
+				body,
+				isPublic: c.jsdPublic !== false,
+				createdAt: c.created,
+				updatedAt: c.updated ?? c.created,
+			},
+		];
+	});
 }
 
 export function toTicketRecord(issue: JiraIssue): TicketRecord {
@@ -161,7 +186,7 @@ export function toTicketRecord(issue: JiraIssue): TicketRecord {
 			f[JIRA_FIELDS.affectedService],
 		),
 		"Business Entity": labelsOf(f[JIRA_FIELDS.businessEntity]),
-		"Business Critical for Entity": [],
+		"Business Critical for Entity": labelsOf(f[JIRA_FIELDS.businessCritical]),
 		"Service Team(s)": labelsOf(f[JIRA_FIELDS.serviceTeam]),
 		Reporter: textOf(f[JIRA_FIELDS.originalReporter]),
 		Assignee: textOf(f[JIRA_FIELDS.proposedAssignee]),
@@ -176,7 +201,9 @@ export function toTicketRecord(issue: JiraIssue): TicketRecord {
 		Resolution: toChallengeResolution(labelOf(f.resolution)),
 		"Due date": dateOf(f.duedate),
 		"Resolution date": dateOf(f.resolutiondate),
-		"All Comments": commentsOf(f.comment),
+		"All Comments": ticketComments(f.comment)
+			.filter((c) => c.isPublic)
+			.map((c) => c.body),
 	};
 }
 
@@ -188,14 +215,47 @@ export type TicketExport = {
 	records: TicketRecord[];
 };
 
-export async function exportTickets(client: JiraClient): Promise<TicketExport> {
-	const jql = `project = ${JIRA_PROJECT_KEY} ORDER BY created ASC`;
-	const issues = await client.searchIssues(jql, TICKET_FIELDS);
-	const records = issues.filter(isTicket).map(toTicketRecord);
+export const TICKETS_JQL = `project = ${JIRA_PROJECT_KEY}`;
+
+/** The stored copy of Jira, as of the last sync. */
+export async function storedTicketExport(sql: SQL): Promise<TicketExport> {
+	const records = (await loadTickets(sql)).map((t) => t.record);
+	const syncedAt = await getCursor(sql, JIRA_SYNC_CURSOR);
 	return {
-		fetchedAtUtc: `${new Date().toISOString().slice(0, 19)}Z`,
-		jql,
+		fetchedAtUtc: `${(syncedAt ?? new Date().toISOString()).slice(0, 19)}Z`,
+		jql: TICKETS_JQL,
 		actualIssueCount: records.length,
 		records,
+	};
+}
+
+/** Everything the backend keeps about one Jira ticket. */
+export type TicketSnapshot = {
+	record: TicketRecord;
+	comments: TicketComment[];
+	jiraId: string;
+	jiraStatus: string;
+	jiraUpdatedAt: string;
+	contentHash: string;
+	raw: JiraIssue;
+};
+
+/** Hash of the record fields, used as the Core's snapshot content_hash. */
+export function contentHash(record: TicketRecord): string {
+	const { Key: _key, ...fields } = record;
+	return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
+}
+
+export function toSnapshot(issue: JiraIssue): TicketSnapshot {
+	const record = toTicketRecord(issue);
+	const status = issue.fields.status as { name?: string } | undefined;
+	return {
+		record,
+		comments: ticketComments(issue.fields.comment),
+		jiraId: issue.id,
+		jiraStatus: status?.name ?? "",
+		jiraUpdatedAt: textOf(issue.fields.updated) ?? new Date().toISOString(),
+		contentHash: contentHash(record),
+		raw: issue,
 	};
 }

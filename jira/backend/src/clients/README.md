@@ -1,8 +1,12 @@
 # Clients
 
-External integrations (Jira, the AI model) live here. None are implemented yet.
+External integrations live here:
 
-Convention for each client, once added:
+- `jira/` — the Jira Cloud REST API (tickets, edit metadata, transitions).
+- `core/` — the Core API from `CORE_API.md`: ticket import, the event log and
+  the effective-state export. The fake follows the same contract.
+
+Convention for each client:
 
 - An interface describing the operations a service needs (e.g. `JiraClient`).
 - A real implementation that calls the external API (e.g. `jira-client.ts`).
