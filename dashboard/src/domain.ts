@@ -56,6 +56,13 @@ export type ReviewStatus =
   | "escalated"
   | "clarification_requested";
 
+export const COMPLETED_STATUSES: readonly ReviewStatus[] = [
+  "accepted",
+  "modified_accepted",
+  "escalated",
+  "clarification_requested",
+];
+
 export function serviceInfo(name: string) {
   return SERVICES.find((row) => row[0].toLowerCase() === name.toLowerCase());
 }
@@ -98,10 +105,13 @@ export interface FormValues {
 export interface Proposal {
   ticket_id: string;
   model_id: string;
+  generated_at?: string;
+  latency_ms?: number | null;
+  cost_chf?: number | null;
   proposal: Omit<FormValues, "assignee"> & {
     assignee_candidates: { email: string; historical_count: number }[];
   };
-  confidence: { work_type: number; service: number };
+  confidence: { work_type: number | null; service: number | null };
   rationale: string;
   similar_tickets: {
     historical_index: number;
@@ -113,6 +123,23 @@ export interface Proposal {
   }[];
 }
 
+export interface ModelMetrics {
+  model_id: string;
+  label: string;
+  kind: "local" | "premium";
+  samples?: number;
+  latency_ms_p50?: number | null;
+  latency_ms_p95?: number | null;
+  latency_ms_mean?: number | null;
+  cost_chf_per_ticket?: number | null;
+  cost_note?: string;
+  holdout?: {
+    n: number;
+    label?: string;
+    accuracy: { service?: number; work_type?: number; team?: number };
+  } | null;
+}
+
 export interface Bundle {
   mock: boolean;
   historical: {
@@ -121,7 +148,17 @@ export interface Bundle {
     resolution: Record<string, number>;
     work_type: Record<string, number>;
     generic_bucket: number;
+    service: Record<string, number>;
+    team: Record<string, number>;
+    entity: Record<string, number>;
+    first_day: string;
+    last_day: string;
+    days: number;
+    weekly: { week: string; count: number }[];
+    heatmap: number[][];
   };
+  models: ModelMetrics[];
+  models_source: "file" | "dev_run" | "none";
   challenge: Ticket[];
   proposals: Proposal[];
   assignees: string[];
@@ -138,4 +175,75 @@ export function startingForm(proposal: Proposal): FormValues {
     resolution: proposal.proposal.resolution,
     resolution_comment: proposal.proposal.resolution_comment,
   };
+}
+
+export const STATUS_LABELS: Record<ReviewStatus, string> = {
+  to_process: "To process",
+  proposed: "Proposed",
+  in_review: "In review",
+  accepted: "Accepted",
+  modified_accepted: "Modified",
+  escalated: "Escalated",
+  clarification_requested: "Clarification",
+};
+
+export const STATUS_DOTS: Record<ReviewStatus, string> = {
+  to_process: "",
+  proposed: "secondary",
+  in_review: "bright",
+  accepted: "green",
+  modified_accepted: "green",
+  escalated: "amber",
+  clarification_requested: "cyan",
+};
+
+export const PRIORITY_DOTS: Record<Level, string> = {
+  Highest: "red",
+  High: "amber",
+  Medium: "secondary",
+  Low: "",
+  Lowest: "",
+};
+
+export const ESCALATION_REASONS = [
+  "Uncertain service",
+  "Insufficient information",
+  "Possible critical incident",
+  "Other",
+] as const;
+
+export function confidenceLabel(value: number | null) {
+  if (value === null) return "Not measured";
+
+  return value >= 0.8 ? "High" : value >= 0.5 ? "Medium" : "Low";
+}
+
+export function commentBody(comment: string) {
+  return comment.split(":").slice(1).join(":").trim();
+}
+
+export function formChanges(form: FormValues, baseline: FormValues) {
+  // SAFETY: all own keys of FormValues are declared string-valued fields.
+  return (Object.keys(form) as (keyof FormValues)[]).flatMap((field) =>
+    form[field] === baseline[field] ? [] : [{ field, before: baseline[field], after: form[field] }],
+  );
+}
+
+export function reviewWarnings(ticket: Ticket, form: FormValues) {
+  const rating = serviceInfo(form.service)?.[2];
+  const level = priority(form.urgency, form.impact);
+  const body = commentBody(form.resolution_comment);
+
+  return [
+    rating === "Critical" && ["Low", "Lowest"].includes(level)
+      ? "Critical service with low priority"
+      : "",
+    body.length < 40 || /^(fixed|problem fixed|resolution recorded)$/i.test(body)
+      ? "Resolution comment needs more detail"
+      : "",
+    ticket["Request type"] === "Nonsense / Unclear Input" && form.resolution !== "clarification"
+      ? "Unclear input should request clarification"
+      : "",
+    !form.assignee ? "Assignee is empty" : "",
+  ].filter(Boolean);
 }

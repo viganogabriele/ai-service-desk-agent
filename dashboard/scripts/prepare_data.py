@@ -1,8 +1,10 @@
 """Build the dashboard's compact, reproducible data bundle from source files."""
 
 from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta
 from pathlib import Path
 import json
+import statistics
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -10,6 +12,9 @@ HISTORY = ROOT / "jira_first_20000_requested_fields_synthetic.json"
 CHALLENGE = next(ROOT.glob("jira_hackathon_blind_eval_challenge_*.json"))
 OUTPUT = Path(__file__).resolve().parents[1] / "public/dashboard-data.json"
 PROPOSAL_FILE = Path(__file__).resolve().parents[1] / "data/proposals.json"
+MODELS_FILE = Path(__file__).resolve().parents[1] / "data/models.json"
+DEV_PREDICTIONS = ROOT / "output/dev_predictions.json"
+DEV_REFERENCE = ROOT / "fixtures/dev_reference.json"
 
 historical = json.loads(HISTORY.read_text())
 challenge = json.loads(CHALLENGE.read_text())
@@ -17,6 +22,11 @@ status = Counter()
 resolution = Counter()
 work_type = Counter()
 services = Counter()
+teams = Counter()
+entities = Counter()
+weekly = Counter()
+heatmap = [[0] * 24 for _ in range(7)]
+created_dates = []
 assignees = defaultdict(Counter)
 similar = defaultdict(list)
 
@@ -28,6 +38,13 @@ for index, ticket in enumerate(historical):
     service = ticket["Affected Business or IT Services"][0]
     services[service] += 1
     team = ticket["Service Team(s)"][0]
+    teams[team] += 1
+    for entity in ticket["Business Entity"]:
+        entities[entity] += 1
+    created = datetime.strptime(ticket["Created date"], "%Y-%m-%d %H:%M")
+    created_dates.append(created.date())
+    weekly[created.date() - timedelta(days=created.weekday())] += 1
+    heatmap[created.weekday()][created.hour] += 1
     if ticket["Assignee"]:
         assignees[team][ticket["Assignee"]] += 1
     if len(similar[service]) < 3:
@@ -70,6 +87,56 @@ for index, ticket in enumerate(challenge["records"]):
         ],
     })
 
+first_day, last_day = min(created_dates), max(created_dates)
+# Partial first and last weeks would bias the trend, so only complete Monday-start weeks are kept.
+complete_weeks = sorted(
+    week for week in weekly if week >= first_day and week + timedelta(days=6) <= last_day
+)
+
+
+def measured_models():
+    """Model metrics from data/models.json, or from the saved local development run."""
+    if MODELS_FILE.exists():
+        return json.loads(MODELS_FILE.read_text())["models"], "file"
+    if not DEV_PREDICTIONS.exists():
+        return [], "none"
+    predictions = json.loads(DEV_PREDICTIONS.read_text())["records"]
+    reference = json.loads(DEV_REFERENCE.read_text())["records"] if DEV_REFERENCE.exists() else []
+    latencies = sorted(
+        (row["_triage"]["classification_seconds"] + row["_triage"]["comment_seconds"]) * 1000
+        for row in predictions
+    )
+    model_id = predictions[0]["_triage"]["model"]
+    holdout = None
+    if len(reference) == len(predictions):
+        pairs = list(zip(predictions, reference))
+        holdout = {
+            "n": len(pairs),
+            "label": "labelled development fixtures",
+            "accuracy": {
+                "service": sum(
+                    p["Affected Business or IT Services"][0] == r["Affected Business or IT Services"][0]
+                    for p, r in pairs
+                ) / len(pairs),
+                "work_type": sum(p["Work type"] == r["Work type"] for p, r in pairs) / len(pairs),
+            },
+        }
+    return [{
+        "model_id": model_id,
+        "label": "Local model (Ollama)",
+        "kind": "local",
+        "samples": len(latencies),
+        "latency_ms_p50": round(statistics.median(latencies)),
+        "latency_ms_p95": round(latencies[min(len(latencies) - 1, round(0.95 * (len(latencies) - 1)))]),
+        "latency_ms_mean": round(statistics.fmean(latencies)),
+        "cost_chf_per_ticket": None,
+        "cost_note": "Local inference: hardware and energy cost not measured",
+        "holdout": holdout,
+    }], "dev_run"
+
+
+models, models_source = measured_models()
+
 mock = not PROPOSAL_FILE.exists()
 if not mock:
     supplied = json.loads(PROPOSAL_FILE.read_text())["proposals"]
@@ -87,7 +154,17 @@ bundle = {
         "resolution": resolution,
         "work_type": work_type,
         "generic_bucket": services["Emailed Support Tickets"],
+        "service": services,
+        "team": teams,
+        "entity": entities,
+        "first_day": first_day.isoformat(),
+        "last_day": last_day.isoformat(),
+        "days": (last_day - first_day).days + 1,
+        "weekly": [{"week": week.isoformat(), "count": weekly[week]} for week in complete_weeks],
+        "heatmap": heatmap,
     },
+    "models": models,
+    "models_source": models_source,
     "challenge": challenge["records"],
     "proposals": proposals,
     "assignees": sorted({email for counts in assignees.values() for email in counts}),
