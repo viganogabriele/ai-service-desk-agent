@@ -6,6 +6,14 @@ This supersedes the technical conclusions in the archived chats and
 demo, experiment and economics decisions. [instructions.md](instructions.md)
 remains the official specification; the advisor did not replace it.
 
+This update incorporates the four most recent completed t3code threads in the
+`zurich-2026` workspace as of 2026-09-24: “Build a Service Desk AI Demo” (advisor
+review), “Assess Smaller Model Performance”, “Assess Current Project State and
+Next Steps”, and “Compare Context-Aware Local LLMs”. The advisor review was
+already reflected in this file; later threads refine its evaluation and model
+choices. The [local model note](chats/2026-09-24-jev-local-contextual-models.md)
+preserves the sourced comparison.
+
 ## Evidence and its limits
 
 The advisor agreed that the data is sparse, recommended an application demo
@@ -94,9 +102,11 @@ precision through human review before calling candidates actual errors.
 
 ## 4. What the 20-ticket inputs tell us
 
-The local sample and timestamped challenge export both have 20 records, nine
-Request type values and 20/20 matrix-consistent supplied priorities. Both use a
-`records` envelope. Preserve metadata and accept arrays as the backend already does.
+The local sample and timestamped challenge export have **identical records**:
+20 tickets, nine Request type values and 20/20 matrix-consistent supplied
+priorities. The JSON payloads also compare equal. Both use a `records` envelope.
+Preserve metadata and accept arrays as the backend already does. This checked-in
+export is not an independent second evaluation set.
 
 The sample adds Request type, Business Critical for Entity, Severity, Linked
 issues and Due date. Its Team, Assignee, Resolution and Business Critical for
@@ -112,9 +122,9 @@ is neither proof of error nor proof of correctness.
 
 Request type values explicitly mentioning misclassification are strong clues in
 this sample, but must be checked against content. Linked issue prefixes do not
-establish ownership. Sample observations do not guarantee the final challenge's
-makeup. Do not hardcode sample answers or replay saved answers as fresh inference
-on new challenge tickets.
+establish ownership. Do not hardcode sample answers or replay saved answers as
+fresh inference. The team has confirmed that no additional cases are available;
+the training corpus and this blind set are the evaluation inputs we can use.
 
 ## 5. Actual implementation and observed results
 
@@ -122,6 +132,16 @@ on new challenge tickets.
 constrained classification, then a draft comment. Python enforces the team lookup
 and priority matrix. A CLI and `POST /triage` record stage timings and mark outputs
 `draft_only`. They do not perform fixes or update Jira.
+
+The implementation is hybrid. Regex service clues are weak prompt hints, and the
+Request type table supplies a work-type hint. The LLM decides service, work type,
+urgency, impact and disposition. Python chooses the historically most frequent
+assignee for service/entity, computes team and priority, and retrieves up to two
+service-specific narratives by word overlap for the comment call. The 173 stored
+summary/description patterns are inspected but do not override the model. A
+rules-only solver has not been built or compared. Turning Request type into an
+authoritative work-type lookup would need conflict handling because intake labels
+can be wrong.
 
 `dashboard.html` is an explorer with filters, charts, heuristic flags and export.
 It is not yet the queue → solve → review → approve application. Approval state,
@@ -145,6 +165,13 @@ this documentation review.
 Both outputs name `qwen3:4b-instruct-2507-q4_K_M`. They do not record hardware,
 runtime version, warm/cold state, token counts or external batch wall time. These
 numbers summarize saved artifacts, not a new live run or verified Mac benchmark.
+The 20-ticket stages average 3.06 s for classification and 2.73 s for comment
+generation. That is already under two minutes of recorded model time for the batch.
+Estimated token rates and hypothetical gains from smaller models, parallel calls
+or prefix caching have not been measured. Capture Ollama prompt/evaluation token
+counts and durations, retries, hardware and concurrency before presenting them as
+performance findings. Parallelism and prompt changes may change outputs or
+resource use and need a comparison run.
 Inspect the knowledge base and reproduce the development comparison with:
 
 ```sh
@@ -155,6 +182,22 @@ python3 -m triage_poc evaluate output/dev_predictions.json fixtures/dev_referenc
 Unit tests use a fake model and check integration, not model quality. The code
 does not implement Rizzo Flow, logit scoring, KV-cache sharing across decisions,
 a 1B model or a cloud-model comparison.
+
+The saved 20 proposals also warrant human review: 16 have `clarification` as the
+disposition, and some draft notes appear to claim completed work or add unsupported
+details. These are qualitative review candidates, not graded errors. A smaller
+model cannot be called quality-equivalent with the current references. Keep Qwen
+4B as the working baseline; compare challengers only after defining what the
+available evidence can measure. The [model comparison note](chats/2026-09-24-jev-local-contextual-models.md)
+distinguishes generative models from decision-only methods.
+
+With no new reference cases, use blind-set label swaps, name masking, rules/model
+disagreement and repeat-run stability as **label-free diagnostics**. Check enums,
+team, priority and disposition/comment consistency deterministically. The
+training corpus supports lookup checks and retrieval; its 173 repetitive texts
+with explicit service names cannot grade symptom-based service routing. None of
+these diagnostics establishes hidden-field accuracy. Avoid ticket-specific prompt
+tuning or answer lookup on the blind set.
 
 ## 6. Assumptions retired or deferred
 

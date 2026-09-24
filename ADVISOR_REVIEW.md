@@ -99,26 +99,43 @@ working backend simply to chase model novelty.
 | Current local constrained-JSON model | End-to-end proposal quality and latency with the existing contract. | Saved six-case results: service 6/6 and work type 6/6; no labels for the other targets. |
 | One accessible language model alternative | Whether another model meaningfully improves ambiguous cases. | No comparable run. Exact model/API must be verified before use. |
 
-Create 30–50 independently worded cases spanning service definitions, requests,
-ambiguous ownership, severity evidence, missing details and contradictory fields.
-Have a human review expected fields before looking at model results. Reserve a
-held-out portion for final comparison; paraphrases of one case belong to the same
-split. Change intake labels while preserving content to test label dependence.
-Keep the existing six cases as smoke checks.
+Keep the current Qwen 4B model for the complete path. A smaller model is a speed
+experiment, not a safe substitution: the existing six labels cover only two fields,
+and the 20 outputs have no reference answers. Decision-only candidates such as
+Laya, Rizzo Flow or hosted Jev still need a generative comment step. See the
+[dated model comparison](chats/2026-09-24-jev-local-contextual-models.md).
 
-Use the same inputs, rubric, service catalogue and output checks. Record service
-and work-type accuracy, routing fields where a justified reference exists,
-priority consistency separately from urgency/impact quality, invalid outputs,
-unsupported resolution claims, human edits and escalation rate. Review comments
+The team has confirmed that no additional cases will be available: use the supplied
+training corpus and blind set only. The checked-in challenge JSON and
+`sample_blind_eval_20.json` contain identical records, so the saved 20-ticket run
+is not an independent blind evaluation. Keep the six hand-labelled development
+cases as smoke checks. Do not turn manual review of the scored blind tickets into
+answer lookup or iterative ticket-specific tuning.
+
+Use label-free checks on the blind set: change or hide intake labels and look for
+unjustified changes in predictions; compare rules with the model and flag
+disagreements; repeat runs to measure instability; validate enums, team mapping,
+priority and disposition/comment consistency. These reveal fragility and review
+needs, not field accuracy. The training corpus can validate lookups and provide
+resolution examples, but its repeated templates and explicit service names cannot
+measure routing from symptoms. Record any human judgement as review feedback,
+not as a hidden reference score.
+
+Use the same inputs, rubric, service catalogue and output checks. Report service
+and work-type accuracy only for the six existing labelled cases; record agreement
+and stability separately from accuracy on the blind set. Record priority
+consistency separately from urgency/impact quality, invalid outputs, unsupported
+resolution claims, human edits and escalation rate. Review comments
 for specificity, supporting evidence and appropriate uncertainty. Measure complete
 pipeline latency, failures/retries, token usage when available, and warm/cold
 behavior. Record model version, quantization, hardware and concurrency.
 
-Select the cheapest measured approach meeting an agreed quality bar. For a cascade,
-establish that escalation catches errors and improves quality; vote shares or
-uncalibrated confidence alone are not a reliable escalation policy. Do not claim
-equal quality from six examples or compare category-only latency with a pipeline
-that also writes resolution comments.
+Prefer the cheapest measured approach only when the available evidence can show
+that it meets an agreed quality bar. The present labels cannot establish quality
+parity across all seven targets. For a cascade, establish that escalation catches
+errors and improves quality; vote shares or uncalibrated confidence alone are not
+a reliable escalation policy. Do not claim equal quality from six examples or
+compare category-only latency with a pipeline that also writes resolution comments.
 
 ## Unit economics and scaling
 
@@ -133,6 +150,12 @@ worker-hours/day. An eight-hour processing window needs at least two such worker
 **before** utilization headroom, spikes and failures. A 24-hour window has a
 different capacity requirement. Independent workers and shared-hardware
 concurrency must be benchmarked; throughput does not scale for free.
+
+The saved stages average about 3.06 s for classification and 2.73 s for the
+comment. They contain no Ollama token counts, so the thread's decode/prefill rates
+and projected speedups from smaller models, parallel requests or prompt caching
+are hypotheses, not measured deployment results. Capture token counts, token
+durations, hardware, context length and concurrency before making that comparison.
 
 At the same serial rate, 50 tickets take about 4.8 minutes and 20,000 about 32.2
 hours. These are arithmetic extrapolations from a saved small run, not load tests.
@@ -179,8 +202,8 @@ turn an incoming ticket into a reviewed triage decision.” Then show the applic
 Use one representative ticket with a clear correction: receive it, run the solver,
 show proposed fields and evidence, edit or accept, and move it out of the pending
 queue. If time permits, show an ambiguous case that requests clarification. Use
-fixtures in rehearsals; newly supplied challenge tickets must run through the
-solver without answer lookup.
+fixtures in rehearsals; run the available challenge tickets through the solver
+without answer lookup.
 
 If ready, briefly show a historical review candidate and measured economics.
 Close on the exported deliverable and the agent's approval role. Keep a clearly
@@ -193,9 +216,11 @@ Implement in this order:
 2. Add review/edit, persisted approval, consistent counters and correct export.
 3. Tighten disposition/evidence handling as recorded in ANALYSIS.md, benchmark
    the complete path and review all seven required outputs.
-4. Run the bounded classifier comparison; add a stronger model only if justified.
+4. Compare rules and the current model with the available label-free checks; add
+   another model only if a meaningful quality question can be answered.
 5. Add historical review and measured economics if time remains.
-6. Rehearse on fresh inputs, including uncertainty and error recovery.
+6. Rehearse on the available inputs, including uncertainty and error recovery;
+   label any saved replay explicitly.
 
 We can already defend the deterministic mappings, priority calculation and compact
 historical knowledge base. Remaining claims to earn are representative quality,
