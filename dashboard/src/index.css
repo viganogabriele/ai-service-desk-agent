@@ -221,6 +221,53 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+/* Light theme overrides the same Tailwind tokens used by the dark theme and UI primitives. */
+:root[data-theme="light"] {
+  --color-primary-text: color-mix(in oklab, var(--color-primary) 58%, black);
+  --color-background: #eceeed;
+  --color-shell: #f8f9f8;
+  --color-surface: #ffffff;
+  --color-elevated: #ffffff;
+  --color-elevated-hover: #f3f5f4;
+  --color-overlay: rgb(22 26 24 / 0.32);
+
+  --color-strong: #050706;
+  --color-foreground: #141816;
+  --color-secondary: #4f5552;
+  --color-muted: #6f7572;
+  --color-nav: #5f6562;
+
+  --color-border: rgb(20 26 23 / 0.1);
+  --color-border-hover: rgb(20 26 23 / 0.18);
+  --color-divider: rgb(20 26 23 / 0.07);
+  --color-row: rgb(20 26 23 / 0.025);
+  --color-hover: rgb(20 26 23 / 0.045);
+  --color-active: rgb(20 26 23 / 0.075);
+
+  --color-chart-1: var(--color-primary-text);
+  --color-chart-2: rgb(20 26 23 / 0.5);
+  --color-chart-3: rgb(20 26 23 / 0.24);
+  --color-chart-4: rgb(20 26 23 / 0.16);
+  --color-chart-5: var(--color-active);
+  --color-chart-trend: rgb(20 26 23 / 0.32);
+  --color-chart-strike: rgb(20 26 23 / 0.3);
+
+  --color-success: #2f8a57;
+  --color-warning: #a36a0e;
+  --color-danger: #c4473b;
+  --color-info: #26808f;
+
+  --shadow-popover: 0 1px 2px rgb(20 26 23 / 0.06), 0 12px 32px rgb(20 26 23 / 0.12);
+  --shadow-float: var(--shadow-popover);
+  --shadow-card: 0 1px 2px rgb(20 26 23 / 0.04);
+  --shadow-rail-active: inset 2px 0 0 var(--color-primary-text);
+
+  color-scheme: light;
+}
+/* Cards on the board sit on a recessed column, as they do in the dark theme. */
+:root[data-theme="light"] .board-column {
+  background: var(--color-shell);
+}
 * {
   box-sizing: border-box;
 }
@@ -331,7 +378,7 @@ svg {
 }
 .nav-item.active {
   background: var(--color-active);
-  color: #f4f5f4;
+  color: var(--color-foreground);
 }
 .nav-item.active::before {
   content: "";
@@ -341,7 +388,7 @@ svg {
   bottom: 10px;
   width: 2px;
   border-radius: 999px;
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .nav-item .nav-count {
   margin-left: auto;
@@ -435,7 +482,7 @@ svg {
 .button:hover:not(:disabled),
 .icon-button:hover:not(:disabled) {
   border-color: var(--color-border-hover);
-  background: #222624;
+  background: var(--color-elevated-hover);
   color: var(--color-foreground);
 }
 .button.primary {
@@ -473,7 +520,7 @@ svg {
   flex: none;
 }
 .dot.accent {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .dot.green {
   background: var(--color-success);
@@ -566,6 +613,7 @@ h1 {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
 }
 .card-head {
   display: flex;
@@ -639,19 +687,19 @@ h3 {
   background: var(--color-hover);
 }
 .segment-0 {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .segment-1 {
-  background: rgb(255 255 255 / 0.42);
+  background: var(--color-chart-2);
 }
 .segment-2 {
-  background: rgb(255 255 255 / 0.26);
+  background: var(--color-chart-3);
 }
 .segment-3 {
-  background: rgb(255 255 255 / 0.18);
+  background: var(--color-chart-4);
 }
 .meter span {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
   border-radius: 999px;
 }
 .meter {
@@ -822,7 +870,7 @@ td.right {
   text-align: right;
 }
 tbody tr:hover td {
-  background: rgb(255 255 255 / 0.02);
+  background: var(--color-row);
 }
 td small {
   display: block;
@@ -847,7 +895,7 @@ td.ticket-id {
   white-space: nowrap;
 }
 .summary-link:hover {
-  color: #fff;
+  color: var(--color-strong);
   text-decoration: underline;
   text-decoration-color: var(--color-border-hover);
   text-underline-offset: 3px;
@@ -858,7 +906,7 @@ td .value {
 .old-value {
   color: var(--color-muted);
   text-decoration: line-through;
-  text-decoration-color: rgb(255 255 255 / 0.2);
+  text-decoration-color: var(--color-chart-strike);
 }
 .change-arrow {
   margin: 0 6px;
@@ -937,7 +985,7 @@ td .value {
 .matrix-grid div.selected {
   border-color: var(--color-ring);
   background: var(--color-primary-subtle);
-  color: var(--color-primary);
+  color: var(--color-primary-text);
 }
 .action-row {
   display: flex;
@@ -959,7 +1007,7 @@ td .value {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgb(4 5 5 / 0.72);
+  background: var(--color-overlay);
 }
 .modal {
   width: min(640px, 100%);
@@ -1115,29 +1163,29 @@ td .value {
   stroke-linejoin: round;
 }
 .series-line {
-  stroke: var(--color-primary);
+  stroke: var(--color-primary-text);
 }
 .series-trend {
-  stroke: rgb(255 255 255 / 0.28);
+  stroke: var(--color-chart-trend);
   stroke-width: 1.5;
 }
 .series-projection {
-  stroke: var(--color-primary);
+  stroke: var(--color-primary-text);
   stroke-dasharray: 4 4;
 }
 .band {
-  fill: var(--color-primary);
+  fill: var(--color-primary-text);
   opacity: 0.1;
 }
 .projection-zone {
-  fill: rgb(255 255 255 / 0.02);
+  fill: var(--color-row);
 }
 .crosshair {
   stroke: var(--color-border-hover);
   stroke-width: 1;
 }
 .end-dot {
-  fill: var(--color-primary);
+  fill: var(--color-primary-text);
   stroke: var(--color-surface);
   stroke-width: 2;
 }
@@ -1178,23 +1226,27 @@ td .value {
   background: var(--color-muted);
 }
 .key.accent {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .key.muted-line {
-  background: rgb(255 255 255 / 0.28);
+  background: var(--color-chart-trend);
 }
 .key.dashed {
-  background: repeating-linear-gradient(90deg, var(--color-primary) 0 4px, transparent 4px 7px);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-primary-text) 0 4px,
+    transparent 4px 7px
+  );
 }
 .key-box {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: rgb(255 255 255 / 0.26);
+  background: var(--color-chart-3);
 }
 .key-box.accent {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .legend-inline {
   display: flex;
@@ -1210,7 +1262,7 @@ td .value {
   white-space: nowrap;
 }
 .segment-4 {
-  background: rgb(255 255 255 / 0.08);
+  background: var(--color-active);
 }
 /* Horizontal bar lists */
 .bar-list {
@@ -1248,10 +1300,10 @@ td .value {
   min-width: 2px;
   height: 100%;
   border-radius: 0 4px 4px 0;
-  background: rgb(255 255 255 / 0.26);
+  background: var(--color-chart-3);
 }
 .bar-fill.accent {
-  background: var(--color-primary);
+  background: var(--color-primary-text);
 }
 .bar-value {
   color: var(--color-foreground);
@@ -1381,7 +1433,7 @@ td .value {
 input[type="checkbox"] {
   width: 14px;
   height: 14px;
-  accent-color: var(--color-primary);
+  accent-color: var(--color-primary-text);
   cursor: pointer;
 }
 th.check,
@@ -1434,6 +1486,7 @@ tr.selected td {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
   background: var(--color-elevated);
+  box-shadow: var(--shadow-card);
 }
 .board-card:hover {
   border-color: var(--color-border-hover);
@@ -1516,7 +1569,7 @@ tr.selected td {
 }
 .rail-item.active {
   background: var(--color-active);
-  box-shadow: inset 2px 0 0 var(--color-primary);
+  box-shadow: inset 2px 0 0 var(--color-primary-text);
 }
 .rail-item-head {
   display: flex;
@@ -1840,10 +1893,10 @@ kbd {
   background: var(--color-active);
 }
 .select-option[aria-selected="true"] {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
 }
 .select-option svg {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
 }
 .select-empty {
   padding: 10px 8px;
@@ -1943,7 +1996,7 @@ kbd {
 }
 .board-column.drop {
   border-color: var(--color-ring);
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-primary-text) 4%, var(--color-surface));
 }
 .board-column header span:first-child {
   display: inline-flex;
@@ -2056,7 +2109,7 @@ kbd {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-size: 12px;
   font-weight: 500;
 }
