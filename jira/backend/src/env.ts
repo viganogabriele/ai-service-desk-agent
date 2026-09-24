@@ -1,15 +1,11 @@
 import { z } from "zod";
 
-// Treats "" from an unset .env placeholder the same as an absent variable.
-const optionalString = <T extends z.ZodType>(inner: T) =>
-	z.preprocess((value) => (value === "" ? undefined : value), inner.optional());
-
 const schema = z.object({
 	PORT: z.coerce.number().int().positive().default(8787),
 	DASHBOARD_ORIGIN: z.url(),
-	JIRA_BASE_URL: optionalString(z.url()),
-	JIRA_EMAIL: optionalString(z.email()),
-	JIRA_API_TOKEN: optionalString(z.string().min(1)),
+	JIRA_BASE_URL: z.url(),
+	JIRA_EMAIL: z.email(),
+	JIRA_API_TOKEN: z.string().min(1),
 });
 
 export type Env = z.infer<typeof schema>;
