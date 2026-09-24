@@ -1,72 +1,42 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowUpRight, Check, Columns3, Rows3, TriangleAlert, X } from "lucide-react";
+import { Columns3, Rows3, Sparkles, UserPlus, X } from "lucide-react";
 import { useDashboard } from "../state";
+import type { Editable } from "../state";
+import { STATUSES, STATUS_DOTS, STATUS_HELP, STATUS_LABELS, serviceInfo } from "../domain";
+import type { Status } from "../domain";
 import {
-  ESCALATION_REASONS,
-  STATUS_LABELS,
-  formChanges,
-  reviewWarnings,
-  startingForm,
-} from "../domain";
-import type { ReviewStatus } from "../domain";
-import {
-  Confidence,
   FilterSelects,
-  BoardEmpty,
+  Initials,
   PriorityPill,
   SearchField,
+  StatusFilter,
   StatusPill,
-  StatusSelect,
   isOpen,
+  personName,
   useTicketFilters,
   useTicketRows,
 } from "../components/tickets";
 import type { TicketRow } from "../components/tickets";
-import { buttonVariants, Button } from "../components/ui/button";
-import { Card, CardDescription } from "../components/ui/card";
-import { ChangeArrow, OldValue } from "../components/ui/change";
-import { Checkbox, Field, Select } from "../components/ui/field";
-import { Eyebrow, PageDescription, PageHeader, PageTitle } from "../components/ui/page";
-import { Segmented, SegmentedItem } from "../components/ui/segmented";
-import { CellNote, Table, TableCell, TableHead, TableScroll } from "../components/ui/table";
-import { cn } from "../lib/utils";
+import { CommentEditor, Dialog, Menu, OutcomePicker } from "../components/ui";
 
 export const Route = createFileRoute("/tickets/")({ component: TicketList });
 
-const filterSelect = "w-auto min-w-35";
-
-const checkCell = "w-9 pr-0";
-
-const ticketIdText = "text-sm font-medium text-muted tabular-nums";
-
-const ticketId = cn(ticketIdText, "whitespace-nowrap");
-
-const boardCardRow = "flex items-center justify-between gap-2 text-sm";
-
-const BOARD: { title: string; statuses: ReviewStatus[] }[] = [
-  { title: "To process", statuses: ["to_process", "proposed"] },
-  { title: "In review", statuses: ["in_review"] },
-  { title: "Resolved", statuses: ["accepted", "modified_accepted"] },
-  { title: "Escalated", statuses: ["escalated"] },
-  { title: "Clarification", statuses: ["clarification_requested"] },
-];
+interface PendingMove {
+  row: TicketRow;
+  target: "resolved" | "waiting";
+}
 
 function TicketList() {
-  const { data, act } = useDashboard();
+  const { assign, move, exportData, reset } = useDashboard();
   const { filters, setFilters } = useTicketFilters();
   const { rows, visible } = useTicketRows();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [reason, setReason] = useState<string>(ESCALATION_REASONS[0]);
-
-  const resolved = rows.filter((row) =>
-    ["accepted", "modified_accepted"].includes(row.current.status),
-  ).length;
-
+  const [pending, setPending] = useState<PendingMove | null>(null);
   const open = rows.filter((row) => isOpen(row.current.status)).length;
-  const visibleIds = visible.map((row) => row.proposal.ticket_id);
+  const visibleIds = visible.map((row) => row.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
-  const chosen = rows.filter((row) => selected.has(row.proposal.ticket_id));
+  const chosen = rows.filter((row) => selected.has(row.id) && isOpen(row.current.status));
 
   const toggle = (id: string) =>
     setSelected((current) => {
@@ -78,161 +48,125 @@ function TicketList() {
       return next;
     });
 
-  const bulk = (action: "resolve" | "escalate" | "clarify") => {
-    for (const row of chosen) {
-      if (action === "resolve")
-        act(
-          row.index,
-          formChanges(row.current.form, startingForm(row.proposal)).length ? "modify" : "accept",
-        );
-      else if (action === "escalate") act(row.index, "escalate", { reason });
-      else act(row.index, "clarify");
-    }
+  const moveTo = (row: TicketRow, target: Status) => {
+    if (target === row.current.status) return;
 
-    setSelected(new Set());
+    if (target === "resolved" || target === "waiting") setPending({ row, target });
+    else if (target === "assigned") assign(row.index);
+    else move(row.index, target);
   };
 
   return (
     <>
-      <PageHeader>
+      <div className="page-heading">
         <div>
-          <Eyebrow>Operations · Ticket workspace</Eyebrow>
-          <PageTitle>Tickets</PageTitle>
-          <PageDescription className="tabular-nums">
-            {open} open · {resolved} of {rows.length} resolved · {visible.length} shown
-          </PageDescription>
+          <h1>Tickets</h1>
+          <p className="num">
+            {open} open of {rows.length} incoming tickets
+          </p>
         </div>
-        <Segmented aria-label="View">
-          <SegmentedItem
-            aria-pressed={filters.view === "table"}
-            onClick={() => setFilters({ view: "table" })}
-          >
-            <Rows3 size={14} strokeWidth={1.75} />
-            Table
-          </SegmentedItem>
-          <SegmentedItem
-            aria-pressed={filters.view === "board"}
-            onClick={() => setFilters({ view: "board" })}
-          >
-            <Columns3 size={14} strokeWidth={1.75} />
-            Board
-          </SegmentedItem>
-        </Segmented>
-      </PageHeader>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <SearchField />
-        <div className="flex flex-wrap gap-2 sm:flex-nowrap">
-          <StatusSelect className={filterSelect} />
-          <FilterSelects className={filterSelect} />
+        <div className="heading-actions">
+          <div className="segmented" role="group" aria-label="View">
+            <button
+              aria-pressed={filters.view === "table"}
+              onClick={() => setFilters({ view: "table" })}
+            >
+              <Rows3 size={14} strokeWidth={1.75} />
+              List
+            </button>
+            <button
+              aria-pressed={filters.view === "board"}
+              onClick={() => {
+                setFilters({ view: "board", status: "all" });
+              }}
+            >
+              <Columns3 size={14} strokeWidth={1.75} />
+              Board
+            </button>
+          </div>
+          <Menu
+            label="More actions"
+            items={[
+              { label: "Export triaged tickets (JSON)", onSelect: exportData },
+              {
+                label: "Clear all review data",
+                danger: true,
+                onSelect: () => {
+                  if (window.confirm("Clear all triage decisions stored in this browser?")) reset();
+                },
+              },
+            ]}
+          />
         </div>
       </div>
-      {chosen.length > 0 && (
-        <div
-          className="sticky top-2 z-3 mb-3 flex flex-wrap items-center gap-2 rounded-card border border-ring bg-elevated py-2 pr-2 pl-4 shadow-float"
-          role="region"
-          aria-label="Bulk actions"
-        >
-          <b className="mr-2 font-semibold tabular-nums">{chosen.length} selected</b>
-          <Button variant="primary" onClick={() => bulk("resolve")}>
-            <Check size={16} strokeWidth={1.75} />
-            Resolve with proposal
-          </Button>
-          <span className="inline-flex gap-1">
-            <Field>
-              <span className="sr-only">Escalation reason</span>
-              <Select
-                className="h-8.5"
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              >
-                {ESCALATION_REASONS.map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
-              </Select>
-            </Field>
-            <Button onClick={() => bulk("escalate")}>Escalate</Button>
-          </span>
-          <Button onClick={() => bulk("clarify")}>Ask clarification</Button>
-          <Button variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
+      <div className="toolbar">
+        <SearchField />
+        <div className="filters">
+          {filters.view === "table" && <StatusFilter />}
+          <FilterSelects />
+        </div>
+      </div>
+      {chosen.length > 0 && filters.view === "table" && (
+        <div className="bulk-bar" role="region" aria-label="Bulk actions">
+          <b className="num">{chosen.length} selected</b>
+          <button
+            className="button primary"
+            onClick={() => {
+              for (const row of chosen) assign(row.index);
+              setSelected(new Set());
+            }}
+          >
+            <UserPlus size={16} strokeWidth={1.75} />
+            Assign to service teams
+          </button>
+          <span className="muted">Each ticket goes to the team of its current service.</span>
+          <button className="button ghost push" onClick={() => setSelected(new Set())}>
             <X size={16} strokeWidth={1.75} />
-            Clear
-          </Button>
+            Clear selection
+          </button>
         </div>
       )}
       {filters.view === "table" ? (
-        <Card className="pb-0 sm:pb-0">
-          <TableScroll>
-            <Table>
+        <section className="card queue-card">
+          <div className="table-wrap">
+            <table>
               <thead>
                 <tr>
-                  <TableHead className={checkCell}>
-                    <Checkbox
+                  <th className="check">
+                    <input
+                      type="checkbox"
                       aria-label="Select all shown tickets"
                       checked={allSelected}
                       onChange={() =>
                         setSelected(allSelected ? new Set() : new Set([...selected, ...visibleIds]))
                       }
                     />
-                  </TableHead>
-                  <TableHead>Ticket</TableHead>
-                  <TableHead>Summary / request type</TableHead>
-                  <TableHead>Service</TableHead>
-                  <TableHead>Work type</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead className="text-right">Confidence</TableHead>
-                  <TableHead>Review</TableHead>
-                  <TableHead className="text-right">
-                    <span className="sr-only">Open</span>
-                  </TableHead>
+                  </th>
+                  <th>Ticket</th>
+                  <th>Service</th>
+                  <th title="Calculated from urgency and impact">Priority</th>
+                  <th>Assignee</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {visible.map((row) => (
                   <TableRow
-                    key={row.proposal.ticket_id}
+                    key={row.id}
                     row={row}
-                    selected={selected.has(row.proposal.ticket_id)}
-                    onToggle={() => toggle(row.proposal.ticket_id)}
+                    selected={selected.has(row.id)}
+                    onToggle={() => toggle(row.id)}
                   />
                 ))}
               </tbody>
-            </Table>
-            {visible.length === 0 && (
-              <div className="border-t border-divider px-5 py-10 text-center text-muted">
-                No tickets match these filters.
-              </div>
-            )}
-          </TableScroll>
-        </Card>
+            </table>
+            {visible.length === 0 && <div className="empty">No tickets match these filters.</div>}
+          </div>
+        </section>
       ) : (
-        <div className="grid grid-cols-board gap-3 overflow-x-auto pb-2">
-          {BOARD.map((column) => {
-            const cards = visible.filter((row) => column.statuses.includes(row.current.status));
-
-            return (
-              <section
-                className="grid min-h-60 content-start gap-2 rounded-card border bg-surface p-2.5"
-                key={column.title}
-                aria-label={column.title}
-              >
-                <header className="flex justify-between px-1 pt-0.5 pb-1.5 text-sm font-semibold text-secondary">
-                  {column.title}
-                  <span className="font-medium text-muted tabular-nums">{cards.length}</span>
-                </header>
-                {cards.map((row) => (
-                  <BoardCard key={row.proposal.ticket_id} row={row} />
-                ))}
-                {cards.length === 0 && <BoardEmpty>Nothing here</BoardEmpty>}
-              </section>
-            );
-          })}
-        </div>
+        <Board rows={visible} onMove={moveTo} />
       )}
-      {data.mock && (
-        <CardDescription className="mt-3">
-          Proposals are mock fixtures mirroring the declared fields; confidence is not measured.
-        </CardDescription>
-      )}
+      {pending && <MoveDialog pending={pending} onClose={() => setPending(null)} />}
     </>
   );
 }
@@ -247,112 +181,244 @@ function TableRow({
   onToggle: () => void;
 }) {
   const navigate = useNavigate();
-  const { ticket, proposal, current } = row;
-  const warnings = reviewWarnings(ticket, current.form).length;
-
-  const open = () =>
-    void navigate({ to: "/tickets/$ticketId", params: { ticketId: proposal.ticket_id } });
+  const { ticket, proposal, current, id } = row;
+  const declared = ticket["Affected Business or IT Services"][0];
+  const open = () => void navigate({ to: "/tickets/$ticketId", params: { ticketId: id } });
 
   return (
-    <tr
-      className={cn("cursor-pointer", selected ? "bg-primary-subtle" : "hover:bg-white/2")}
-      onClick={open}
-    >
-      <TableCell className={checkCell} onClick={(event) => event.stopPropagation()}>
-        <Checkbox
-          aria-label={`Select ${proposal.ticket_id}`}
+    <tr className={selected ? "selected clickable" : "clickable"} onClick={open}>
+      <td className="check" onClick={(event) => event.stopPropagation()}>
+        <input
+          type="checkbox"
+          aria-label={`Select ${id}`}
           checked={selected}
+          disabled={!isOpen(current.status)}
           onChange={onToggle}
         />
-      </TableCell>
-      <TableCell className={ticketId}>{proposal.ticket_id}</TableCell>
-      <TableCell>
+      </td>
+      <td className="wrap summary-cell">
         <Link
           to="/tickets/$ticketId"
-          params={{ ticketId: proposal.ticket_id }}
-          className="block max-w-summary truncate font-medium text-foreground hover:text-white hover:underline-subtle"
+          params={{ ticketId: id }}
+          className="summary-link"
           onClick={(event) => event.stopPropagation()}
         >
           {ticket.Summary}
         </Link>
-        <CellNote>
-          {ticket["Request type"]}
-          {warnings > 0 && <WarnCount count={warnings} title={`${warnings} review warning(s)`} />}
-        </CellNote>
-      </TableCell>
-      <TableCell className="min-w-35 whitespace-normal">
-        {ticket["Affected Business or IT Services"][0] !== current.form.service && (
-          <>
-            <OldValue>{ticket["Affected Business or IT Services"][0]}</OldValue>
-            <ChangeArrow />
-          </>
+        <small>
+          <span className="ticket-id">{id}</span> · {ticket["Request type"]} ·{" "}
+          {personName(ticket.Reporter)}
+        </small>
+      </td>
+      <td className="wrap">
+        <span className="value">{current.triage.service}</span>
+        <small>
+          {proposal && proposal.proposal.service !== declared ? (
+            <span className="ai-note">
+              <Sparkles size={11} strokeWidth={1.75} />
+              AI changed from {declared}
+            </span>
+          ) : (
+            serviceInfo(current.triage.service)?.[1]
+          )}
+        </small>
+      </td>
+      <td>
+        <PriorityPill triage={current.triage} detail />
+      </td>
+      <td>
+        {current.triage.assignee ? (
+          <span className="person">
+            <Initials email={current.triage.assignee} />
+            {personName(current.triage.assignee)}
+          </span>
+        ) : (
+          <span className="muted">Unassigned</span>
         )}
-        <span className="text-foreground">{current.form.service}</span>
-      </TableCell>
-      <TableCell>
-        {ticket["Work type"] !== current.form.work_type && (
-          <>
-            <OldValue>{ticket["Work type"]}</OldValue>
-            <ChangeArrow />
-          </>
-        )}
-        <span className="text-foreground">{current.form.work_type}</span>
-      </TableCell>
-      <TableCell>
-        <PriorityPill row={row} />
-      </TableCell>
-      <TableCell className="text-right">
-        <Confidence value={proposal.confidence.service} />
-      </TableCell>
-      <TableCell>
+      </td>
+      <td>
         <StatusPill status={current.status} />
-      </TableCell>
-      <TableCell className="text-right">
-        <Link
-          to="/tickets/$ticketId"
-          params={{ ticketId: proposal.ticket_id }}
-          aria-label={`Open ${proposal.ticket_id}`}
-          className={buttonVariants({ size: "icon" })}
-          onClick={(event) => event.stopPropagation()}
-        >
-          <ArrowUpRight size={16} strokeWidth={1.75} />
-        </Link>
-      </TableCell>
+      </td>
     </tr>
   );
 }
 
-function BoardCard({ row }: { row: TicketRow }) {
-  const { ticket, proposal, current } = row;
-  const warnings = reviewWarnings(ticket, current.form).length;
+function Board({
+  rows,
+  onMove,
+}: {
+  rows: TicketRow[];
+  onMove: (row: TicketRow, target: Status) => void;
+}) {
+  const [dragging, setDragging] = useState<string | null>(null);
+  const [over, setOver] = useState<Status | null>(null);
+
+  return (
+    <div className="board">
+      {STATUSES.map((status) => {
+        const cards = rows.filter((row) => row.current.status === status);
+
+        return (
+          <section
+            key={status}
+            className={over === status ? "board-column drop" : "board-column"}
+            aria-label={STATUS_LABELS[status]}
+            onDragOver={(event) => {
+              if (!dragging) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setOver(status);
+            }}
+            onDragLeave={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget instanceof Node ? event.relatedTarget : null,
+                )
+              )
+                setOver(null);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              const row = rows.find((item) => item.id === event.dataTransfer.getData("text/plain"));
+              setOver(null);
+              setDragging(null);
+
+              if (row) onMove(row, status);
+            }}
+          >
+            <header title={STATUS_HELP[status]}>
+              <span>
+                <i className={`dot ${STATUS_DOTS[status]}`} />
+                {STATUS_LABELS[status]}
+              </span>
+              <span className="num">{cards.length}</span>
+            </header>
+            {cards.map((row) => (
+              <BoardCard
+                key={row.id}
+                row={row}
+                dragging={dragging === row.id}
+                onDragStart={() => setDragging(row.id)}
+                onDragEnd={() => {
+                  setDragging(null);
+                  setOver(null);
+                }}
+              />
+            ))}
+            {cards.length === 0 && <p className="board-empty">Drop a ticket here</p>}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function BoardCard({
+  row,
+  dragging,
+  onDragStart,
+  onDragEnd,
+}: {
+  row: TicketRow;
+  dragging: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+}) {
+  const { ticket, current, id } = row;
 
   return (
     <Link
       to="/tickets/$ticketId"
-      params={{ ticketId: proposal.ticket_id }}
-      className="grid gap-1.5 rounded-button border bg-elevated px-3 py-2.5 hover:border-border-hover"
+      params={{ ticketId: id }}
+      className={dragging ? "board-card dragging" : "board-card"}
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.setData("text/plain", id);
+        event.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
     >
-      <span className={boardCardRow}>
-        <span className={ticketIdText}>{proposal.ticket_id}</span>
-        <PriorityPill row={row} />
+      <span className="board-card-head">
+        <span className="ticket-id">{id}</span>
+        <PriorityPill triage={current.triage} />
       </span>
-      <b className="line-clamp-2 leading-snug font-medium">{ticket.Summary}</b>
-      <small className="text-sm text-muted">
-        {current.form.service} · {current.form.work_type}
-      </small>
-      <span className={boardCardRow}>
-        <span className="text-muted">{STATUS_LABELS[current.status]}</span>
-        {warnings > 0 && <WarnCount count={warnings} />}
+      <b>{ticket.Summary}</b>
+      <span className="board-card-service">{current.triage.service}</span>
+      <span className="board-card-foot">
+        {current.triage.assignee ? (
+          <span className="person">
+            <Initials email={current.triage.assignee} />
+            {personName(current.triage.assignee)}
+          </span>
+        ) : (
+          <span className="muted">Unassigned</span>
+        )}
       </span>
     </Link>
   );
 }
 
-function WarnCount({ count, title }: { count: number; title?: string }) {
+/** Resolving or asking the reporter needs a written comment, so board drops confirm through this dialog. */
+function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () => void }) {
+  const { resolve, askReporter } = useDashboard();
+  const { row, target } = pending;
+  const [reply, setReply] = useState(row.current.reply);
+  const [question, setQuestion] = useState(row.current.question);
+  const [outcome, setOutcome] = useState(row.current.outcome);
+  const assignee = row.current.triage.assignee;
+  const text = target === "resolved" ? reply : question;
+
+  const confirm = () => {
+    const changes: Editable = target === "resolved" ? { reply, outcome } : { question };
+
+    if (target === "resolved") resolve(row.index, changes);
+    else askReporter(row.index, changes);
+    onClose();
+  };
+
   return (
-    <span className="ml-2 inline-flex items-center gap-0.75 text-xs text-warning" title={title}>
-      <TriangleAlert size={12} strokeWidth={1.75} />
-      {count}
-    </span>
+    <Dialog
+      title={
+        target === "resolved"
+          ? `Resolve ${row.id}`
+          : `Ask ${personName(row.ticket.Reporter)} for information`
+      }
+      description={row.ticket.Summary}
+      onClose={onClose}
+      footer={
+        <>
+          {!assignee && <span className="muted">Assign the ticket before posting a comment.</span>}
+          <button className="button ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="button primary" disabled={!assignee || !text.trim()} onClick={confirm}>
+            {target === "resolved" ? "Resolve ticket" : "Send question"}
+          </button>
+        </>
+      }
+    >
+      {target === "resolved" ? (
+        <>
+          <OutcomePicker value={outcome} onChange={setOutcome} />
+          <CommentEditor
+            author={assignee}
+            label="Resolution note for the reporter"
+            placeholder="What was done, and how the reporter can confirm it is fixed."
+            value={reply}
+            onChange={setReply}
+          />
+        </>
+      ) : (
+        <CommentEditor
+          author={assignee}
+          label="Question for the reporter"
+          placeholder="What information do you need to continue?"
+          rows={4}
+          value={question}
+          onChange={setQuestion}
+        />
+      )}
+    </Dialog>
   );
 }

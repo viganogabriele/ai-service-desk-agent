@@ -4,32 +4,32 @@ import { Search } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Review } from "../state";
 import {
-  COMPLETED_STATUSES,
+  LEVELS,
+  OPEN_STATUSES,
   PRIORITY_DOTS,
   SERVICES,
+  STATUSES,
   STATUS_DOTS,
+  STATUS_HELP,
   STATUS_LABELS,
   priority,
   serviceInfo,
 } from "../domain";
-import type { Proposal, ReviewStatus, Ticket } from "../domain";
-import { Dot, Pill } from "./ui/badge";
-import { Field, InputGroup, InputGroupInput, Select } from "./ui/field";
-import { Meter } from "./ui/meter";
-import { cn } from "../lib/utils";
+import type { IncomingTicket, Proposal, Status, Triage } from "../domain";
+import { Select } from "./select";
 
 export interface TicketFilters {
   query: string;
-  status: ReviewStatus | "all" | "open";
+  status: Status | "all" | "open";
   service: string;
-  rating: string;
-  change: string;
+  rating: "all" | "Critical" | "Non-Critical";
+  change: "all" | "service" | "work";
   view: "table" | "board";
 }
 
 const DEFAULT_FILTERS: TicketFilters = {
   query: "",
-  status: "all",
+  status: "open",
   service: "all",
   rating: "all",
   change: "all",
@@ -69,20 +69,22 @@ export function useTicketFilters() {
 
 export interface TicketRow {
   index: number;
-  ticket: Ticket;
-  proposal: Proposal;
+  id: string;
+  ticket: IncomingTicket;
+  proposal: Proposal | null;
   current: Review;
 }
 
-export const isOpen = (status: ReviewStatus) => !COMPLETED_STATUSES.includes(status);
+export const isOpen = (status: Status) => OPEN_STATUSES.includes(status);
 
 export function useTicketRows() {
-  const { data, review, proposalFor } = useDashboard();
+  const { data, review, proposalFor, idOf } = useDashboard();
   const { filters } = useTicketFilters();
   const needle = filters.query.trim().toLowerCase();
 
   const rows: TicketRow[] = data.challenge.map((ticket, index) => ({
     index,
+    id: idOf(index),
     ticket,
     proposal: proposalFor(index),
     current: review(index),
@@ -90,36 +92,41 @@ export function useTicketRows() {
 
   const visible = rows
     .filter((row) => {
-      const status = row.current.status;
+      const { status, triage } = row.current;
 
       if (filters.status === "open" && !isOpen(status)) return false;
 
       if (filters.status !== "all" && filters.status !== "open" && status !== filters.status)
         return false;
 
-      if (filters.service !== "all" && row.current.form.service !== filters.service) return false;
+      if (filters.service !== "all" && triage.service !== filters.service) return false;
 
-      if (filters.rating !== "all" && serviceInfo(row.current.form.service)?.[2] !== filters.rating)
+      if (filters.rating !== "all" && serviceInfo(triage.service)?.[2] !== filters.rating)
         return false;
 
       if (
         filters.change === "service" &&
-        row.ticket["Affected Business or IT Services"][0] === row.current.form.service
+        (!row.proposal ||
+          row.proposal.proposal.service === row.ticket["Affected Business or IT Services"][0])
       )
         return false;
 
-      if (filters.change === "work" && row.ticket["Work type"] === row.current.form.work_type)
+      if (
+        filters.change === "work" &&
+        (!row.proposal || row.proposal.proposal.work_type === row.ticket["Work type"])
+      )
         return false;
 
       if (
         needle &&
         ![
-          row.proposal.ticket_id,
+          row.id,
           row.ticket.Summary,
           row.ticket.Description,
           row.ticket.Reporter,
           row.ticket["Request type"],
-          row.current.form.service,
+          triage.service,
+          triage.assignee,
         ].some((text) => text.toLowerCase().includes(needle))
       )
         return false;
@@ -129,150 +136,143 @@ export function useTicketRows() {
     .sort(
       (a, b) =>
         Number(!isOpen(a.current.status)) - Number(!isOpen(b.current.status)) ||
-        (a.proposal.confidence.service ?? 1) - (b.proposal.confidence.service ?? 1) ||
+        LEVELS.indexOf(priority(a.current.triage.urgency, a.current.triage.impact)) -
+          LEVELS.indexOf(priority(b.current.triage.urgency, b.current.triage.impact)) ||
         a.index - b.index,
     );
 
   return { rows, visible };
 }
 
-export function StatusPill({ status, className }: { status: ReviewStatus; className?: string }) {
+export function StatusPill({ status }: { status: Status }) {
   return (
-    <Pill className={className}>
-      <Dot tone={STATUS_DOTS[status]} />
+    <span className="pill" title={STATUS_HELP[status]}>
+      <i className={`dot ${STATUS_DOTS[status]}`} />
       {STATUS_LABELS[status]}
-    </Pill>
-  );
-}
-
-export function PriorityPill({ row }: { row: TicketRow }) {
-  const level = priority(row.current.form.urgency, row.current.form.impact);
-
-  return (
-    <Pill>
-      <Dot tone={PRIORITY_DOTS[level]} />
-      {level}
-    </Pill>
-  );
-}
-
-export function Confidence({ value }: { value: number | null }) {
-  if (value === null) return <span className="text-muted">Not measured</span>;
-  const percent = Math.round(value * 100);
-
-  return (
-    <span className="inline-flex items-center gap-2 text-foreground tabular-nums">
-      {percent}%
-      <Meter value={percent / 100} tone="neutral" className="w-10" />
     </span>
   );
 }
+
+/** Priority is never free input: it is the matrix value of urgency × impact. */
+export function PriorityPill({ triage, detail = false }: { triage: Triage; detail?: boolean }) {
+  const level = priority(triage.urgency, triage.impact);
+  const basis = `Urgency ${triage.urgency} × Impact ${triage.impact}`;
+
+  return (
+    <span className="priority" title={`${level} priority · ${basis}`}>
+      <span className="pill">
+        <i className={`dot ${PRIORITY_DOTS[level]}`} />
+        {level}
+      </span>
+      {detail && <small>{basis}</small>}
+    </span>
+  );
+}
+
+export function Initials({ email }: { email: string }) {
+  if (!email) return <span className="avatar empty" aria-hidden="true" />;
+  const [first = "", last = ""] = email.split("@")[0].split(".");
+
+  return (
+    <span className="avatar" aria-hidden="true">
+      {(first[0] ?? "").toUpperCase()}
+      {(last[0] ?? "").toUpperCase()}
+    </span>
+  );
+}
+
+export const personName = (email: string) =>
+  email
+    .split("@")[0]
+    .split(".")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 
 export function SearchField({ compact = false }: { compact?: boolean }) {
   const { filters, setFilters } = useTicketFilters();
 
   return (
-    <InputGroup
-      as="label"
-      className={cn("gap-2 text-sm font-medium text-muted", compact ? "w-full" : "w-80 max-w-full")}
-    >
+    <label className={compact ? "search compact" : "search"}>
       <Search size={14} strokeWidth={1.75} />
       <span className="sr-only">Search tickets</span>
-      <InputGroupInput
-        className="font-normal"
+      <input
         type="search"
-        placeholder="Search id, summary, reporter…"
+        placeholder="Search tickets, reporters, services…"
         value={filters.query}
         onChange={(event) => setFilters({ query: event.target.value })}
       />
-    </InputGroup>
+    </label>
   );
 }
 
-export function StatusSelect({ className }: { className?: string }) {
+export function StatusFilter() {
   const { filters, setFilters } = useTicketFilters();
   const { rows } = useTicketRows();
 
   return (
-    <Field>
-      <span className="sr-only">Review status</span>
-      <Select
-        className={className}
-        value={filters.status}
-        onChange={(event) => {
-          const value = event.target.value;
-
-          // SAFETY: STATUS_LABELS is keyed by every ReviewStatus, so its keys are ReviewStatus values.
-          const status =
-            value === "all" || value === "open"
-              ? value
-              : (Object.keys(STATUS_LABELS) as ReviewStatus[]).find((key) => key === value);
-
-          setFilters({ status: status ?? "all" });
-        }}
-      >
-        <option value="all">All statuses · {rows.length}</option>
-        <option value="open">
-          Open · {rows.filter((row) => isOpen(row.current.status)).length}
-        </option>
-        {Object.entries(STATUS_LABELS).map(([key, label]) => (
-          <option value={key} key={key}>
-            {label} · {rows.filter((row) => row.current.status === key).length}
-          </option>
-        ))}
-      </Select>
-    </Field>
+    <Select
+      label="Status"
+      hideLabel
+      value={filters.status}
+      onChange={(status) => setFilters({ status })}
+      options={[
+        {
+          value: "open",
+          label: "Open tickets",
+          hint: String(rows.filter((row) => isOpen(row.current.status)).length),
+        },
+        { value: "all", label: "All tickets", hint: String(rows.length) },
+        ...STATUSES.map((status) => ({
+          value: status,
+          label: STATUS_LABELS[status],
+          hint: String(rows.filter((row) => row.current.status === status).length),
+        })),
+      ]}
+    />
   );
 }
 
-export function FilterSelects({ className }: { className?: string }) {
+export function FilterSelects() {
+  const { data } = useDashboard();
   const { filters, setFilters } = useTicketFilters();
+  const hasProposals = data.proposals.some(Boolean);
 
   return (
     <>
-      <Field>
-        <span className="sr-only">Proposed service</span>
+      <Select
+        label="Service"
+        hideLabel
+        value={filters.service}
+        onChange={(service) => setFilters({ service })}
+        options={[
+          { value: "all", label: "All services" },
+          ...SERVICES.map(([name, team]) => ({ value: name, label: name, hint: team })),
+        ]}
+      />
+      <Select
+        label="Service rating"
+        hideLabel
+        value={filters.rating}
+        onChange={(rating) => setFilters({ rating })}
+        options={[
+          { value: "all", label: "Any rating" },
+          { value: "Critical", label: "Critical services" },
+          { value: "Non-Critical", label: "Non-critical services" },
+        ]}
+      />
+      {hasProposals && (
         <Select
-          className={className}
-          value={filters.service}
-          onChange={(event) => setFilters({ service: event.target.value })}
-        >
-          <option value="all">All services</option>
-          {SERVICES.map(([name]) => (
-            <option value={name} key={name}>
-              {name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      <Field>
-        <span className="sr-only">Rating</span>
-        <Select
-          className={className}
-          value={filters.rating}
-          onChange={(event) => setFilters({ rating: event.target.value })}
-        >
-          <option value="all">All ratings</option>
-          <option>Critical</option>
-          <option>Non-Critical</option>
-        </Select>
-      </Field>
-      <Field>
-        <span className="sr-only">Changes</span>
-        <Select
-          className={className}
+          label="AI changes"
+          hideLabel
           value={filters.change}
-          onChange={(event) => setFilters({ change: event.target.value })}
-        >
-          <option value="all">Any change</option>
-          <option value="service">Service changed</option>
-          <option value="work">Work type changed</option>
-        </Select>
-      </Field>
+          onChange={(change) => setFilters({ change })}
+          options={[
+            { value: "all", label: "Any AI suggestion" },
+            { value: "service", label: "AI changed the service" },
+            { value: "work", label: "AI changed the work type" },
+          ]}
+        />
+      )}
     </>
   );
-}
-
-export function BoardEmpty({ children }: { children: ReactNode }) {
-  return <p className="px-1 py-4 text-center text-sm text-muted">{children}</p>;
 }
