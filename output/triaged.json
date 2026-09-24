@@ -1,0 +1,1107 @@
+{
+  "fetchedAtUtc": "2026-09-23T08:39:15Z",
+  "runId": "20260923083915-1141",
+  "baseUrl": "https://example.atlassian.net",
+  "requestedMaxResults": 20,
+  "actualIssueCount": 20,
+  "jql": "project = ssm and labels = swiss-ai-weeks-hackathon-blind-eval",
+  "requestedColumns": [
+    "Work type",
+    "Request type",
+    "Summary",
+    "Description",
+    "Affected Business or IT Services",
+    "Business Entity",
+    "Business Critical for Entity",
+    "Service Team(s)",
+    "Reporter",
+    "Assignee",
+    "Priority",
+    "Urgency",
+    "Impact",
+    "Severity",
+    "Created date",
+    "Status",
+    "Linked issues",
+    "Resolution",
+    "Due date",
+    "All Comments"
+  ],
+  "missingColumnsInJiraFieldCatalog": [],
+  "mappedFieldKeys": {
+    "Work type": "issuetype",
+    "Request type": "customfield_10010",
+    "Summary": "summary",
+    "Description": "description",
+    "Affected Business or IT Services": "customfield_10185",
+    "Business Entity": "customfield_12252",
+    "Business Critical for Entity": "customfield_20688",
+    "Service Team(s)": "customfield_10187",
+    "Reporter": "reporter",
+    "Assignee": "assignee",
+    "Priority": "priority",
+    "Urgency": "customfield_12458",
+    "Impact": "customfield_10004",
+    "Severity": "customfield_10073",
+    "Created date": "created",
+    "Status": "status",
+    "Linked issues": "issuelinks",
+    "Resolution": "resolution",
+    "Due date": "duedate",
+    "All Comments": "comment"
+  },
+  "assetNamesResolved": true,
+  "resolvedAssetObjectsCount": 20,
+  "records": [
+    {
+      "Work type": "Service Request",
+      "Request type": "New License",
+      "Summary": "New license requested for quarterly withholding tax workflow",
+      "Description": "The operations team needs one additional user license to support the quarterly withholding tax filing workflow for the Germany entity. The requester selected a reporting-related service, but the detailed business need is to prepare and review tax output rather than regulatory submissions.",
+      "Affected Business or IT Services": [
+        "Tax Reporting"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Tax & Reporting"
+      ],
+      "Reporter": "amelia.marcus@intcom.com",
+      "Assignee": "gina.muller@intcom.com",
+      "Priority": "Lowest",
+      "Urgency": "Lowest",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-18 23:36",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "amelia.marcus@intcom.com: Request is for the colleague who prepares withholding tax extracts and validates the generated tax packs."
+      ],
+      "Resolution text": "Diagnosed: Request is for access to prepare and validate withholding tax outputs, not regulatory submissions. Action: Provision standard license for Germany entity's quarterly workflow and validate access to tax output workspace. Validation: Confirm user can access and complete extract validation tasks. Approval required for provisioning.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The request is for a user license to support tax output preparation, which is a routine operational task within Tax Reporting, not a critical service failure or regulatory submission. No service outage or business disruption is indicated.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Tax Reporting"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.21,
+        "comment_seconds": 2.58,
+        "historical_assignee_vote_share": 0.08,
+        "historical_assignee_support": 150,
+        "resolution_examples": [
+          "Confirmed the withholding tax workflow license was provisioned and validated the user could access the quarterly extract tool.",
+          "Reviewed the request with the tax team lead, granted the standard processing entitlement, and verified access to the output workspace."
+        ]
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "Access to a Service",
+      "Summary": "Access requested for Portfolio Accounting to support month-end reconciliation",
+      "Description": "A new operations joiner needs standard Portfolio Accounting access to support month-end reconciliation and exception review. The requester confirmed that the employee only needs the normal processing role and read access to the reconciliation dashboards.",
+      "Affected Business or IT Services": [
+        "Portfolio Accounting"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Investment Operations"
+      ],
+      "Reporter": "maia.berg@intcom.com",
+      "Assignee": "nora.leclerc@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Low",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-18 16:50",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "maia.berg@intcom.com: Standard processing access required for month-end reconciliation support."
+      ],
+      "Resolution text": "Requester confirms standard processing and read access for month-end reconciliation. Approval required for access provisioning. Validation: confirm access granted and functional via dashboard view post-provisioning. Root cause: standard operational access need; no deviation from routine roles.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The request is for standard access to Portfolio Accounting for month-end reconciliation, which is a routine operational activity and does not involve a service failure or critical outage.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Portfolio Accounting"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.89,
+        "comment_seconds": 2.25,
+        "historical_assignee_vote_share": 0.088,
+        "historical_assignee_support": 148,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "New License",
+      "Summary": "New license requested for sanctions screening dashboard",
+      "Description": "A new compliance analyst needs a standard license for the sanctions screening dashboard used in daily control activities. The request concerns monitoring of rule exceptions and periodic review of escalated alerts rather than document management or collaboration.",
+      "Affected Business or IT Services": [
+        "Risk & Compliance Monitoring"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Risk & Controls"
+      ],
+      "Reporter": "maia.berg@intcom.com",
+      "Assignee": "yves.moreau@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Low",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-17 06:12",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "maia.berg@intcom.com: Standard compliance analyst license requested for sanctions screening dashboard."
+      ],
+      "Resolution text": "Root cause: Routine access request for sanctions screening dashboard. Action: Approve and provision standard compliance analyst license. Validation: Confirm access granted via dashboard login and verify user can view rule exceptions and escalated alerts. Note: Urgency and impact in ticket are high, but service impact is low; request for clarification on business-critical use case to ensure alignment with compliance workflows.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The request is for a new license to access a dashboard within Risk & Compliance Monitoring, which is a routine access request. No service failure or operational disruption is indicated.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Risk & Compliance Monitoring"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.01,
+        "comment_seconds": 2.9,
+        "historical_assignee_vote_share": 0.058,
+        "historical_assignee_support": 155,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Custodian notice says MT536 settlement status messages are delayed for France books",
+      "Description": "A custodian notice reports delayed MT536 settlement status messages for several France books. The trades themselves are already matched, but final custody settlement updates are not arriving on time. The selected service in the intake reflects an upstream processing guess rather than the stage where the issue actually occurs.",
+      "Affected Business or IT Services": [
+        "Securities Settlement"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Securities Operations"
+      ],
+      "Reporter": "info@extcom_08.com",
+      "Assignee": "nora.leclerc@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Low",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-11 11:14",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "info@extcom_08.com: MT536 settlement status messages delayed for several France books. Next vendor update expected soon.",
+        "service.desk@intcom.com: Vendor notice copied into Jira. Functional owner still unknown."
+      ],
+      "Resolution text": "Diagnosis: MT536 status messages delayed at custodian stage for France books. Action: Verify message queue and confirm if acknowledgements are stuck. Validation: Check fail queue and replay pending confirmations once messages arrive. Request: Confirm if custodian processing delay is at SWIFT ingestion or custody update stage for France books.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "Delayed settlement status messages affect final custody updates for France books, impacting settlement confirmations for multiple entities.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Securities Settlement"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.76,
+        "comment_seconds": 3.0,
+        "historical_assignee_vote_share": 0.083,
+        "historical_assignee_support": 156,
+        "resolution_examples": [
+          "Custodian was late sending status updates; paused automated fail-chasing while we waited, then matched statements and reconciled the backlog once messages came through.",
+          "Reviewed the settlement message queue, cleared several stuck acknowledgements, and replayed the pending confirmations so custody statuses synced back to the dashboard."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Machine Created Alert",
+      "Summary": "Trade matching adapter TMA-402 rejected 16 allocations from broker JPM",
+      "Description": "The TMA-402 trade matching adapter rejected 16 allocation messages from broker JPM because the inbound execution references could not be paired with the staged allocations in time. The affected trades are booked, but the confirmation workflow is blocked until the matching backlog is cleared.",
+      "Affected Business or IT Services": [
+        "Trade Matching"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Investment Operations"
+      ],
+      "Reporter": "sa_securities@intcom.com",
+      "Assignee": "vicky.chen@intcom.com",
+      "Priority": "Medium",
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-11 04:16",
+      "Status": "open",
+      "Linked issues": [
+        "BROKER-93623"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sa_securities@intcom.com: Adapter TMA-402 rejected 16 allocation messages for broker JPM. Matching state remains pending.",
+        "monitoring.bot@intcom.com: Automated incident created from matching adapter error threshold."
+      ],
+      "Resolution text": "Diagnosis: TMA-402 failed to pair execution references with staged allocations due to timing mismatch. Action: Validate broker JPM account configuration and execution reference mapping; reprocess the batch with updated timing parameters. Validation: Confirm matching status for all 16 affected trades post-reprocessing. Approval required for access to JPM broker data.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The trade matching adapter failure blocks confirmation workflow for broker JPM allocations, affecting the confirmation process for booked trades, which is a critical step in trade lifecycle.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Trade Matching"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.1,
+        "comment_seconds": 3.13,
+        "historical_assignee_vote_share": 0.067,
+        "historical_assignee_support": 164,
+        "resolution_examples": [
+          "Adapter was rejecting allocations due to an incomplete broker account setup. Corrected the setup, reprocessed the batch, and validated matching status for all affected trades.",
+          "Found a missing broker SSI mapping causing allocation rejections. Added the mapping, replayed the rejected messages, and confirmed the trades matched successfully."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Human Created Incident",
+      "Summary": "Client report PDFs for the Nordics entity were generated with a blank fee section",
+      "Description": "The client reporting team observed that the latest batch of Nordics quarterly client report PDFs was generated with a blank management fee section, even though the staging preview displayed the values correctly. Users can still open the reports, but the distributed output is incomplete and unsuitable for release.",
+      "Affected Business or IT Services": [
+        "Client Reporting"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Client Services"
+      ],
+      "Reporter": "nadia.morgan@intcom.com",
+      "Assignee": "vicky.chen@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Medium",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-22 07:05",
+      "Status": "open",
+      "Linked issues": [
+        "REP-20247"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "nadia.morgan@intcom.com: Preview looked correct, but the generated PDF pack for Nordics dropped the management fee block on every report tested."
+      ],
+      "Resolution text": "Diagnosis: Template conditional suppresses fee section in production but not staging. Action: Review and correct the conditional logic in the Nordics report template, regenerate the client batch, and validate PDF output. Validation: Confirm fee section appears in generated PDFs. Approval required for template change.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The issue affects only the management fee section in client report PDFs for a single entity (Nordics), and the reports remain open and usable despite the missing content.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Client Reporting"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.05,
+        "comment_seconds": 2.81,
+        "historical_assignee_vote_share": 0.058,
+        "historical_assignee_support": 137,
+        "resolution_examples": [
+          "The fee section was suppressed by a broken conditional in the report template; fixed the condition, regenerated the client batch, and confirmed the fee table now renders correctly.",
+          "Traced the defect to a template rendering condition that evaluated incorrectly in production. Corrected the template logic, reran the affected batch, and spot-checked output PDFs before release."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Nonsense / Unclear Input",
+      "Summary": "Cash not there pls fix asap for yesterday margin sweep",
+      "Description": "The reporter entered a short and unclear message saying that cash was missing after a margin sweep. While the wording is poor, the business language points to a treasury or liquidity movement issue rather than a general platform defect. Triage is needed to clarify the exact account and booking date.",
+      "Affected Business or IT Services": [
+        "Cash Management"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Treasury & Cash"
+      ],
+      "Reporter": "helen.smith@intcom.com",
+      "Assignee": "william.maier@intcom.com",
+      "Priority": "High",
+      "Urgency": "High",
+      "Impact": "High",
+      "Severity": null,
+      "Created date": "2026-09-13 18:27",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "helen.smith@intcom.com: Margin cash looked wrong after yesterday close. Need help quickly."
+      ],
+      "Resolution text": "Root cause uncertainty: Missing cash post-margin sweep. Requires clarification on exact account and booking date. Action: Request precise account and cutoff date from reporter. Validation: Confirm with Treasury after receipt of details. Approval needed for access to account if required.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The issue involves a missing cash balance following a margin sweep, which is a liquidity event directly tied to Cash Management operations.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Cash Management"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.8,
+        "comment_seconds": 2.41,
+        "historical_assignee_vote_share": 0.081,
+        "historical_assignee_support": 135,
+        "resolution_examples": [
+          "Traced the shortfall to a missed banking cutoff on the margin sweep; corrected with an intraday adjustment and confirmed with Treasury.",
+          "Reconciled the cash ledger against the bank statement and found the sweep missed the prior day's cutoff; booked a value-dated adjustment and confirmed the balance with the desk."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Rimes overnight benchmark file DM_RIMES_FU_PR_BBG3_EODD_20260918_1.txt arrived after the downstream cutoff",
+      "Description": "Rimes Client Managed Services reported that the benchmark file DM_RIMES_FU_PR_BBG3_EODD_20260918_1.txt was delivered after the agreed processing window. The price mastering job for the Germany book therefore started with stale input and the downstream valuation chain is at risk. The case was logged quickly and the selected service may not match the actual vendor feed problem.",
+      "Affected Business or IT Services": [
+        "Rimes Data Feed"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Market Data Services"
+      ],
+      "Reporter": "info@extcom_11.com",
+      "Assignee": "nora.leclerc@intcom.com",
+      "Priority": "High",
+      "Urgency": "High",
+      "Impact": "High",
+      "Severity": null,
+      "Created date": "2026-09-16 04:20",
+      "Status": "open",
+      "Linked issues": [
+        "SLAPSA-135158"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "info@extcom_11.com: Late feed delivery update for DM_RIMES_FU_PR_BBG3_EODD_20260918_1.txt. Delivery completed after the expected cutoff.",
+        "service.desk@intcom.com: Intake created from external vendor mail. Awaiting service triage."
+      ],
+      "Resolution text": "Diagnosis: Rimes benchmark file delivered post-cutoff, causing stale input to Germany price mastering. Action: Request vendor confirmation of delivery timeline and file integrity. Validation: Verify file receipt timestamp and ensure alignment with agreed cutoff. Approval required for escalation to Rimes vendor team if timeline is uncorrected.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The Rimes benchmark file was delivered after the agreed cutoff, causing stale input to the price mastering job and risking downstream valuation for the Germany book, which is a critical service for the entity.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Rimes Data Feed"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.59,
+        "comment_seconds": 2.99,
+        "historical_assignee_vote_share": 0.077,
+        "historical_assignee_support": 130,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Vendor notice: Americas benchmark publication delayed beyond the publishing window",
+      "Description": "An external vendor warning states that the Americas benchmark publication was delayed and that downstream consumers should expect incomplete price snapshots until the corrected files are posted. The ticket was raised quickly from the mail body and the selected service may reflect the channel rather than the actual impacted platform.",
+      "Affected Business or IT Services": [
+        "Rimes Data Feed"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Market Data Services"
+      ],
+      "Reporter": "info@extcom_15.com",
+      "Assignee": "irina.sokolov@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Low",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-11 15:04",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "info@extcom_15.com: Delayed benchmark publication for Americas universe. Corrected publication ETA later today.",
+        "service.desk@intcom.com: Mail copied into Jira. Awaiting functional routing."
+      ],
+      "Resolution text": "Diagnosis: Vendor-delayed Americas benchmark publication affects downstream data availability in SharePoint. Action: Confirm routing to correct Rimes data platform; validate access to files in SharePoint. Validation: Verify file availability and completeness post-correction. Request: Clarify if this incident impacts core services or requires escalation to Luxembourg entity.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The issue involves a vendor-delayed benchmark publication, which affects downstream consumers but does not directly impact any core trading or settlement service. No specific business service is disrupted in functionality; the impact is limited to data availability in downstream systems, which is not a critical service failure.",
+        "review_flags": [
+          "service_changed",
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Rimes Data Feed"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.7,
+        "comment_seconds": 3.21,
+        "historical_assignee_vote_share": 0.053,
+        "historical_assignee_support": 169,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Vendor onboarding mail says LEI submission file was rejected by the regulator gateway",
+      "Description": "A vendor onboarding mail was forwarded into Jira and says the latest LEI submission file was rejected by the regulator gateway because a mandatory classification segment was empty. The selected service in the intake does not reflect the actual process described in the message.",
+      "Affected Business or IT Services": [
+        "Regulatory Reporting"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Risk & Controls"
+      ],
+      "Reporter": "info@extcom_20.com",
+      "Assignee": "irina.sokolov@intcom.com",
+      "Priority": "High",
+      "Urgency": "Medium",
+      "Impact": "High",
+      "Severity": null,
+      "Created date": "2026-09-21 14:53",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "info@extcom_20.com: Submission file rejected by the regulator gateway. Error text mentions missing classification segment in the LEI submission payload.",
+        "service.desk@intcom.com: Forwarded from vendor onboarding mailbox. Service needs confirmation."
+      ],
+      "Resolution text": "Diagnosis: Gateway rejection due to empty mandatory classification segment in LEI submission. Action: Update master data with classification, regenerate submission file, and resubmit. Validation: Confirm acceptance via regulator gateway response. Note: Current service selection does not align with actual process; request reclassification to 'Incident' for accurate tracking.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The rejection of an LEI submission file by the regulator gateway directly affects regulatory compliance, which is a core function of Regulatory Reporting.",
+        "review_flags": [
+          "service_changed",
+          "work_type_changed",
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Regulatory Reporting"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.97,
+        "comment_seconds": 2.99,
+        "historical_assignee_vote_share": 0.064,
+        "historical_assignee_support": 173,
+        "resolution_examples": [
+          "Submission was rejected due to missing classification data on new entity records. Updated the master data, regenerated the file, and resubmitted successfully.",
+          "Traced the gateway rejection to incomplete counterparty classification; corrected the records, regenerated the submission, and confirmed acceptance."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Machine Created Alert",
+      "Summary": "SimCorp replication job SCD_POS_SYNC failed on host EAPW8504",
+      "Description": "A technical account created an incident after the SimCorp replication job SCD_POS_SYNC failed on host EAPW8504. Position updates were not synchronized to the reporting layer and operations may see stale holdings until the failed replication run is corrected.",
+      "Affected Business or IT Services": [
+        "SimCorp Dimension"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Enterprise Applications"
+      ],
+      "Reporter": "sa_accounting@intcom.com",
+      "Assignee": "quinn.anderson@intcom.com",
+      "Priority": "High",
+      "Urgency": "High",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-11 19:26",
+      "Status": "open",
+      "Linked issues": [
+        "SCD-20260976"
+      ],
+      "Resolution": "done",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sa_accounting@intcom.com: Job SCD_POS_SYNC failed on EAPW8504 with replication timeout.",
+        "monitoring.bot@intcom.com: Automated incident created because reporting synchronization did not complete."
+      ],
+      "Resolution text": "Diagnosed replication timeout in SCD_POS_SYNC on EAPW8504 due to database lock. Cleared the lock, restarted the job from last checkpoint, and validated holdings synchronization in reporting layer. Access check confirmed for Nordics team. Pending confirmation from operations on holdings visibility post-recovery.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "Position updates are not synchronized to the reporting layer, affecting holdings visibility for operations, which impacts reporting accuracy and operational decision-making.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "SimCorp Dimension"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.87,
+        "comment_seconds": 2.87,
+        "historical_assignee_vote_share": 0.064,
+        "historical_assignee_support": 156,
+        "resolution_examples": [
+          "Diagnosed a timeout on the position sync job caused by a locked staging table; cleared the session and reran the sync, confirming holdings matched afterward.",
+          "Replication job had stalled due to a temporary database lock. Cleared the lock, restarted the job from its last checkpoint, and reconciled positions against downstream reporting."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Machine Created Alert",
+      "Summary": "NAV_EOD_GE_375 stopped after valuation tolerance breach on 4 funds",
+      "Description": "An automated monitoring rule raised an alert for NAV_EOD_GE_375 after the end-of-day valuation run breached configured tolerance thresholds on several Germany funds. The batch did not publish the NAV snapshot to the downstream control queue and requires triage before the next accounting cycle begins.",
+      "Affected Business or IT Services": [
+        "NAV Calculation"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Valuation & Pricing"
+      ],
+      "Reporter": "sa_accounting@intcom.com",
+      "Assignee": "nora.leclerc@intcom.com",
+      "Priority": "Medium",
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-19 11:49",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "done",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sa_accounting@intcom.com: Alert source NAV_EOD_GE_375 on host calc-prd-09. Tolerance breach detected.",
+        "monitoring.bot@intcom.com: Automated incident created because the downstream NAV publication queue did not receive a success event within 10 minutes."
+      ],
+      "Resolution text": "Diagnosis: NAV_EOD_GE_375 failed to publish snapshot due to tolerance breach on 4 Germany funds. Action: Investigate logs for root cause; validate tolerance thresholds and downstream queue receipt. Validation: Confirm successful publication in next cycle via downstream queue audit. Approval required for access to calc-prd-09 logs.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The NAV calculation batch failed to publish a snapshot to the downstream queue, affecting Germany funds during the next accounting cycle, which is a non-critical full outage for a subset of entities.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "NAV Calculation"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.22,
+        "comment_seconds": 2.93,
+        "historical_assignee_vote_share": 0.064,
+        "historical_assignee_support": 141,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Human Created Incident",
+      "Summary": "Compliance monitoring dashboard shows stale breach statuses after yesterday's rule update",
+      "Description": "After yesterday's rule update, the compliance dashboard still shows several breaches as open even though the underlying portfolio checks have already been rerun successfully. Analysts can work around the issue by opening each case manually, but the overview screen is no longer trustworthy and causes repeated escalations.",
+      "Affected Business or IT Services": [
+        "Risk & Compliance Monitoring"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Risk & Controls"
+      ],
+      "Reporter": "sebastian.eaton@intcom.com",
+      "Assignee": "frank.ross@intcom.com",
+      "Priority": "High",
+      "Urgency": "High",
+      "Impact": "High",
+      "Severity": null,
+      "Created date": "2026-09-22 04:46",
+      "Status": "open",
+      "Linked issues": [
+        "RCM-8017"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sebastian.eaton@intcom.com: Breach detail pages look current, but the dashboard summary still shows yesterday's open breaches after the rule update."
+      ],
+      "Resolution text": "Diagnosis: Dashboard displays stale breach statuses despite successful reruns. Action: Verify dashboard cache and data refresh logic post-rule update. Validation: Confirm breach status sync in real-time via a live query after rule update. Request: Access to dashboard logs and rule execution records for audit trail. Approval needed for investigation scope.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The compliance dashboard shows stale breach statuses despite successful reruns, leading to repeated escalations and loss of trust in the overview screen, which affects analysts' ability to assess real-time compliance status across portfolios.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Risk & Compliance Monitoring"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.31,
+        "comment_seconds": 2.69,
+        "historical_assignee_vote_share": 0.074,
+        "historical_assignee_support": 162,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "Access to a Service",
+      "Summary": "Access requested for CRM & Client Portal for a new relationship manager in France",
+      "Description": "A new relationship manager joined the France distribution team and needs standard access to the CRM & Client Portal to review investor interactions and document follow-up actions. The line manager approved the request and asked for the usual role-based profile without elevated rights.",
+      "Affected Business or IT Services": [
+        "CRM & Client Portal"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Client Services"
+      ],
+      "Reporter": "beatrice.anderson@intcom.com",
+      "Assignee": "william.maier@intcom.com",
+      "Priority": "Lowest",
+      "Urgency": "Lowest",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-17 16:29",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "beatrice.anderson@intcom.com: Starter access request approved by the team lead. Standard sales role only."
+      ],
+      "Resolution text": "Access request approved. Provisioning of standard sales role profile for the new relationship manager in France. Validation via access check in CRM & Client Portal post-provisioning. No elevated rights granted. Confirmation from line manager required for final sign-off.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "A new relationship manager requires standard access to the CRM & Client Portal for routine client interaction review, which is a localized, non-critical workflow with no service disruption.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "CRM & Client Portal"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.17,
+        "comment_seconds": 2.26,
+        "historical_assignee_vote_share": 0.082,
+        "historical_assignee_support": 158,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "Access Removal",
+      "Summary": "Access removal requested for SharePoint & File Storage after contractor offboarding",
+      "Description": "A contractor left the organization and all project document access for SharePoint & File Storage must be removed before the end of the day. The request covers direct site permissions, synchronized folders, and any inherited access via project groups.",
+      "Affected Business or IT Services": [
+        "SharePoint & File Storage"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Enterprise Applications"
+      ],
+      "Reporter": "nadia.morgan@intcom.com",
+      "Assignee": "carlos.ortiz@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Low",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-21 12:30",
+      "Status": "open",
+      "Linked issues": [
+        "IAM-63281"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "nadia.morgan@intcom.com: Contractor contract ended today. Please remove all SharePoint access including synced project folders."
+      ],
+      "Resolution text": "Confirmed contractor offboarding; access removal required for SharePoint & File Storage. Action: Remove direct site permissions, synchronized folder access, and inherited access via project groups. Validation: Confirm access is revoked via SharePoint admin center and verify no residual access in project groups. Approval pending from IAM-63281.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "Access removal for SharePoint is a routine administrative task with no direct service disruption or impact on business operations.",
+        "review_flags": [
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "SharePoint & File Storage"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.71,
+        "comment_seconds": 2.57,
+        "historical_assignee_vote_share": 0.094,
+        "historical_assignee_support": 138,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "Misclassified Incident Title",
+      "Summary": "Production outage in Outlook & Email for shared mailbox creation",
+      "Description": "The title sounds like an outage, but the user is actually asking for a new shared mailbox and distribution list for a temporary campaign. No disruption was reported. The task is a standard service request that needs the normal approval and provisioning path.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Enterprise Applications"
+      ],
+      "Reporter": "cora.russell@intcom.com",
+      "Assignee": "david.kim@intcom.com",
+      "Priority": "Lowest",
+      "Urgency": "Lowest",
+      "Impact": "Lowest",
+      "Severity": null,
+      "Created date": "2026-09-21 11:33",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "cora.russell@intcom.com: Need a shared mailbox and DL before next week. There is no actual mail outage."
+      ],
+      "Resolution text": "Diagnosis: Title misrepresents the request; user seeks standard shared mailbox and distribution list creation, not an outage. Action: Proceed with standard provisioning workflow, including approval and access validation. Validation: Confirm access is granted and functional via email test. Note: No service disruption occurred.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "No actual email disruption or service failure; request is for a standard shared mailbox and distribution list creation, a routine access provisioning task.",
+        "review_flags": [
+          "service_changed",
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Outlook & Email"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.01,
+        "comment_seconds": 2.58,
+        "historical_assignee_vote_share": 0.08,
+        "historical_assignee_support": 162,
+        "resolution_examples": []
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Machine Created Alert",
+      "Summary": "Corporate action ingestion CAEV-874 is missing a mandatory option code on 1 events",
+      "Description": "The corporate action ingestion feed CAEV-874 loaded 1 events without a mandatory option code, so the elections could not be published to the downstream operations screen. The event payloads were received, but users cannot process the instructions until the missing option mapping is corrected.",
+      "Affected Business or IT Services": [
+        "Corporate Actions"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Securities Operations"
+      ],
+      "Reporter": "sa_securities@intcom.com",
+      "Assignee": "pierre.johnson@intcom.com",
+      "Priority": "High",
+      "Urgency": "High",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-11 22:34",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sa_securities@intcom.com: CAEV-874 missing option code on 1 events. Publication to operations screen blocked.",
+        "monitoring.bot@intcom.com: Automated incident created from corporate action data-quality rule."
+      ],
+      "Resolution text": "Root cause: Missing mandatory option code in CAEV-874 event payload. Action: Update option-code mapping for the event, reprocess feed, and validate elections appear on operations screen. Validation: Confirm downstream publication and user access to instructions. Approval required for mapping change.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The missing option code prevents elections from being published to the downstream operations screen, affecting user ability to process corporate action instructions for one event.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Corporate Actions"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.96,
+        "comment_seconds": 2.69,
+        "historical_assignee_vote_share": 0.076,
+        "historical_assignee_support": 145,
+        "resolution_examples": [
+          "Several events were missing option code mappings after ingestion. Updated the mapping table, reprocessed the feed, and confirmed elections displayed correctly.",
+          "Root cause was an incomplete option-code mapping for a batch of events; corrected the mapping and reprocessed, verifying elections appeared on the dashboard."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Human Created Incident",
+      "Summary": "Orders remain in pending approval after broker account switch in OMS",
+      "Description": "After a broker account switch in the order management workflow, newly submitted orders remain in pending approval and do not progress to execution routing. Traders can still create the orders, but the workflow no longer sends them to the configured broker path and manual workaround is required.",
+      "Affected Business or IT Services": [
+        "Order Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Trading Support"
+      ],
+      "Reporter": "maia.berg@intcom.com",
+      "Assignee": "david.kim@intcom.com",
+      "Priority": "Medium",
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "Severity": null,
+      "Created date": "2026-09-20 22:28",
+      "Status": "open",
+      "Linked issues": [],
+      "Resolution": "done",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "maia.berg@intcom.com: Reproduced on three new orders after switching the broker account mapping. Orders stay pending approval and never leave OMS."
+      ],
+      "Resolution text": "Diagnosed stale broker account mapping post-switch blocking workflow progression. Updated mapping in OMS, validated with one test order routing successfully. Pending approval flow now resolves; remaining held orders will be released after confirmation.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "Orders remain in pending approval and do not progress to execution routing after a broker account switch, affecting order execution workflow in Order Management.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Order Management"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.79,
+        "comment_seconds": 2.27,
+        "historical_assignee_vote_share": 0.071,
+        "historical_assignee_support": 155,
+        "resolution_examples": [
+          "Diagnosed a broken broker routing link after the account switch; updated the routing table and confirmed subsequent orders flowed through without manual intervention.",
+          "A stale clearing account mapping from a recent broker change was blocking order routing. Corrected the mapping, tested with one order, then released the remaining held orders."
+        ]
+      }
+    },
+    {
+      "Work type": "Incident",
+      "Request type": "Machine Created Alert",
+      "Summary": "Settlement confirmation queue SECLINK-7549 backlog exceeded the operational threshold",
+      "Description": "The settlement confirmation queue SECLINK-7549 accumulated 164 unmatched confirmations within fifteen minutes. Matching for already-instructed trades completed, but final settlement acknowledgements were not posted back into the operations dashboard. The queue depth points to a settlement processing issue rather than a front-office booking defect.",
+      "Affected Business or IT Services": [
+        "Securities Settlement"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Securities Operations"
+      ],
+      "Reporter": "sa_securities@intcom.com",
+      "Assignee": "tania.gupta@intcom.com",
+      "Priority": "Highest",
+      "Urgency": "Highest",
+      "Impact": "Highest",
+      "Severity": null,
+      "Created date": "2026-09-20 05:18",
+      "Status": "open",
+      "Linked issues": [
+        "OPS-48252"
+      ],
+      "Resolution": "done",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "sa_securities@intcom.com: Monitoring threshold breach on SECLINK-7549. Confirmation queue depth above 161 for 15 minutes.",
+        "monitoring.bot@intcom.com: Auto-ticket opened from securities middleware health check."
+      ],
+      "Resolution text": "Root cause: Stalled consumer in settlement confirmation queue SECLINK-7549. Action: Restart listener, replay backlog of 164 unmatched confirmations. Validation: Confirm downstream custody records sync with dashboard and queue depth remains below 161. Access required: None. Approval: Pending review by Security Operations Lead.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The settlement confirmation queue backlog exceeds operational thresholds and prevents final settlement acknowledgements from being posted, leading to a critical failure in the settlement process which directly impacts trade execution and settlement timelines for the entity.",
+        "review_flags": [
+          "assignee_low_confidence"
+        ],
+        "content_clues": [
+          "Securities Settlement"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 3.32,
+        "comment_seconds": 3.17,
+        "historical_assignee_vote_share": 0.054,
+        "historical_assignee_support": 168,
+        "resolution_examples": [
+          "Reviewed the settlement message queue, cleared several stuck acknowledgements, and replayed the pending confirmations so custody statuses synced back to the dashboard.",
+          "Root cause was a stalled consumer on the settlement queue. Restarted the listener, replayed the backlog, and confirmed downstream custody records caught up."
+        ]
+      }
+    },
+    {
+      "Work type": "Service Request",
+      "Request type": "Misclassified Service Request Title",
+      "Summary": "Need access removed from all deactivated users in portal today",
+      "Description": "The title reads like an urgent incident, but the body asks for routine identity cleanup after a batch of user deactivations. The request is operationally important because inactive accounts must not retain access, and the selected service in intake may not reflect the identity focus of the task.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Service Team(s)": [
+        "Enterprise Applications"
+      ],
+      "Reporter": "maia.berg@intcom.com",
+      "Assignee": "samuel.hughes@intcom.com",
+      "Priority": "Low",
+      "Urgency": "Medium",
+      "Impact": "Low",
+      "Severity": null,
+      "Created date": "2026-09-19 18:13",
+      "Status": "open",
+      "Linked issues": [
+        "IAM-67104"
+      ],
+      "Resolution": "clarification",
+      "Due date": null,
+      "Resolution date": null,
+      "All Comments": [
+        "maia.berg@intcom.com: Daily deactivation batch completed. Need confirmation that inactive users no longer retain portal access."
+      ],
+      "Resolution text": "Root cause: Misclassification of routine identity cleanup as an incident. Action: Confirm deactivation batch completion and validate access removal for inactive users via portal audit logs. Validation: Verify no active access remains for deactivated accounts. Approval required for access removal execution.",
+      "_triage": {
+        "draft_only": true,
+        "reason": "The request is for routine identity cleanup of deactivated accounts, which affects only inactive users and does not disrupt any operational service.",
+        "review_flags": [
+          "work_type_changed",
+          "assignee_low_confidence",
+          "no_historical_resolution_example"
+        ],
+        "content_clues": [
+          "Identity & Access Management"
+        ],
+        "injection_detected": false,
+        "model": "qwen3:4b-instruct-2507-q4_K_M",
+        "classification_seconds": 2.84,
+        "comment_seconds": 2.36,
+        "historical_assignee_vote_share": 0.074,
+        "historical_assignee_support": 149,
+        "resolution_examples": []
+      }
+    }
+  ]
+}
