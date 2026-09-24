@@ -6,8 +6,8 @@ services:
       POSTGRES_PASSWORD: backend
       POSTGRES_DB: backend
     ports:
-      # Local only, and 5433 so it doesn't clash with a system Postgres on 5432.
-      - "127.0.0.1:5433:5432"
+      # Local only, on 5434: 5432 is the system Postgres, 5433 is taken by MockME.
+      - "127.0.0.1:5434:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro

@@ -8,7 +8,7 @@ export default defineConfig({
 			DASHBOARD_ORIGIN: "http://localhost:5173",
 			DATABASE_URL:
 				process.env.TEST_DATABASE_URL ??
-				"postgres://backend:backend@127.0.0.1:5433/backend_test",
+				"postgres://backend:backend@127.0.0.1:5434/backend_test",
 			// Tests use the in-memory fakes; these only satisfy env validation.
 			JIRA_BASE_URL: "https://jira.invalid",
 			JIRA_EMAIL: "test@example.com",

@@ -489,7 +489,8 @@ export function ClassificationSidebar({ index }: { index: number }) {
   const settled = TRIAGE_FIELDS.length - remaining.length;
   const info = serviceInfo(triage.service);
   const team = info?.[1] ?? "Unknown team";
-  const level = priority(triage.urgency, triage.impact);
+  // Tickets without urgency or impact in Jira keep the priority Jira holds.
+  const level = priority(triage.urgency, triage.impact) ?? triage.priority ?? "";
   const candidates = proposal?.proposal.assignee_candidates ?? [];
   const set = (values: Partial<Triage>) => update(index, { triage: { ...triage, ...values } });
 
@@ -554,7 +555,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
   const tag = (field: TriageField, options: Option[]) => (
     <ProposedTag
       field={field}
-      value={triage[field]}
+      value={triage[field] ?? ""}
       ai={aiValue(proposal, field)}
       kind={kinds.get(field) ?? "declared"}
       explanation={proposal ? explain(field, ticket, proposal) : null}

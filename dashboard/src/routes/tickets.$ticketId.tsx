@@ -57,14 +57,16 @@ function draftKind(reply: string, draft: string, verified: readonly Verifiable[]
 // Historical fixes are offered only when they match the request at least this closely.
 const REFERENCE_SIMILARITY = 0.1;
 
-const formatDate = (value: string) =>
-  new Date(value.replace(" ", "T")).toLocaleString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const formatDate = (value: string | null) =>
+  value === null
+    ? ""
+    : new Date(value.replace(" ", "T")).toLocaleString("en-GB", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
 function TicketWorkspace() {
   const { ticketId } = Route.useParams();

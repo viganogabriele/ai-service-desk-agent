@@ -101,24 +101,27 @@ export function serviceInfo(name: string) {
   return SERVICES.find((row) => row[0].toLowerCase() === name.toLowerCase());
 }
 
-export function priority(urgency: Level, impact: Level): Level {
+export function priority(urgency: Level | null, impact: Level | null): Level | null {
+  if (!urgency || !impact) return null;
+
   return PRIORITY_MATRIX[LEVELS.indexOf(urgency)][LEVELS.indexOf(impact)];
 }
 
 export interface Ticket {
+  Key: string;
   "Work type": string;
-  "Request type": string;
+  "Request type": string | null;
   Summary: string;
   Description: string;
   "Affected Business or IT Services": string[];
   "Business Entity": string[];
   "Service Team(s)": string[];
-  Reporter: string;
+  Reporter: string | null;
   Assignee: string | null;
-  Priority: string;
-  Urgency: string;
-  Impact: string;
-  "Created date": string;
+  Priority: string | null;
+  Urgency: string | null;
+  Impact: string | null;
+  "Created date": string | null;
   Status: string;
   "Linked issues": string[];
   Resolution: string | null;
@@ -129,16 +132,18 @@ export interface Ticket {
 
 /** Incoming tickets; urgency and impact are validated against LEVELS during data preparation. */
 export interface IncomingTicket extends Omit<Ticket, "Urgency" | "Impact"> {
-  Urgency: Level;
-  Impact: Level;
+  Urgency: Level | null;
+  Impact: Level | null;
 }
 
 export interface Triage {
   work_type: string;
   service: string;
   assignee: string;
-  urgency: Level;
-  impact: Level;
+  urgency: Level | null;
+  impact: Level | null;
+  /** The priority Jira holds, for tickets without urgency or impact. */
+  priority: Level | null;
 }
 
 export const TRIAGE_FIELDS = ["work_type", "service", "assignee", "urgency", "impact"] as const;
@@ -225,6 +230,7 @@ export function startingTriage(ticket: IncomingTicket, proposal: Proposal | null
       assignee: proposal.proposal.assignee_candidates[0]?.email ?? "",
       urgency: proposal.proposal.urgency,
       impact: proposal.proposal.impact,
+      priority: priority(proposal.proposal.urgency, proposal.proposal.impact),
     };
 
   return {
@@ -233,6 +239,7 @@ export function startingTriage(ticket: IncomingTicket, proposal: Proposal | null
     assignee: ticket.Assignee ?? "",
     urgency: ticket.Urgency,
     impact: ticket.Impact,
+    priority: LEVELS.find((value) => value === ticket.Priority) ?? null,
   };
 }
 

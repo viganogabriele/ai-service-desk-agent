@@ -127,7 +127,7 @@ export function useTicketRows() {
           row.ticket["Request type"],
           triage.service,
           triage.assignee,
-        ].some((text) => text.toLowerCase().includes(needle))
+        ].some((text) => text?.toLowerCase().includes(needle))
       )
         return false;
 
@@ -136,8 +136,7 @@ export function useTicketRows() {
     .sort(
       (a, b) =>
         Number(!isOpen(a.current.status)) - Number(!isOpen(b.current.status)) ||
-        LEVELS.indexOf(priority(a.current.triage.urgency, a.current.triage.impact)) -
-          LEVELS.indexOf(priority(b.current.triage.urgency, b.current.triage.impact)) ||
+        priorityRank(a.current.triage) - priorityRank(b.current.triage) ||
         a.index - b.index,
     );
 
@@ -153,15 +152,24 @@ export function StatusPill({ status }: { status: Status }) {
   );
 }
 
+// Tickets without urgency or impact in Jira keep the priority Jira holds.
+const levelOf = (triage: Triage) => priority(triage.urgency, triage.impact) ?? triage.priority;
+
+const priorityRank = (triage: Triage) => {
+  const level = levelOf(triage);
+
+  return level ? LEVELS.indexOf(level) : LEVELS.length;
+};
+
 /** Priority is never free input: it is the matrix value of urgency × impact. */
 export function PriorityPill({ triage, detail = false }: { triage: Triage; detail?: boolean }) {
-  const level = priority(triage.urgency, triage.impact);
+  const level = levelOf(triage);
   const basis = `Urgency ${triage.urgency} × Impact ${triage.impact}`;
 
   return (
     <span className="priority" data-tip={`${level} priority · ${basis}`}>
       <span className="pill">
-        <i className={`dot ${PRIORITY_DOTS[level]}`} />
+        <i className={`dot ${level ? PRIORITY_DOTS[level] : ""}`} />
         {level}
       </span>
       {detail && <small>{basis}</small>}
@@ -169,7 +177,7 @@ export function PriorityPill({ triage, detail = false }: { triage: Triage; detai
   );
 }
 
-export function Initials({ email }: { email: string }) {
+export function Initials({ email }: { email: string | null }) {
   if (!email) return <span className="avatar empty" aria-hidden="true" />;
   const [first = "", last = ""] = email.split("@")[0].split(".");
 
@@ -181,8 +189,8 @@ export function Initials({ email }: { email: string }) {
   );
 }
 
-export const personName = (email: string) =>
-  email
+export const personName = (email: string | null) =>
+  (email ?? "")
     .split("@")[0]
     .split(".")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))

@@ -1,7 +1,15 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createBackendClient,
+  liveBundle,
+  ticketOutcome,
+  ticketStatus,
+  triagePatch,
+} from "./lib/backend";
+import type { TicketPatch } from "./lib/backend";
 import {
   LEVELS,
   OUTCOMES,
@@ -35,7 +43,7 @@ export interface Action {
   timestamp: string;
   model_id: string | null;
   // Fields the operator changed relative to the AI proposal, when one existed.
-  changed_fields: { field: string; proposed: string; final: string }[];
+  changed_fields: { field: string; proposed: string | null; final: string | null }[];
   hint?: string;
 }
 
@@ -101,6 +109,10 @@ interface SolverRecord {
 const STORAGE_KEY = "service-desk-reviews-v2";
 
 const STRONGER_URL: string | null = import.meta.env.VITE_PREMIUM_SOLVER_URL || null;
+
+const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8787";
+
+const backend = createBackendClient(BACKEND_URL);
 
 const EMPTY: SavedState = { reviews: {}, actions: [], regenerated: {} };
 
@@ -192,27 +204,31 @@ function initialReview(
   const draft = proposal?.proposal.resolution_comment ?? "";
 
   return {
-    status: "new",
+    status: ticketStatus(ticket),
     triage: startingTriage(ticket, proposal),
     // The solver's draft is a resolution note, not a question, so it only pre-fills the reply.
     reply: aiResolution && aiResolution !== "clarification" ? draft : "",
     question: "",
-    outcome: OUTCOMES.find((item) => item === aiResolution) ?? "done",
+    outcome: OUTCOMES.find((item) => item === aiResolution) ?? ticketOutcome(ticket),
     version,
   } satisfies Review;
 }
 
+// fetch rejects with a TypeError when the backend is down or blocks the origin.
+function failureText(failure: Error) {
+  return failure instanceof TypeError
+    ? `The backend at ${BACKEND_URL} is not reachable.`
+    : failure.message;
+}
+
 export function DashboardProvider({ children }: { children: ReactNode }) {
+  const client = useQueryClient();
+
   const query = useQuery<Bundle>({
     queryKey: ["dashboard-data"],
-    queryFn: async () => {
-      const response = await fetch("/dashboard-data.json");
-
-      if (!response.ok) throw new Error("Ticket data could not be loaded.");
-
-      return response.json();
-    },
-    staleTime: Infinity,
+    // The backend's copy of Jira; the backend syncs Jira in the background.
+    queryFn: async ({ signal }) => liveBundle(await backend.tickets(signal)),
+    refetchInterval: 15_000,
   });
 
   const health = useQuery<{ model: string }>({
@@ -241,18 +257,25 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   if (query.isPending) return <div className="loading">Loading tickets…</div>;
 
-  if (query.isError) return <div className="loading">{query.error.message}</div>;
+  if (query.isError) return <div className="loading">{failureText(query.error)}</div>;
 
   const data = query.data;
-  const idOf = (index: number) => `CH-${String(index + 1).padStart(2, "0")}`;
+  const idOf = (index: number) => data.challenge[index].Key;
 
   const proposalAt = (index: number, version: number) =>
     version > 0
       ? (saved.regenerated[idOf(index)]?.[version - 1] ?? data.proposals[index])
       : data.proposals[index];
 
-  const review = (index: number): Review =>
-    saved.reviews[idOf(index)] ?? initialReview(data.challenge[index], data.proposals[index]);
+  // Edits are local drafts; the status always comes from Jira.
+  const review = (index: number): Review => {
+    const ticket = data.challenge[index];
+    const draft = saved.reviews[idOf(index)];
+
+    return draft
+      ? { ...draft, status: ticketStatus(ticket) }
+      : initialReview(ticket, data.proposals[index]);
+  };
 
   const proposalFor = (index: number) => proposalAt(index, review(index).version);
 
@@ -275,12 +298,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const update = (index: number, changes: Editable) => {
     const current = review(index);
 
-    write(index, {
-      ...current,
-      ...changes,
-      status: current.status === "new" ? "in_progress" : current.status,
-      updated_at: new Date().toISOString(),
-    });
+    write(index, { ...current, ...changes, updated_at: new Date().toISOString() });
   };
 
   const verify = (index: number, fields: Verifiable[], on: boolean) => {
@@ -298,33 +316,60 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   /** Apply a workflow transition, log it, and offer a one-step undo. */
   const transition = (
     index: number,
-    status: Status,
     action: Action["action"],
     message: string,
     changes: Editable = {},
+    extra: { resolution?: TicketPatch["Resolution"]; comment?: string } = {},
   ) => {
-    const before = saved.reviews[idOf(index)] ?? null;
+    const ticket = data.challenge[index];
     const current = { ...review(index), ...changes };
     const proposal = proposalFor(index);
+    const patch = triagePatch(ticket, current.triage);
+    const comment = extra.comment?.trim();
+
+    if (extra.resolution) patch.Resolution = extra.resolution;
+
+    // Same "author: text" form as the dataset comments.
+    if (comment)
+      patch["All Comments"] = [
+        current.triage.assignee ? `${current.triage.assignee}: ${comment}` : comment,
+      ];
 
     const changedFields = proposal
-      ? triageChanges(current.triage, startingTriage(data.challenge[index], proposal)).map(
-          (item) => ({ field: item.field, proposed: item.before, final: item.after }),
-        )
+      ? triageChanges(current.triage, startingTriage(ticket, proposal)).map((item) => ({
+          field: item.field,
+          proposed: item.before,
+          final: item.after,
+        }))
       : [];
 
-    write(
-      index,
-      { ...current, status, updated_at: new Date().toISOString() },
-      {
-        ticket_id: idOf(index),
-        action,
-        timestamp: new Date().toISOString(),
-        model_id: proposal?.model_id ?? null,
-        changed_fields: changedFields,
-      },
-    );
-    show({ message, undo: () => write(index, before) });
+    write(index, { ...current, updated_at: new Date().toISOString() });
+
+    void (async () => {
+      try {
+        const [result] = (await backend.patch([patch])).results;
+
+        if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
+        // Saved: drop the draft so the ticket shows what Jira now holds.
+        write(index, null, {
+          ticket_id: idOf(index),
+          action,
+          timestamp: new Date().toISOString(),
+          model_id: proposal?.model_id ?? null,
+          changed_fields: changedFields,
+        });
+        await client.invalidateQueries({ queryKey: ["dashboard-data"] });
+        show({
+          message: result.warnings.length
+            ? `${message} Jira noted: ${result.warnings.join("; ")}`
+            : message,
+        });
+      } catch (failure) {
+        const error = failure instanceof Error ? failure : new Error(String(failure));
+
+        show({ message: `${idOf(index)} was not saved to Jira: ${failureText(error)}` });
+      }
+    })();
   };
 
   const team = (index: number) =>
@@ -442,30 +487,31 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         update,
         verify,
         assign: (index, changes) =>
+          transition(index, "assign", `${idOf(index)} assigned to ${team(index)}.`, changes),
+        resolve: (index, changes) => {
+          const current = { ...review(index), ...changes };
+
+          transition(index, "resolve", `${idOf(index)} resolved.`, changes, {
+            resolution: current.outcome,
+            comment: current.reply,
+          });
+        },
+        askReporter: (index, changes) => {
+          const current = { ...review(index), ...changes };
+
           transition(
             index,
-            "assigned",
-            "assign",
-            `${idOf(index)} assigned to ${team(index)}.`,
-            changes,
-          ),
-        resolve: (index, changes) =>
-          transition(index, "resolved", "resolve", `${idOf(index)} resolved.`, changes),
-        askReporter: (index, changes) =>
-          transition(
-            index,
-            "waiting",
             "ask",
             `Question sent to ${data.challenge[index].Reporter} for ${idOf(index)}.`,
             changes,
-          ),
+            { resolution: "clarification", comment: current.question },
+          );
+        },
+        // Jira status changes other than assign and resolve are not available through the backend yet.
         move: (index, status) =>
-          transition(
-            index,
-            status,
-            status === "new" ? "reopen" : "move",
-            `${idOf(index)} moved to ${STATUS_LABELS[status]}.`,
-          ),
+          show({
+            message: `${idOf(index)} cannot be moved to ${STATUS_LABELS[status]} from here yet. Change its status in Jira.`,
+          }),
         regenerate,
         reset: () => setSaved(EMPTY),
         exportData,
