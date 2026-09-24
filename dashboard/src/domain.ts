@@ -151,6 +151,18 @@ export const FIELD_LABELS: Record<(typeof TRIAGE_FIELDS)[number], string> = {
   impact: "Impact",
 };
 
+export type TriageField = (typeof TRIAGE_FIELDS)[number];
+
+/**
+ * Why the model chose one value. A §3.1 proposal file may carry one per field; without it the
+ * ticket page derives a note from the proposal itself (reason, declared values, assignee support).
+ */
+export interface Explanation {
+  reason: string;
+  confidence: number | null;
+  evidence: string[];
+}
+
 export interface Proposal {
   ticket_id: string;
   model_id: string;
@@ -167,6 +179,9 @@ export interface Proposal {
   };
   rationale: string;
   review_flags: string[];
+  // Service or product names the solver found in the ticket text.
+  content_clues?: string[];
+  explanations?: Partial<Record<TriageField | "resolution_comment", Explanation>>;
 }
 
 export interface SimilarResolution {

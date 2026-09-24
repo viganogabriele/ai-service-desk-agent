@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { Bundle, Outcome, Proposal, Status, Triage } from "./domain";
+import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import {
   LEVELS,
   OUTCOMES,
@@ -13,6 +13,9 @@ import {
   triageChanges,
 } from "./domain";
 
+/** Values the operator can confirm as reviewed without changing them: triage fields and the AI reply draft. */
+export type Verifiable = TriageField | "reply";
+
 export interface Review {
   status: Status;
   triage: Triage;
@@ -21,6 +24,8 @@ export interface Review {
   question: string;
   // 0 is the bundled proposal; n is the n-th stronger-model regeneration.
   version: number;
+  // AI values the operator explicitly confirmed. A later change makes the confirmation moot.
+  verified?: Verifiable[];
   updated_at?: string;
 }
 
@@ -63,6 +68,7 @@ interface DashboardContextValue {
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
   update: (index: number, changes: Editable) => void;
+  verify: (index: number, fields: Verifiable[], on: boolean) => void;
   assign: (index: number, changes?: Editable) => void;
   resolve: (index: number, changes?: Editable) => void;
   askReporter: (index: number, changes?: Editable) => void;
@@ -88,6 +94,7 @@ interface SolverRecord {
     historical_assignee_vote_share?: number;
     historical_assignee_support?: number;
     review_flags?: string[];
+    content_clues?: string[];
   };
 }
 
@@ -172,6 +179,7 @@ function fromSolver(record: SolverRecord | undefined, id: string): Proposal {
     },
     rationale: triage.reason ?? "",
     review_flags: triage.review_flags ?? [],
+    content_clues: triage.content_clues ?? [],
   };
 }
 
@@ -270,6 +278,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     write(index, {
       ...current,
       ...changes,
+      status: current.status === "new" ? "in_progress" : current.status,
+      updated_at: new Date().toISOString(),
+    });
+  };
+
+  const verify = (index: number, fields: Verifiable[], on: boolean) => {
+    const current = review(index);
+    const kept = (current.verified ?? []).filter((field) => !fields.includes(field));
+
+    write(index, {
+      ...current,
+      verified: on ? [...kept, ...fields] : kept,
       status: current.status === "new" ? "in_progress" : current.status,
       updated_at: new Date().toISOString(),
     });
@@ -420,6 +440,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         review,
         proposalFor,
         update,
+        verify,
         assign: (index, changes) =>
           transition(
             index,
