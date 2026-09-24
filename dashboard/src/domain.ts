@@ -53,7 +53,7 @@ export const STATUSES = ["new", "in_progress", "assigned", "waiting", "resolved"
 export type Status = (typeof STATUSES)[number];
 
 export const STATUS_LABELS: Record<Status, string> = {
-  new: "New",
+  new: "Awaiting review",
   in_progress: "In progress",
   assigned: "Assigned",
   waiting: "Waiting for reporter",

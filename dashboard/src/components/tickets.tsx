@@ -1,12 +1,11 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { Search, X } from "lucide-react";
+import { Flag, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Review } from "../state";
 import {
   LEVELS,
   OPEN_STATUSES,
-  PRIORITY_DOTS,
   SERVICES,
   STATUSES,
   STATUS_DOTS,
@@ -29,11 +28,11 @@ export interface TicketFilters {
 
 const DEFAULT_FILTERS: TicketFilters = {
   query: "",
-  status: "open",
+  status: "all",
   service: "all",
   rating: "all",
   change: "all",
-  view: "table",
+  view: "priority",
 };
 
 interface FiltersContextValue {
@@ -145,7 +144,7 @@ export function useTicketRows() {
 
 export function StatusPill({ status }: { status: Status }) {
   return (
-    <span className="pill" data-tip={STATUS_HELP[status]}>
+    <span className="status" data-tip={STATUS_HELP[status]}>
       <i className={`dot ${STATUS_DOTS[status]}`} />
       {STATUS_LABELS[status]}
     </span>
@@ -153,7 +152,8 @@ export function StatusPill({ status }: { status: Status }) {
 }
 
 // Tickets without urgency or impact in Jira keep the priority Jira holds.
-const levelOf = (triage: Triage) => priority(triage.urgency, triage.impact) ?? triage.priority;
+export const levelOf = (triage: Triage) =>
+  priority(triage.urgency, triage.impact) ?? triage.priority;
 
 const priorityRank = (triage: Triage) => {
   const level = levelOf(triage);
@@ -162,17 +162,25 @@ const priorityRank = (triage: Triage) => {
 };
 
 /** Priority is never free input: it is the matrix value of urgency × impact. */
-export function PriorityPill({ triage, detail = false }: { triage: Triage; detail?: boolean }) {
+export function PriorityBadge({ triage }: { triage: Triage }) {
   const level = levelOf(triage);
-  const basis = `Urgency ${triage.urgency} × Impact ${triage.impact}`;
+  const basis = `Urgency ${triage.urgency ?? "unknown"} × Impact ${triage.impact ?? "unknown"}`;
 
   return (
-    <span className="priority" data-tip={`${level} priority · ${basis}`}>
-      <span className="pill">
-        <i className={`dot ${level ? PRIORITY_DOTS[level] : ""}`} />
-        {level}
-      </span>
-      {detail && <small>{basis}</small>}
+    <span
+      className={`badge ${level ? level.toLowerCase() : "none"}`}
+      data-tip={level ? `${level} priority · ${basis}` : "No priority in Jira"}
+    >
+      <Flag size={12} strokeWidth={2.25} />
+      {level ?? "No priority"}
+    </span>
+  );
+}
+
+export function CriticalBadge() {
+  return (
+    <span className="badge critical" data-tip="Business-critical service">
+      Critical service
     </span>
   );
 }
@@ -201,7 +209,7 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
 
   return (
     <label className={compact ? "search compact" : "search"}>
-      <Search size={14} strokeWidth={1.75} />
+      <Search size={15} strokeWidth={1.75} />
       <span className="sr-only">Search tickets</span>
       <input
         type="search"
@@ -234,12 +242,12 @@ export function StatusFilter() {
       value={filters.status}
       onChange={(status) => setFilters({ status })}
       options={[
+        { value: "all", label: "All tickets", hint: String(rows.length) },
         {
           value: "open",
           label: "Open tickets",
           hint: String(rows.filter((row) => isOpen(row.current.status)).length),
         },
-        { value: "all", label: "All tickets", hint: String(rows.length) },
         ...STATUSES.map((status) => ({
           value: status,
           label: STATUS_LABELS[status],

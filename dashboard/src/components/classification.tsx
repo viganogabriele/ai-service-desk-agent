@@ -31,6 +31,7 @@ import {
 } from "../domain";
 import type { Explanation, IncomingTicket, Proposal, Triage, TriageField } from "../domain";
 import { Initials, personName } from "./tickets";
+import { Fold } from "./ui";
 
 /**
  * Who owns a tag's value: the model, the model confirmed by the operator, the operator, the
@@ -572,160 +573,173 @@ export function ClassificationSidebar({ index }: { index: number }) {
     />
   );
 
+  const done = proposal !== null && remaining.length === 0;
+
   return (
     <aside className="classify" aria-label="Classification">
-      <div className="classify-head">
-        <div className="classify-title">
+      <div className="step-head">
+        <span className={done ? "step-number done" : "step-number"}>
+          {done ? <Check size={14} strokeWidth={2.5} /> : "1"}
+        </span>
+        <div>
           <h2>Classification</h2>
-          {proposal && (
-            <span className="num muted">
-              {settled} / {TRIAGE_FIELDS.length}
-            </span>
-          )}
+          <p>
+            {!proposal
+              ? "No AI suggestion. Values are what the reporter declared."
+              : done
+                ? "Every suggestion confirmed or changed."
+                : `${remaining.length} suggestion${remaining.length > 1 ? "s" : ""} to review${
+                    changed.length ? ` · ${changed.length} changed` : ""
+                  }`}
+          </p>
         </div>
+        {proposal && (
+          <span className="push num muted">
+            {settled}/{TRIAGE_FIELDS.length}
+          </span>
+        )}
+      </div>
+      <div className="classify-body">
         {proposal && (
           <div className="classify-meter" role="presentation">
             <span style={{ width: `${(settled / TRIAGE_FIELDS.length) * 100}%` }} />
           </div>
         )}
-        <p>
-          {!proposal
-            ? "No AI suggestion for this ticket. Values are what the reporter declared."
-            : remaining.length === 0
-              ? "Every AI suggestion has been confirmed or changed."
-              : `${remaining.length} AI suggestion${remaining.length > 1 ? "s" : ""} still to review${
-                  changed.length ? ` · ${changed.length} changed by you` : ""
-                }.`}
-        </p>
-      </div>
 
-      <div className="class-rows">
-        <Row label="Work type">
-          {tag("work_type", [
-            { value: "Incident", label: "Incident" },
-            { value: "Service Request", label: "Service Request" },
-          ])}
-        </Row>
-        <Row label="Service" hint={info?.[2] ?? "Unknown rating"}>
-          {tag("service", serviceOptions)}
-        </Row>
-        <Row label="Team" hint="from service">
-          <DerivedTag value={team}>
-            <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
-              <b>Follows the service</b>
-            </ReasonHead>
-            <p>
-              Each service belongs to exactly one team, so {triage.service} routes to {team}.
-            </p>
-          </DerivedTag>
-        </Row>
-        <Row label="Assignee">{tag("assignee", assigneeOptions)}</Row>
-        <Row label="Urgency">{tag("urgency", levelOptions(URGENCY_LABELS))}</Row>
-        <Row label="Impact">{tag("impact", levelOptions(IMPACT_LABELS))}</Row>
-        <Row label="Priority" hint="from matrix">
-          <DerivedTag value={level}>
-            <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
-              <b>Set by the service desk matrix</b>
-            </ReasonHead>
-            <p>
-              Urgency {triage.urgency} × impact {triage.impact} give {level}
-              {level !== ticket.Priority && ` · reporter declared ${ticket.Priority}`}. Change
-              urgency or impact to move it.
-            </p>
-            <div className="matrix-grid mini" aria-hidden="true">
-              {PRIORITY_MATRIX.flatMap((row, urgencyIndex) =>
-                row.map((cell, impactIndex) => (
-                  <div
-                    key={`${urgencyIndex}-${impactIndex}`}
-                    className={
-                      triage.urgency === LEVELS[urgencyIndex] &&
-                      triage.impact === LEVELS[impactIndex]
-                        ? "selected"
-                        : ""
-                    }
-                  >
-                    {cell}
-                  </div>
-                )),
-              )}
-            </div>
-          </DerivedTag>
-        </Row>
-      </div>
-
-      {remaining.length > 0 && (
-        <button className="button confirm-all" onClick={() => verify(index, remaining, true)}>
-          <CheckCheck size={16} strokeWidth={1.75} />
-          Confirm the {remaining.length} remaining suggestion{remaining.length > 1 ? "s" : ""}
-        </button>
-      )}
-
-      {proposal && (
-        <div className="classify-reason">
-          <h3>Why the model suggests this</h3>
-          <blockquote className="ai-reason">
-            {proposal.rationale || "The model gave no reason."}
-          </blockquote>
-          {flags.map((flag) => (
-            <p className="flag" key={flag}>
-              {flag}
-            </p>
-          ))}
-          <p className="muted">Suggested by {proposal.model_id}</p>
-        </div>
-      )}
-
-      {stronger.configured && current.status !== "resolved" && (
-        <div className="classify-stronger">
-          {!strongerOpen && (
-            <button
-              className="button"
-              disabled={!stronger.online}
-              data-tip={stronger.online ? undefined : "The stronger model is currently unavailable"}
-              onClick={() => setStrongerOpen(true)}
-            >
-              <Sparkles size={16} strokeWidth={1.75} />
-              Ask a stronger model
-            </button>
-          )}
-          {strongerOpen && (
-            <div className="inline-panel">
-              <label className="textarea-label">
-                What should the model take into account?
-                <textarea
-                  rows={3}
-                  value={hint}
-                  disabled={pending}
-                  placeholder="For example: the reporter means NAV calculation, not fund pricing."
-                  onChange={(event) => setHint(event.target.value)}
-                />
-              </label>
-              {error && (
-                <p className="error-line" role="alert">
-                  {error}
-                </p>
-              )}
-              <div className="panel-actions">
-                <button className="button ghost" onClick={() => setStrongerOpen(false)}>
-                  Cancel
-                </button>
-                <button
-                  className="button primary"
-                  disabled={pending || !hint.trim()}
-                  onClick={() => void askStronger()}
-                >
-                  {pending ? (
-                    <LoaderCircle size={16} strokeWidth={1.75} className="spin" />
-                  ) : (
-                    <Sparkles size={16} strokeWidth={1.75} />
-                  )}
-                  {pending ? "Asking…" : "Get new suggestion"}
-                </button>
+        <div className="class-rows">
+          <Row label="Work type">
+            {tag("work_type", [
+              { value: "Incident", label: "Incident" },
+              { value: "Service Request", label: "Service Request" },
+            ])}
+          </Row>
+          <Row label="Service" hint={info?.[2] ?? "Unknown rating"}>
+            {tag("service", serviceOptions)}
+          </Row>
+          <Row label="Team" hint="from service">
+            <DerivedTag value={team}>
+              <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
+                <b>Follows the service</b>
+              </ReasonHead>
+              <p>
+                Each service belongs to exactly one team, so {triage.service} routes to {team}.
+              </p>
+            </DerivedTag>
+          </Row>
+          <Row label="Assignee">{tag("assignee", assigneeOptions)}</Row>
+          <Row label="Urgency">{tag("urgency", levelOptions(URGENCY_LABELS))}</Row>
+          <Row label="Impact">{tag("impact", levelOptions(IMPACT_LABELS))}</Row>
+          <Row label="Priority" hint="from matrix">
+            <DerivedTag value={level}>
+              <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
+                <b>Set by the service desk matrix</b>
+              </ReasonHead>
+              <p>
+                Urgency {triage.urgency} × impact {triage.impact} give {level}
+                {level !== ticket.Priority && ` · reporter declared ${ticket.Priority}`}. Change
+                urgency or impact to move it.
+              </p>
+              <div className="matrix-grid mini" aria-hidden="true">
+                {PRIORITY_MATRIX.flatMap((row, urgencyIndex) =>
+                  row.map((cell, impactIndex) => (
+                    <div
+                      key={`${urgencyIndex}-${impactIndex}`}
+                      className={
+                        triage.urgency === LEVELS[urgencyIndex] &&
+                        triage.impact === LEVELS[impactIndex]
+                          ? "selected"
+                          : ""
+                      }
+                    >
+                      {cell}
+                    </div>
+                  )),
+                )}
               </div>
-            </div>
-          )}
+            </DerivedTag>
+          </Row>
         </div>
-      )}
+
+        {remaining.length > 0 && (
+          <button className="button confirm-all" onClick={() => verify(index, remaining, true)}>
+            <CheckCheck size={16} strokeWidth={1.75} />
+            Confirm the {remaining.length} remaining suggestion{remaining.length > 1 ? "s" : ""}
+          </button>
+        )}
+
+        {proposal && (
+          <Fold
+            icon={<Sparkles size={16} strokeWidth={1.75} />}
+            title="Why the model suggests this"
+          >
+            <div className="classify-reason">
+              <blockquote className="ai-reason">
+                {proposal.rationale || "The model gave no reason."}
+              </blockquote>
+              {flags.map((flag) => (
+                <p className="flag" key={flag}>
+                  {flag}
+                </p>
+              ))}
+              <p className="muted">Suggested by {proposal.model_id}</p>
+            </div>
+          </Fold>
+        )}
+
+        {stronger.configured && current.status !== "resolved" && (
+          <div className="classify-stronger">
+            {!strongerOpen && (
+              <button
+                className="button"
+                disabled={!stronger.online}
+                data-tip={
+                  stronger.online ? undefined : "The stronger model is currently unavailable"
+                }
+                onClick={() => setStrongerOpen(true)}
+              >
+                <Sparkles size={16} strokeWidth={1.75} />
+                Ask a stronger model
+              </button>
+            )}
+            {strongerOpen && (
+              <div className="inline-panel">
+                <label className="textarea-label">
+                  What should the model take into account?
+                  <textarea
+                    rows={3}
+                    value={hint}
+                    disabled={pending}
+                    placeholder="For example: the reporter means NAV calculation, not fund pricing."
+                    onChange={(event) => setHint(event.target.value)}
+                  />
+                </label>
+                {error && (
+                  <p className="error-line" role="alert">
+                    {error}
+                  </p>
+                )}
+                <div className="panel-actions">
+                  <button className="button ghost" onClick={() => setStrongerOpen(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    className="button primary"
+                    disabled={pending || !hint.trim()}
+                    onClick={() => void askStronger()}
+                  >
+                    {pending ? (
+                      <LoaderCircle size={16} strokeWidth={1.75} className="spin" />
+                    ) : (
+                      <Sparkles size={16} strokeWidth={1.75} />
+                    )}
+                    {pending ? "Asking…" : "Get new suggestion"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

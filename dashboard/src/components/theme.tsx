@@ -6,7 +6,7 @@ export type Theme = "light" | "dark";
 // Keep in sync with the pre-paint script in index.html.
 const STORAGE_KEY = "service-desk-theme";
 
-const THEME_COLORS: Record<Theme, string> = { dark: "#070909", light: "#eceeed" };
+const THEME_COLORS: Record<Theme, string> = { dark: "#121212", light: "#eef0f2" };
 
 const currentTheme = (): Theme =>
   document.documentElement.dataset.theme === "light" ? "light" : "dark";

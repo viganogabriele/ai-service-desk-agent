@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { ChevronDown, MoreHorizontal, X } from "lucide-react";
 import { OUTCOMES, OUTCOME_LABELS } from "../domain";
 import type { Outcome } from "../domain";
 import { personName } from "./tickets";
@@ -187,5 +187,32 @@ export function OutcomePicker({
         ))}
       </div>
     </div>
+  );
+}
+
+/** Folded secondary content: a `details` block that opens on demand. */
+export function Fold({
+  icon,
+  title,
+  count,
+  defaultOpen = false,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  count?: number | string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details className="fold" open={defaultOpen}>
+      <summary>
+        {icon}
+        {title}
+        {count !== undefined && <span className="count num">{count}</span>}
+        <ChevronDown size={16} strokeWidth={1.75} className="chev" />
+      </summary>
+      <div className="fold-body">{children}</div>
+    </details>
   );
 }

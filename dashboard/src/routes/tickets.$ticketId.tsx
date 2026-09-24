@@ -2,25 +2,32 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowLeft,
+  BookOpen,
+  Building2,
+  CalendarClock,
   Check,
   ChevronLeft,
   ChevronRight,
   CircleCheck,
   Info,
+  MessageCircleQuestion,
+  MessageSquare,
   RotateCcw,
+  Send,
   Sparkles,
   Undo2,
+  UserRound,
+  Users,
   X,
 } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Verifiable } from "../state";
-import { OUTCOME_LABELS, STATUS_LABELS, serviceInfo } from "../domain";
+import { OUTCOME_LABELS, serviceInfo } from "../domain";
 import type { Ticket } from "../domain";
 import {
+  CriticalBadge,
   Initials,
-  PriorityPill,
-  SearchField,
-  StatusFilter,
+  PriorityBadge,
   StatusPill,
   isOpen,
   personName,
@@ -33,7 +40,7 @@ import {
   ReasonTooltip,
 } from "../components/classification";
 import type { TagKind } from "../components/classification";
-import { CommentEditor, Dialog, OutcomePicker } from "../components/ui";
+import { CommentEditor, Dialog, Fold, OutcomePicker } from "../components/ui";
 
 export const Route = createFileRoute("/tickets/$ticketId")({ component: TicketWorkspace });
 
@@ -56,6 +63,9 @@ function draftKind(reply: string, draft: string, verified: readonly Verifiable[]
 
 // Historical fixes are offered only when they match the request at least this closely.
 const REFERENCE_SIMILARITY = 0.1;
+
+// Descriptions longer than this open folded to a few lines.
+const LONG_DESCRIPTION = 420;
 
 const formatDate = (value: string | null) =>
   value === null
@@ -82,67 +92,17 @@ function TicketWorkspace() {
 
   return (
     <div className="workspace">
-      <QueueRail ticketId={ticketId} />
+      <QueueNav ticketId={ticketId} index={index} />
       <TicketDetail key={ticketId} ticketId={ticketId} index={index} />
       <ClassificationSidebar key={`classify-${ticketId}`} index={index} />
     </div>
   );
 }
 
-function QueueRail({ ticketId }: { ticketId: string }) {
-  const { visible } = useTicketRows();
-
-  return (
-    <aside className="rail" aria-label="Ticket queue">
-      <div className="rail-head">
-        <Link to="/tickets" className="button ghost rail-back">
-          <ArrowLeft size={16} strokeWidth={1.75} />
-          All tickets
-        </Link>
-        <SearchField compact />
-        <StatusFilter />
-      </div>
-      <div className="rail-list">
-        {visible.map((row) => (
-          <Link
-            key={row.id}
-            to="/tickets/$ticketId"
-            params={{ ticketId: row.id }}
-            className={row.id === ticketId ? "rail-item active" : "rail-item"}
-          >
-            <span className="rail-item-head">
-              <span className="ticket-id">{row.id}</span>
-              <PriorityPill triage={row.current.triage} />
-            </span>
-            <b>{row.ticket.Summary}</b>
-            <small>
-              {STATUS_LABELS[row.current.status]} · {row.current.triage.service}
-            </small>
-          </Link>
-        ))}
-        {visible.length === 0 && <p className="board-empty">No tickets match.</p>}
-      </div>
-    </aside>
-  );
-}
-
-function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) {
-  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move } =
-    useDashboard();
-
+/** Previous and next walk the queue as it is filtered on the list page; J and K do the same. */
+function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
   const navigate = useNavigate();
   const { rows, visible } = useTicketRows();
-  const current = review(index);
-  const proposal = proposalFor(index);
-
-  const [step, setStep] = useState<Step>(() =>
-    current.status === "waiting" ||
-    (current.status === "new" && proposal?.proposal.resolution === "clarification")
-      ? "ask"
-      : "resolve",
-  );
-
-  const [historical, setHistorical] = useState<Ticket | null>(null);
   const order = visible.some((row) => row.index === index) ? visible : rows;
   const position = order.findIndex((row) => row.index === index);
   const previousId = order[position - 1]?.id;
@@ -167,18 +127,95 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate, nextId, previousId]);
 
+  return (
+    <nav className="workspace-nav" aria-label="Queue">
+      <Link to="/tickets" className="button ghost pill">
+        <ArrowLeft size={16} strokeWidth={1.75} />
+        All tickets
+      </Link>
+      <span className="position num">
+        {position + 1} of {order.length}
+      </span>
+      <span className="push" />
+      <span className="kbd-hint" data-tip="Keyboard: K previous, J next">
+        <kbd>K</kbd>
+        <kbd>J</kbd>
+      </span>
+      <Link
+        to="/tickets/$ticketId"
+        params={{ ticketId: previousId ?? ticketId }}
+        className="icon-button"
+        aria-label="Previous ticket"
+        disabled={!previousId}
+      >
+        <ChevronLeft size={16} strokeWidth={1.75} />
+      </Link>
+      <Link
+        to="/tickets/$ticketId"
+        params={{ ticketId: nextId ?? ticketId }}
+        className="icon-button"
+        aria-label="Next ticket"
+        disabled={!nextId}
+      >
+        <ChevronRight size={16} strokeWidth={1.75} />
+      </Link>
+    </nav>
+  );
+}
+
+function Comments({ comments }: { comments: string[] }) {
+  return (
+    <div className="comments">
+      {comments.map((comment, place) => {
+        const [author, ...rest] = comment.split(":");
+
+        return (
+          <div key={place}>
+            <b>
+              <Initials email={author} />
+              {personName(author)}
+            </b>
+            <p>{rest.join(":").trim()}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) {
+  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move } =
+    useDashboard();
+
+  const navigate = useNavigate();
+  const { rows, visible } = useTicketRows();
+  const current = review(index);
+  const proposal = proposalFor(index);
+
+  const [step, setStep] = useState<Step>(() =>
+    current.status === "waiting" ||
+    (current.status === "new" && proposal?.proposal.resolution === "clarification")
+      ? "ask"
+      : "resolve",
+  );
+
+  const [historical, setHistorical] = useState<Ticket | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const ticket = data.challenge[index];
   const { triage } = current;
   const info = serviceInfo(triage.service);
   const team = info?.[1] ?? "Unknown team";
   const aiDraft = proposal?.proposal.resolution_comment ?? "";
   const draft = aiDraft ? draftKind(current.reply, aiDraft, current.verified ?? []) : null;
+  const longDescription = ticket.Description.length > LONG_DESCRIPTION;
 
   const references = (data.similar[ticketId] ?? []).filter(
     (item) => item.service === triage.service && item.similarity >= REFERENCE_SIMILARITY,
   );
 
   function goNext() {
+    const order = visible.some((row) => row.index === index) ? visible : rows;
+
     const next =
       order.find((row) => row.index !== index && isOpen(review(row.index).status)) ??
       rows.find((row) => row.index !== index && isOpen(review(row.index).status));
@@ -187,94 +224,113 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
   }
 
   const closed = current.status === "resolved";
+  const decided = current.status !== "new" && current.status !== "in_progress";
+
+  const choices: { value: Step; title: string; help: string; icon: typeof Send }[] = [
+    {
+      value: "resolve",
+      title: "Resolve",
+      help: "Close it and post a note to the reporter",
+      icon: CircleCheck,
+    },
+    {
+      value: "ask",
+      title: "Ask the reporter",
+      help: `Send ${personName(ticket.Reporter)} a question and wait`,
+      icon: MessageCircleQuestion,
+    },
+    {
+      value: "assign",
+      title: "Assign to team",
+      help: `Route it to ${team} to work on`,
+      icon: Users,
+    },
+  ];
 
   return (
     <div className="detail">
-      <div className="detail-heading">
-        <div>
-          <span className="utility">
-            {ticketId} · {ticket["Request type"]}
+      <header className="detail-heading">
+        <div className="marks">
+          <PriorityBadge triage={triage} />
+          {info?.[2] === "Critical" && <CriticalBadge />}
+          <StatusPill status={current.status} />
+          <span className="ticket-id">
+            {ticketId} · {ticket["Request type"] ?? ticket["Work type"]}
           </span>
-          <h1>{ticket.Summary}</h1>
-          <p className="detail-meta">
-            Reported by {personName(ticket.Reporter)} · {formatDate(ticket["Created date"])} ·{" "}
-            {ticket["Business Entity"].join(", ")}
-          </p>
-          <div className="pill-row">
-            <StatusPill status={current.status} />
-            <PriorityPill triage={triage} />
-            {info?.[2] === "Critical" && (
-              <span className="pill">
-                <i className="dot red" />
-                Critical service
+        </div>
+        <h1>{ticket.Summary}</h1>
+        <div className="tiles">
+          <div className="tile">
+            <span className="tile-label">
+              <UserRound size={12} strokeWidth={2} />
+              Requested by
+            </span>
+            <span className="tile-value" data-tip={ticket.Reporter ?? undefined}>
+              <Initials email={ticket.Reporter} />
+              <span>{personName(ticket.Reporter) || "Unknown"}</span>
+            </span>
+          </div>
+          <div className="tile">
+            <span className="tile-label">
+              <CalendarClock size={12} strokeWidth={2} />
+              Opened
+            </span>
+            <span className="tile-value">
+              <span>{formatDate(ticket["Created date"]) || "Unknown"}</span>
+            </span>
+          </div>
+          <div className="tile">
+            <span className="tile-label">
+              <Building2 size={12} strokeWidth={2} />
+              Entity
+            </span>
+            <span className="tile-value">
+              <span>{ticket["Business Entity"].join(", ") || "None"}</span>
+            </span>
+          </div>
+          {ticket["Due date"] && (
+            <div className="tile">
+              <span className="tile-label">
+                <CalendarClock size={12} strokeWidth={2} />
+                Due
               </span>
-            )}
-          </div>
+              <span className="tile-value">
+                <span>{formatDate(ticket["Due date"])}</span>
+              </span>
+            </div>
+          )}
         </div>
-        <div className="heading-meta">
-          <span className="num">
-            {position + 1} of {order.length}
-          </span>
-          <span className="kbd-hint" data-tip="Keyboard: K previous, J next">
-            <kbd>K</kbd>
-            <kbd>J</kbd>
-          </span>
-          <Link
-            to="/tickets/$ticketId"
-            params={{ ticketId: previousId ?? ticketId }}
-            className="icon-button"
-            aria-label="Previous ticket"
-            disabled={!previousId}
-          >
-            <ChevronLeft size={16} strokeWidth={1.75} />
-          </Link>
-          <Link
-            to="/tickets/$ticketId"
-            params={{ ticketId: nextId ?? ticketId }}
-            className="icon-button"
-            aria-label="Next ticket"
-            disabled={!nextId}
-          >
-            <ChevronRight size={16} strokeWidth={1.75} />
-          </Link>
+      </header>
+
+      <section className="card step-card" aria-label="Request">
+        <div className="step-body">
+          <p className={longDescription && !expanded ? "description clamped" : "description"}>
+            {ticket.Description}
+          </p>
+          {longDescription && (
+            <div>
+              <button className="link-button" onClick={() => setExpanded(!expanded)}>
+                {expanded ? "Show less" : "Read the full request"}
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="stack">
-        <section className="card">
-          <div className="card-head">
-            <h2>Request</h2>
-          </div>
-          <p className="description">{ticket.Description}</p>
-          <h3>Comments</h3>
-          <div className="comments">
-            {ticket["All Comments"].length ? (
-              ticket["All Comments"].map((comment, place) => {
-                const [author, ...rest] = comment.split(":");
-
-                return (
-                  <div key={place}>
-                    <b>
-                      <Initials email={author} />
-                      {personName(author)}
-                    </b>
-                    <p>{rest.join(":").trim()}</p>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="muted">No comments.</p>
-            )}
-          </div>
-          <h3>Details</h3>
+        <Fold
+          icon={<MessageSquare size={16} strokeWidth={1.75} />}
+          title="Comments"
+          count={ticket["All Comments"].length}
+        >
+          {ticket["All Comments"].length ? (
+            <Comments comments={ticket["All Comments"]} />
+          ) : (
+            <p className="muted">No comments yet.</p>
+          )}
+        </Fold>
+        <Fold icon={<Info size={16} strokeWidth={1.75} />} title="Jira details">
           <dl className="details">
             <div>
               <dt>Reporter</dt>
               <dd>{ticket.Reporter}</dd>
-            </div>
-            <div>
-              <dt>Due date</dt>
-              <dd>{ticket["Due date"] ? formatDate(ticket["Due date"]) : "None"}</dd>
             </div>
             <div>
               <dt>Linked issues</dt>
@@ -283,24 +339,30 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
             <div>
               <dt>Declared priority</dt>
               <dd>
-                {ticket.Priority} (Urgency {ticket.Urgency} × Impact {ticket.Impact})
+                {ticket.Priority ?? "None"} (Urgency {ticket.Urgency ?? "unknown"} × Impact{" "}
+                {ticket.Impact ?? "unknown"})
               </dd>
             </div>
-          </dl>
-        </section>
-
-        <section className="card">
-          <div className="card-head">
             <div>
-              <h2>Next step</h2>
-              <p>
-                Choose what happens to this ticket. The comment is posted to Jira as{" "}
-                {personName(triage.assignee) || "the assignee"}.
-              </p>
+              <dt>Declared service</dt>
+              <dd>{ticket["Affected Business or IT Services"].join(", ") || "None"}</dd>
             </div>
-          </div>
+          </dl>
+        </Fold>
+      </section>
 
-          {current.status !== "new" && current.status !== "in_progress" && (
+      <section className="card step-card" aria-label="Next step">
+        <div className="step-head">
+          <span className={decided ? "step-number done" : "step-number"}>
+            {decided ? <Check size={14} strokeWidth={2.5} /> : "2"}
+          </span>
+          <div>
+            <h2>Decide the next step</h2>
+            <p>Comments are posted to Jira as {personName(triage.assignee) || "the assignee"}.</p>
+          </div>
+        </div>
+        <div className="step-body">
+          {decided && (
             <div className="status-banner">
               <CircleCheck size={16} strokeWidth={1.75} />
               <span>
@@ -319,31 +381,33 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
 
           {!closed && (
             <>
-              <div className="segmented full tabs" role="tablist" aria-label="Next step">
-                {(
-                  [
-                    ["resolve", "Resolve"],
-                    ["ask", "Ask the reporter"],
-                    ["assign", "Assign to team"],
-                  ] satisfies [Step, string][]
-                ).map(([value, label]) => (
+              <div className="choices" role="radiogroup" aria-label="Next step">
+                {choices.map(({ value, title, help, icon: Icon }) => (
                   <button
                     key={value}
-                    role="tab"
-                    aria-selected={step === value}
-                    aria-pressed={step === value}
+                    type="button"
+                    role="radio"
+                    className="choice"
+                    aria-checked={step === value}
                     onClick={() => setStep(value)}
                   >
-                    {label}
+                    <b>
+                      <Icon size={16} strokeWidth={1.75} />
+                      {title}
+                    </b>
+                    <small>{help}</small>
+                    {value === "ask" && proposal?.proposal.resolution === "clarification" && (
+                      <span className="hint">
+                        <Sparkles size={11} strokeWidth={2} />
+                        AI recommends this
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
 
               {step === "resolve" && (
-                <div className="step">
-                  <p className="step-help">
-                    Closes the ticket with the outcome below and posts the note to the reporter.
-                  </p>
+                <>
                   <OutcomePicker
                     value={current.outcome}
                     onChange={(outcome) => update(index, { outcome })}
@@ -392,10 +456,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                       </ReasonTooltip>
                       <span className="push">
                         {draft === "ai" && (
-                          <button
-                            className="button primary"
-                            onClick={() => verify(index, ["reply"], true)}
-                          >
+                          <button className="button" onClick={() => verify(index, ["reply"], true)}>
                             <Check size={16} strokeWidth={2} />
                             Approve draft
                           </button>
@@ -422,64 +483,62 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                   )}
                   {references.length > 0 && (
                     <div className="references">
-                      <h3>Documented fixes from similar resolved tickets</h3>
-                      {references.slice(0, 3).map((item) => (
-                        <article key={item.historical_index}>
-                          <p>{item.resolution_text}</p>
-                          <footer>
-                            <span className="muted">
-                              Used on {item.times_used} resolved {triage.service} ticket
-                              {item.times_used === 1 ? "" : "s"}
-                            </span>
-                            <button
-                              className="link-button"
-                              onClick={() =>
-                                setHistorical(
-                                  data.historical_examples[String(item.historical_index)],
-                                )
-                              }
-                            >
-                              View ticket
-                            </button>
-                            <button
-                              className="button"
-                              onClick={() => update(index, { reply: item.resolution_text })}
-                            >
-                              Use as note
-                            </button>
-                          </footer>
-                        </article>
-                      ))}
+                      <Fold
+                        icon={<BookOpen size={16} strokeWidth={1.75} />}
+                        title="Fixes from similar resolved tickets"
+                        count={Math.min(references.length, 3)}
+                      >
+                        <div className="references">
+                          {references.slice(0, 3).map((item) => (
+                            <article key={item.historical_index}>
+                              <p>{item.resolution_text}</p>
+                              <footer>
+                                <span className="muted">
+                                  Used on {item.times_used} resolved {triage.service} ticket
+                                  {item.times_used === 1 ? "" : "s"}
+                                </span>
+                                <button
+                                  className="link-button"
+                                  onClick={() =>
+                                    setHistorical(
+                                      data.historical_examples[String(item.historical_index)],
+                                    )
+                                  }
+                                >
+                                  View ticket
+                                </button>
+                                <button
+                                  className="button"
+                                  onClick={() => update(index, { reply: item.resolution_text })}
+                                >
+                                  Use as note
+                                </button>
+                              </footer>
+                            </article>
+                          ))}
+                        </div>
+                      </Fold>
                     </div>
                   )}
                   <div className="step-actions">
                     {!triage.assignee && <span className="muted">Choose an assignee first.</span>}
                     <button
-                      className="button primary"
+                      className="button primary large"
                       disabled={!triage.assignee || !current.reply.trim()}
                       onClick={() => {
                         resolve(index);
                         goNext();
                       }}
                     >
+                      <CircleCheck size={16} strokeWidth={2} />
                       Resolve ticket
                     </button>
                   </div>
-                </div>
+                </>
               )}
 
               {step === "ask" && (
-                <div className="step">
-                  <p className="step-help">
-                    Sends a question to {personName(ticket.Reporter)} and marks the ticket as
-                    waiting for their answer.
-                  </p>
-                  {proposal?.proposal.resolution === "clarification" && (
-                    <p className="field-note">
-                      <Sparkles size={12} strokeWidth={1.75} />
-                      The AI recommends asking the reporter before acting on this ticket.
-                    </p>
-                  )}
+                <>
                   <CommentEditor
                     author={triage.assignee}
                     label="Question"
@@ -491,22 +550,23 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                   <div className="step-actions">
                     {!triage.assignee && <span className="muted">Choose an assignee first.</span>}
                     <button
-                      className="button primary"
+                      className="button primary large"
                       disabled={!triage.assignee || !current.question.trim()}
                       onClick={() => {
                         askReporter(index);
                         goNext();
                       }}
                     >
+                      <Send size={16} strokeWidth={2} />
                       Send question
                     </button>
                   </div>
-                </div>
+                </>
               )}
 
               {step === "assign" && (
-                <div className="step">
-                  <p className="step-help">
+                <>
+                  <p className="description">
                     Routes the ticket to <b>{team}</b>
                     {triage.assignee ? (
                       <>
@@ -520,22 +580,23 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                   </p>
                   <div className="step-actions">
                     <button
-                      className="button primary"
+                      className="button primary large"
                       disabled={current.status === "assigned"}
                       onClick={() => {
                         assign(index);
                         goNext();
                       }}
                     >
+                      <Users size={16} strokeWidth={2} />
                       Assign ticket
                     </button>
                   </div>
-                </div>
+                </>
               )}
             </>
           )}
-        </section>
-      </div>
+        </div>
+      </section>
 
       {historical && (
         <Dialog
@@ -551,21 +612,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
         >
           <p className="description">{historical.Description}</p>
           <h3>Comments</h3>
-          <div className="comments">
-            {historical["All Comments"].map((comment, place) => {
-              const [author, ...rest] = comment.split(":");
-
-              return (
-                <div key={place}>
-                  <b>
-                    <Initials email={author} />
-                    {personName(author)}
-                  </b>
-                  <p>{rest.join(":").trim()}</p>
-                </div>
-              );
-            })}
-          </div>
+          <Comments comments={historical["All Comments"]} />
         </Dialog>
       )}
     </div>

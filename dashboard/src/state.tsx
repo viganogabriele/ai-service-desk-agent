@@ -4,6 +4,7 @@ import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./d
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createBackendClient,
+  levelOf,
   liveBundle,
   ticketOutcome,
   ticketStatus,
@@ -116,6 +117,42 @@ const backend = createBackendClient(BACKEND_URL);
 
 const EMPTY: SavedState = { reviews: {}, actions: [], regenerated: {} };
 
+interface Loaded {
+  bundle: Bundle;
+  // True when the backend was unreachable and the bundled data file is shown instead.
+  offline: boolean;
+}
+
+/**
+ * Development fallback: the data bundle prepared from the challenge files, used when the backend
+ * is not running. Its records carry no Jira key, so the proposal id (or the position) becomes one.
+ */
+async function bundledData(signal: AbortSignal): Promise<Bundle> {
+  const response = await fetch("/dashboard-data.json", { signal });
+
+  if (!response.ok) throw new Error("The bundled data file is missing.");
+  const bundle: Bundle = await response.json();
+
+  return {
+    ...bundle,
+    challenge: bundle.challenge.map((ticket, index) => ({
+      ...ticket,
+      Key:
+        ticket.Key ??
+        bundle.proposals[index]?.ticket_id ??
+        `CH-${String(index + 1).padStart(2, "0")}`,
+      Urgency: levelOf(ticket.Urgency),
+      Impact: levelOf(ticket.Impact),
+    })),
+  };
+}
+
+const NEXT_STATUS: Partial<Record<Action["action"], Status>> = {
+  assign: "assigned",
+  resolve: "resolved",
+  ask: "waiting",
+};
+
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 
 function loadSaved(): SavedState {
@@ -224,11 +261,19 @@ function failureText(failure: Error) {
 export function DashboardProvider({ children }: { children: ReactNode }) {
   const client = useQueryClient();
 
-  const query = useQuery<Bundle>({
+  const query = useQuery<Loaded>({
     queryKey: ["dashboard-data"],
     // The backend's copy of Jira; the backend syncs Jira in the background.
-    queryFn: async ({ signal }) => liveBundle(await backend.tickets(signal)),
-    refetchInterval: 15_000,
+    queryFn: async ({ signal }) => {
+      try {
+        return { bundle: liveBundle(await backend.tickets(signal)), offline: false };
+      } catch (failure) {
+        if (!(failure instanceof TypeError)) throw failure;
+
+        return { bundle: await bundledData(signal), offline: true };
+      }
+    },
+    refetchInterval: (state) => (state.state.data?.offline ? false : 15_000),
   });
 
   const health = useQuery<{ model: string }>({
@@ -259,7 +304,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   if (query.isError) return <div className="loading">{failureText(query.error)}</div>;
 
-  const data = query.data;
+  const { bundle: data, offline } = query.data;
   const idOf = (index: number) => data.challenge[index].Key;
 
   const proposalAt = (index: number, version: number) =>
@@ -272,9 +317,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     const ticket = data.challenge[index];
     const draft = saved.reviews[idOf(index)];
 
-    return draft
-      ? { ...draft, status: ticketStatus(ticket) }
-      : initialReview(ticket, data.proposals[index]);
+    if (!draft) return initialReview(ticket, data.proposals[index]);
+
+    return offline ? draft : { ...draft, status: ticketStatus(ticket) };
   };
 
   const proposalFor = (index: number) => proposalAt(index, review(index).version);
@@ -343,6 +388,23 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         }))
       : [];
 
+    const entry: Action = {
+      ticket_id: idOf(index),
+      action,
+      timestamp: new Date().toISOString(),
+      model_id: proposal?.model_id ?? null,
+      changed_fields: changedFields,
+    };
+
+    // Without a backend the transition is kept in this browser only.
+    if (offline) {
+      const status = NEXT_STATUS[action] ?? current.status;
+      write(index, { ...current, status, updated_at: entry.timestamp }, entry);
+      show({ message, undo: () => write(index, { ...current, status: current.status }) });
+
+      return;
+    }
+
     write(index, { ...current, updated_at: new Date().toISOString() });
 
     void (async () => {
@@ -351,13 +413,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
         if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
         // Saved: drop the draft so the ticket shows what Jira now holds.
-        write(index, null, {
-          ticket_id: idOf(index),
-          action,
-          timestamp: new Date().toISOString(),
-          model_id: proposal?.model_id ?? null,
-          changed_fields: changedFields,
-        });
+        write(index, null, entry);
         await client.invalidateQueries({ queryKey: ["dashboard-data"] });
         show({
           message: result.warnings.length
@@ -508,10 +564,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           );
         },
         // Jira status changes other than assign and resolve are not available through the backend yet.
-        move: (index, status) =>
+        move: (index, status) => {
+          if (offline) {
+            write(index, { ...review(index), status, updated_at: new Date().toISOString() });
+
+            return;
+          }
+
           show({
             message: `${idOf(index)} cannot be moved to ${STATUS_LABELS[status]} from here yet. Change its status in Jira.`,
-          }),
+          });
+        },
         regenerate,
         reset: () => setSaved(EMPTY),
         exportData,
