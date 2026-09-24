@@ -168,7 +168,7 @@ export function toTicketRecord(issue: JiraIssue): TicketRecord {
 		Priority: toChallengeLevel(labelOf(f.priority)),
 		Urgency: toChallengeLevel(labelOf(f[JIRA_FIELDS.urgency])),
 		Impact: toChallengeLevel(labelOf(f[JIRA_FIELDS.impact])),
-		Severity: null,
+		Severity: labelOf(f[JIRA_FIELDS.severity]),
 		// Imported tickets keep their original date; Jira's is the upload time.
 		"Created date": footer.get("Original created date") ?? dateOf(f.created),
 		Status: statusOf(f),

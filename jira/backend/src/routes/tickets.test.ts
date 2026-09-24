@@ -65,7 +65,19 @@ describe("POST /tickets", () => {
 		});
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({
-			results: [{ key: "SUP-1", ok: true, warnings: [] }],
+			results: [
+				{
+					key: "SUP-1",
+					ok: true,
+					changed: [
+						"Summary",
+						"Business Entity",
+						"Service Team(s)",
+						"Assignee",
+					],
+					warnings: [],
+				},
+			],
 		});
 
 		expect((await recordsByKey(client)).get("SUP-1")).toMatchObject({
@@ -97,16 +109,43 @@ describe("POST /tickets", () => {
 		});
 	});
 
-	it("derives priority from the urgency and impact Jira accepted", async () => {
+	it("derives priority from urgency and impact via the README matrix", async () => {
 		const { client } = setup();
-		// Jira has no "Lowest" urgency, so it lands on "Low": Low x High -> Medium
+		// Lowest x High -> Low
 		await client.tickets.$post({
 			json: { Key: "SUP-1", Urgency: "Lowest", Impact: "High" },
 		});
 		expect((await recordsByKey(client)).get("SUP-1")).toMatchObject({
-			Urgency: "Low",
+			Urgency: "Lowest",
 			Impact: "High",
-			Priority: "Medium",
+			Priority: "Low",
+		});
+	});
+
+	it("accepts a full record back and writes only what changed", async () => {
+		const { client } = setup();
+		await client.tickets.$post({
+			json: { Key: "SUP-1", "All Comments": ["first comment"] },
+		});
+		const record = (await recordsByKey(client)).get("SUP-1");
+		if (!record) throw new Error("SUP-1 missing");
+
+		// The dashboard edits urgency and sends the whole record back, stale Priority included.
+		const res = await client.tickets.$post({
+			json: { ...record, Urgency: "Critical", Severity: "Sev-1" },
+		});
+		const { results } = await res.json();
+		expect(results[0]).toMatchObject({
+			ok: true,
+			changed: ["Urgency", "Severity"],
+		});
+
+		expect((await recordsByKey(client)).get("SUP-1")).toMatchObject({
+			Urgency: "Highest",
+			Impact: "Medium",
+			Priority: "High",
+			Severity: "Sev-1",
+			"All Comments": ["first comment"],
 		});
 	});
 
@@ -137,7 +176,7 @@ describe("POST /tickets", () => {
 		});
 		expect(res.status).toBe(200);
 		const { results } = await res.json();
-		expect(results[0]).toEqual({ key: "SUP-1", ok: true, warnings: [] });
+		expect(results[0]).toMatchObject({ key: "SUP-1", ok: true, warnings: [] });
 		expect(results[1]).toMatchObject({ key: "SUP-2", ok: true });
 		expect(results[1]?.warnings[0]).toContain("Not A Service");
 		expect(results[2]).toMatchObject({ key: "SUP-99", ok: false });
@@ -149,7 +188,7 @@ describe("POST /tickets", () => {
 		const { app } = setup();
 		const invalid = [
 			{ Summary: "no key" },
-			{ Key: "SUP-1", Status: "done" },
+			{ Key: "SUP-1", Urgency: 3 },
 			[{ Key: "SUP-1" }, { Key: "SUP-1" }],
 			[],
 		];

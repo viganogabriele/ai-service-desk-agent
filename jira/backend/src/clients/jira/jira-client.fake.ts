@@ -18,13 +18,21 @@ function options(
 // Same labels as the real SUP site, so matching logic is exercised realistically.
 const OPTION_LISTS: Record<string, JiraOption[]> = {
 	priority: options(["Highest", "High", "Medium", "Low", "Lowest"], "name"),
-	[JIRA_FIELDS.urgency]: options(["Critical", "High", "Medium", "Low"]),
+	[JIRA_FIELDS.urgency]: options([
+		"Critical",
+		"High",
+		"Medium",
+		"Low",
+		"Lowest",
+	]),
 	[JIRA_FIELDS.impact]: options([
 		"Extensive / Widespread",
 		"Significant / Large",
 		"Moderate / Limited",
 		"Minor / Localized",
+		"No direct impact",
 	]),
+	[JIRA_FIELDS.severity]: options(["Sev-0", "Sev-1", "Sev-2", "Sev-3"]),
 	[JIRA_FIELDS.affectedService]: options([
 		"Trading Platform",
 		"Tax Reporting",
@@ -87,8 +95,6 @@ export function fakeIssue(
 	};
 }
 
-type FakeComment = { text: string; internal: boolean };
-
 /** In-memory Jira for tests and local dev. Resolves option ids like Jira does. */
 export function createFakeJiraClient(
 	seed: JiraIssue[] = [fakeIssue("SUP-1")],
@@ -96,7 +102,6 @@ export function createFakeJiraClient(
 	const issues = new Map(
 		seed.map((issue) => [issue.key, structuredClone(issue)]),
 	);
-	const comments = new Map<string, FakeComment[]>();
 
 	function get(key: string, path: string): JiraIssue {
 		const issue = issues.get(key);
@@ -121,18 +126,7 @@ export function createFakeJiraClient(
 
 	return {
 		async searchIssues() {
-			return [...issues.values()].map((issue) => ({
-				key: issue.key,
-				fields: {
-					...issue.fields,
-					comment: {
-						comments: (comments.get(issue.key) ?? []).map((c) => ({
-							body: adf(c.text),
-							jsdPublic: !c.internal,
-						})),
-					},
-				},
-			}));
+			return [...issues.values()].map((issue) => structuredClone(issue));
 		},
 
 		async getIssue(key) {
@@ -166,10 +160,12 @@ export function createFakeJiraClient(
 		},
 
 		async addComment(key, text, internal = false) {
-			get(key, `/rest/api/3/issue/${key}/comment`);
-			const list = comments.get(key) ?? [];
-			list.push({ text, internal });
-			comments.set(key, list);
+			const issue = get(key, `/rest/api/3/issue/${key}/comment`);
+			const thread = issue.fields.comment as { comments?: unknown[] } | null;
+			const existing = thread?.comments ?? [];
+			issue.fields.comment = {
+				comments: [...existing, { body: adf(text), jsdPublic: !internal }],
+			};
 		},
 
 		async getTransitions(key) {

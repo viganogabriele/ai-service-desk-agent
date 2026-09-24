@@ -10,6 +10,7 @@ export const JIRA_FIELDS = {
 	originalReporter: "customfield_10063",
 	urgency: "customfield_10053",
 	impact: "customfield_10004",
+	severity: "customfield_10055",
 } as const;
 
 // Challenge resolution vocabulary -> Jira resolution names

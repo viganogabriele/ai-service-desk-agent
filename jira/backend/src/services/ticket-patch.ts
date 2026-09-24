@@ -8,7 +8,12 @@ import {
 	type JiraOption,
 } from "../clients/jira/jira-client";
 import { matchOption, optionLabel, rank } from "../clients/jira/matching";
-import { descriptionFooter } from "./tickets";
+import {
+	descriptionFooter,
+	TICKET_FIELDS,
+	type TicketRecord,
+	toTicketRecord,
+} from "./tickets";
 
 const resolutionSchema = z.enum(
 	Object.keys(JIRA_RESOLUTIONS) as [
@@ -18,11 +23,12 @@ const resolutionSchema = z.enum(
 );
 
 /**
- * A partial ticket: only the fields present are written. "All Comments" holds
- * comments to append, not the full history. "Request type", "Status", dates and
- * the other read-only fields of the record are not accepted.
+ * A partial or full ticket record. Fields equal to what Jira already has are
+ * skipped, null clears a field, and fields Jira can't take (Status, dates,
+ * Request type, Linked issues, ...) are dropped. "All Comments" may be the full
+ * history: only comments not already on the ticket are added.
  */
-export const ticketPatchSchema = z.strictObject({
+export const ticketPatchSchema = z.object({
 	Key: z
 		.string()
 		.regex(/^[A-Z][A-Z0-9]*-\d+$/, "must be a Jira key like SUP-12"),
@@ -34,10 +40,13 @@ export const ticketPatchSchema = z.strictObject({
 	"Service Team(s)": z.array(z.string()).max(1).optional(),
 	Reporter: z.string().nullable().optional(),
 	Assignee: z.string().nullable().optional(),
-	Priority: z.string().optional(),
-	Urgency: z.string().optional(),
-	Impact: z.string().optional(),
-	Resolution: resolutionSchema.optional(),
+	// Null is ignored: Jira always keeps a priority.
+	Priority: z.string().nullable().optional(),
+	Urgency: z.string().nullable().optional(),
+	Impact: z.string().nullable().optional(),
+	Severity: z.string().nullable().optional(),
+	// Null is ignored: Jira can't un-resolve through an edit.
+	Resolution: resolutionSchema.nullable().optional(),
 	"All Comments": z.array(z.string().min(1)).optional(),
 });
 
@@ -46,15 +55,13 @@ export const ticketPatchBodySchema = z
 	.transform((body) => (Array.isArray(body) ? body : [body]))
 	.refine(
 		(patches) => new Set(patches.map((p) => p.Key)).size === patches.length,
-		{
-			message: "each Key may appear only once per request",
-		},
+		{ message: "each Key may appear only once per request" },
 	);
 
 export type TicketPatch = z.infer<typeof ticketPatchSchema>;
 
 export type TicketPatchResult =
-	| { key: string; ok: true; warnings: string[] }
+	| { key: string; ok: true; changed: string[]; warnings: string[] }
 	| { key: string; ok: false; warnings: string[]; error: string };
 
 // README matrix. Rows: urgency rank 0..4, columns: impact rank 0..4.
@@ -73,103 +80,109 @@ export function priorityFrom(urgency: string, impact: string): string | null {
 	return PRIORITY_MATRIX[u]?.[i] ?? null;
 }
 
-type FieldBuilder = {
-	fields: Record<string, unknown>;
-	warnings: string[];
-	select(
+/** The patch without the fields whose value already matches Jira. */
+function changesAgainst(patch: TicketPatch, current: TicketRecord) {
+	const changes: Partial<TicketPatch> = {};
+	for (const [field, value] of Object.entries(patch)) {
+		if (field === "Key" || value === undefined) continue;
+		const now = current[field as keyof TicketRecord];
+		if (JSON.stringify(value) !== JSON.stringify(now)) {
+			Object.assign(changes, { [field]: value });
+		}
+	}
+	return changes;
+}
+
+function fieldWriter(meta: Record<string, JiraFieldMeta>) {
+	const fields: Record<string, unknown> = {};
+	const warnings: string[] = [];
+
+	function select(
 		fieldId: string,
 		label: string,
-		value: string | undefined,
-	): JiraOption | null;
-};
+		value: string | null | undefined,
+	): JiraOption | null {
+		if (value === undefined) return null;
+		if (value === null) {
+			fields[fieldId] = null;
+			return null;
+		}
+		const option = matchOption(value, meta[fieldId]?.allowedValues);
+		if (!option) {
+			warnings.push(
+				`${label}: '${value}' is not an allowed Jira option, not changed`,
+			);
+			return null;
+		}
+		fields[fieldId] = { id: option.id };
+		return option;
+	}
 
-function fieldBuilder(meta: Record<string, JiraFieldMeta>): FieldBuilder {
-	const builder: FieldBuilder = {
-		fields: {},
-		warnings: [],
-		select(fieldId, label, value) {
-			if (value === undefined) return null;
-			const option = matchOption(value, meta[fieldId]?.allowedValues);
-			if (!option) {
-				builder.warnings.push(
-					`${label}: '${value}' is not an allowed Jira option, not changed`,
-				);
-				return null;
-			}
-			builder.fields[fieldId] = { id: option.id };
-			return option;
-		},
-	};
-	return builder;
+	return { fields, warnings, select };
 }
 
 function buildFields(
-	patch: TicketPatch,
+	changes: Partial<TicketPatch>,
+	current: TicketRecord,
 	meta: Record<string, JiraFieldMeta>,
-	currentFooter: string,
+	footer: string,
 ) {
-	const b = fieldBuilder(meta);
+	const w = fieldWriter(meta);
 
-	if (patch.Summary !== undefined) b.fields.summary = patch.Summary;
-	if (patch.Description !== undefined)
-		b.fields.description = adf(patch.Description.trim() + currentFooter);
-	if (patch.Reporter !== undefined)
-		b.fields[JIRA_FIELDS.originalReporter] = patch.Reporter;
-	if (patch.Assignee !== undefined)
-		b.fields[JIRA_FIELDS.proposedAssignee] = patch.Assignee;
+	if (changes.Summary !== undefined) w.fields.summary = changes.Summary;
+	if (changes.Description !== undefined)
+		w.fields.description = adf(changes.Description.trim() + footer);
+	if (changes.Reporter !== undefined)
+		w.fields[JIRA_FIELDS.originalReporter] = changes.Reporter;
+	if (changes.Assignee !== undefined)
+		w.fields[JIRA_FIELDS.proposedAssignee] = changes.Assignee;
 
-	const service = patch["Affected Business or IT Services"];
-	if (service?.length === 0) b.fields[JIRA_FIELDS.affectedService] = null;
-	else
-		b.select(
+	const service = changes["Affected Business or IT Services"];
+	if (service !== undefined)
+		w.select(
 			JIRA_FIELDS.affectedService,
 			"Affected Business or IT Services",
-			service?.[0],
+			service[0] ?? null,
 		);
+	const team = changes["Service Team(s)"];
+	if (team !== undefined)
+		w.select(JIRA_FIELDS.serviceTeam, "Service Team(s)", team[0] ?? null);
+	w.select(JIRA_FIELDS.severity, "Severity", changes.Severity);
 
-	const team = patch["Service Team(s)"];
-	if (team?.length === 0) b.fields[JIRA_FIELDS.serviceTeam] = null;
-	else b.select(JIRA_FIELDS.serviceTeam, "Service Team(s)", team?.[0]);
-
-	const entities = patch["Business Entity"];
+	const entities = changes["Business Entity"];
 	if (entities !== undefined) {
 		const allowed = meta[JIRA_FIELDS.businessEntity]?.allowedValues;
-		const matched = entities.map((e) => ({
-			e,
-			option: matchOption(e, allowed),
-		}));
-		const unknown = matched.filter((m) => !m.option).map((m) => m.e);
-		if (unknown.length > 0) {
-			b.warnings.push(
-				`Business Entity: ${unknown.join(", ")} not allowed, skipped`,
-			);
+		const options: { id: string }[] = [];
+		for (const entity of entities) {
+			const option = matchOption(entity, allowed);
+			if (option) options.push({ id: option.id });
+			else w.warnings.push(`Business Entity: '${entity}' not allowed, skipped`);
 		}
-		b.fields[JIRA_FIELDS.businessEntity] = matched.flatMap((m) =>
-			m.option ? [{ id: m.option.id }] : [],
-		);
+		w.fields[JIRA_FIELDS.businessEntity] = options;
 	}
 
-	// Jira's Urgency/Impact scales are coarser than the dataset's, so derive the
-	// priority from the options actually written, keeping the three consistent.
-	const urgency = b.select(JIRA_FIELDS.urgency, "Urgency", patch.Urgency);
-	const impact = b.select(JIRA_FIELDS.impact, "Impact", patch.Impact);
-	const priority =
-		patch.Priority ??
-		(urgency && impact
-			? priorityFrom(optionLabel(urgency), optionLabel(impact))
-			: null);
-	if (priority) b.select("priority", "Priority", priority);
+	// Priority follows the README matrix whenever urgency or impact changes,
+	// computed from the options Jira actually stored.
+	const urgency = w.select(JIRA_FIELDS.urgency, "Urgency", changes.Urgency);
+	const impact = w.select(JIRA_FIELDS.impact, "Impact", changes.Impact);
+	let priority = changes.Priority ?? null;
+	if (changes.Urgency !== undefined || changes.Impact !== undefined) {
+		const u = urgency ? optionLabel(urgency) : current.Urgency;
+		const i = impact ? optionLabel(impact) : current.Impact;
+		priority = (u && i && priorityFrom(u, i)) || priority;
+	}
+	if (priority && priority !== current.Priority)
+		w.select("priority", "Priority", priority);
 
-	return b;
+	return w;
 }
 
 async function changeWorkType(
 	client: JiraClient,
-	patch: TicketPatch,
+	key: string,
+	wanted: TicketRecord["Work type"],
 	warnings: string[],
 ) {
-	const wanted = patch["Work type"];
-	if (!wanted) return;
 	const needle = wanted.toLowerCase();
 	const target = (await client.getWorkTypes()).find((t) => {
 		const name = t.name.toLowerCase();
@@ -180,11 +193,9 @@ async function changeWorkType(
 		return;
 	}
 	try {
-		await client.updateIssue(patch.Key, {
-			fields: { issuetype: { id: target.id } },
-		});
+		await client.updateIssue(key, { fields: { issuetype: { id: target.id } } });
 	} catch (error) {
-		// Jira refuses the change when the two work types use different workflows.
+		// Refused when the two work types use different workflows.
 		if (!(error instanceof JiraApiError)) throw error;
 		warnings.push(
 			`Work type: Jira refused the change to ${wanted} (${error.status})`,
@@ -194,22 +205,21 @@ async function changeWorkType(
 
 async function resolve(
 	client: JiraClient,
-	patch: TicketPatch,
+	key: string,
+	resolution: keyof typeof JIRA_RESOLUTIONS,
 	meta: Record<string, JiraFieldMeta>,
 	warnings: string[],
 ) {
-	if (!patch.Resolution) return;
-	const resolution = { name: JIRA_RESOLUTIONS[patch.Resolution] };
-	const transition = (await client.getTransitions(patch.Key)).find(
+	const value = { name: JIRA_RESOLUTIONS[resolution] };
+	const transition = (await client.getTransitions(key)).find(
 		(t) =>
 			t.name.toLowerCase().includes("resolve") ||
 			t.to.name.toLowerCase().includes("resolved"),
 	);
 	if (transition) {
-		await client.transitionIssue(patch.Key, transition.id, { resolution });
+		await client.transitionIssue(key, transition.id, { resolution: value });
 	} else if (meta.resolution) {
-		// Already resolved: the resolution can still be edited in place.
-		await client.updateIssue(patch.Key, { fields: { resolution } });
+		await client.updateIssue(key, { fields: { resolution: value } });
 	} else {
 		warnings.push(
 			"Resolution: no Resolve transition from the current status, not changed",
@@ -223,31 +233,34 @@ export async function applyTicketPatch(
 ): Promise<TicketPatchResult> {
 	const warnings: string[] = [];
 	try {
+		const issue = await client.getIssue(patch.Key, TICKET_FIELDS);
+		const current = toTicketRecord(issue);
+		const changes = changesAgainst(patch, current);
+		const changed = Object.keys(changes);
+		if (changed.length === 0)
+			return { key: patch.Key, ok: true, changed, warnings };
+
 		const meta = await client.getEditMeta(patch.Key);
-		await changeWorkType(client, patch, warnings);
+		if (changes["Work type"])
+			await changeWorkType(client, patch.Key, changes["Work type"], warnings);
 
 		// The footer holds data Jira has no field for; keep it when the text changes.
-		const footer =
-			patch.Description === undefined
-				? ""
-				: descriptionFooter(
-						adfToText(
-							(await client.getIssue(patch.Key, ["description"])).fields
-								.description,
-						),
-					);
-		const built = buildFields(patch, meta, footer);
+		const footer = descriptionFooter(adfToText(issue.fields.description));
+		const built = buildFields(changes, current, meta, footer);
 		warnings.push(...built.warnings);
 		if (Object.keys(built.fields).length > 0) {
 			await client.updateIssue(patch.Key, { fields: built.fields });
 		}
 
-		for (const text of patch["All Comments"] ?? []) {
-			await client.addComment(patch.Key, text);
+		const existing = new Set(current["All Comments"]);
+		for (const text of changes["All Comments"] ?? []) {
+			if (!existing.has(text.trim())) await client.addComment(patch.Key, text);
 		}
 
-		await resolve(client, patch, meta, warnings);
-		return { key: patch.Key, ok: true, warnings };
+		if (changes.Resolution)
+			await resolve(client, patch.Key, changes.Resolution, meta, warnings);
+
+		return { key: patch.Key, ok: true, changed, warnings };
 	} catch (error) {
 		if (!(error instanceof JiraApiError)) throw error;
 		return { key: patch.Key, ok: false, warnings, error: error.message };
