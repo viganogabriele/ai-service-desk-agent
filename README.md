@@ -25,7 +25,10 @@ This backend turns a batch of blind Jira tickets into **draft** triage decisions
    ```sh
    python3 -m triage_poc triage fixtures/dev_input.json -o /tmp/dev_predictions.json
    python3 -m triage_poc evaluate /tmp/dev_predictions.json fixtures/dev_reference.json
+   python3 -m triage_poc evaluate /tmp/dev_predictions.json fixtures/dev_reference.json --details
    ```
+
+   The development reference labels only **Work type** and **Affected Business or IT Services**. `--details` shows those expected values beside each prediction. It cannot grade priority, assignee, resolution, or the comment without a reference for those fields.
 
 5. Run the format sample or a newly supplied blind file:
 
@@ -35,6 +38,8 @@ This backend turns a batch of blind Jira tickets into **draft** triage decisions
    ```
 
    For a quick end-to-end model check, add `--limit 1` **after** the `triage` command. The sample has no reference answers, so its output cannot establish accuracy. Record the model's field choices, review flags and measured seconds per ticket before changing prompts or models.
+
+   Open a full result with `python3 -m json.tool /tmp/triaged_blind.json | less`. The blind file has no expected answers in this repo; review its predictions and `_triage.review_flags`, or compare it with an external reference if one becomes available.
 
 To test the Python integration without the model:
 

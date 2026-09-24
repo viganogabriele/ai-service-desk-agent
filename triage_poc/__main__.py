@@ -33,6 +33,7 @@ def main() -> int:
     evaluate = sub.add_parser("evaluate", help="Compare predictions with a reference file")
     evaluate.add_argument("predictions", type=Path)
     evaluate.add_argument("reference", type=Path)
+    evaluate.add_argument("--details", action="store_true", help="Include a per-ticket comparison")
     serve = sub.add_parser("serve", help="Serve POST /triage for a local React application")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
@@ -103,9 +104,18 @@ def main() -> int:
                 results[field]["accuracy"] = round(results[field]["correct"] / total, 3) if total else None
             durations = [float(row.get("_triage", {}).get("classification_seconds", 0)) +
                          float(row.get("_triage", {}).get("comment_seconds", 0)) for row in predictions]
-            print(json.dumps({"tickets": len(predictions), "fields": results,
-                              "mean_model_seconds_per_ticket": round(statistics.mean(durations), 2) if durations else 0},
-                             indent=2))
+            report = {"tickets": len(predictions), "fields": results,
+                      "mean_model_seconds_per_ticket": round(statistics.mean(durations), 2) if durations else 0}
+            if args.details:
+                report["details"] = [
+                    {"ticket": index, "summary": predicted.get("Summary", ""),
+                     "comparison": {field: {"expected": expected[field], "predicted": predicted.get(field),
+                                            "match": predicted.get(field) == expected[field]}
+                                    for field in fields if expected.get(field) is not None},
+                     "review_flags": predicted.get("_triage", {}).get("review_flags", [])}
+                    for index, (predicted, expected) in enumerate(zip(predictions, reference), 1)
+                ]
+            print(json.dumps(report, indent=2, ensure_ascii=False))
             return 0
         if args.command == "serve":
             start_server(knowledge, model, args.host, args.port)
