@@ -33,9 +33,11 @@ function TicketList() {
   const { rows, visible } = useTicketRows();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingMove | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
   const open = rows.filter((row) => isOpen(row.current.status)).length;
   const visibleIds = visible.map((row) => row.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+  const someSelected = visibleIds.some((id) => selected.has(id));
   const chosen = rows.filter((row) => selected.has(row.id) && isOpen(row.current.status));
 
   const toggle = (id: string) =>
@@ -91,9 +93,7 @@ function TicketList() {
               {
                 label: "Clear all review data",
                 danger: true,
-                onSelect: () => {
-                  if (window.confirm("Clear all triage decisions stored in this browser?")) reset();
-                },
+                onSelect: () => setConfirmReset(true),
               },
             ]}
           />
@@ -119,10 +119,16 @@ function TicketList() {
             <UserPlus size={16} strokeWidth={1.75} />
             Assign to service teams
           </button>
-          <span className="muted">Each ticket goes to the team of its current service.</span>
-          <button className="button ghost push" onClick={() => setSelected(new Set())}>
+          <span className="muted bulk-hint">
+            Each ticket goes to the team of its current service.
+          </span>
+          <button
+            className="button ghost push"
+            aria-label="Clear selection"
+            onClick={() => setSelected(new Set())}
+          >
             <X size={16} strokeWidth={1.75} />
-            Clear selection
+            <span className="bulk-clear-label">Clear selection</span>
           </button>
         </div>
       )}
@@ -133,18 +139,25 @@ function TicketList() {
               <thead>
                 <tr>
                   <th className="check">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all shown tickets"
-                      checked={allSelected}
-                      onChange={() =>
-                        setSelected(allSelected ? new Set() : new Set([...selected, ...visibleIds]))
-                      }
-                    />
+                    <label className="check-hit">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all shown tickets"
+                        checked={allSelected}
+                        ref={(input) => {
+                          if (input) input.indeterminate = someSelected && !allSelected;
+                        }}
+                        onChange={() =>
+                          setSelected(
+                            allSelected ? new Set() : new Set([...selected, ...visibleIds]),
+                          )
+                        }
+                      />
+                    </label>
                   </th>
                   <th>Ticket</th>
                   <th>Service</th>
-                  <th title="Calculated from urgency and impact">Priority</th>
+                  <th data-tip="Calculated from urgency and impact">Priority</th>
                   <th>Assignee</th>
                   <th>Status</th>
                 </tr>
@@ -167,6 +180,33 @@ function TicketList() {
         <Board rows={visible} onMove={moveTo} />
       )}
       {pending && <MoveDialog pending={pending} onClose={() => setPending(null)} />}
+      {confirmReset && (
+        <Dialog
+          title="Clear all review data?"
+          onClose={() => setConfirmReset(false)}
+          footer={
+            <>
+              <button className="button ghost" onClick={() => setConfirmReset(false)}>
+                Cancel
+              </button>
+              <button
+                className="button danger"
+                onClick={() => {
+                  reset();
+                  setConfirmReset(false);
+                }}
+              >
+                Clear review data
+              </button>
+            </>
+          }
+        >
+          <p className="dialog-text">
+            Every triage decision, comment and status change stored in this browser will be removed.
+            Export the triaged tickets first if you want to keep them.
+          </p>
+        </Dialog>
+      )}
     </>
   );
 }
@@ -188,13 +228,15 @@ function TableRow({
   return (
     <tr className={selected ? "selected clickable" : "clickable"} onClick={open}>
       <td className="check" onClick={(event) => event.stopPropagation()}>
-        <input
-          type="checkbox"
-          aria-label={`Select ${id}`}
-          checked={selected}
-          disabled={!isOpen(current.status)}
-          onChange={onToggle}
-        />
+        <label className="check-hit">
+          <input
+            type="checkbox"
+            aria-label={`Select ${id}`}
+            checked={selected}
+            disabled={!isOpen(current.status)}
+            onChange={onToggle}
+          />
+        </label>
       </td>
       <td className="wrap summary-cell">
         <Link
@@ -210,7 +252,7 @@ function TableRow({
           {personName(ticket.Reporter)}
         </small>
       </td>
-      <td className="wrap">
+      <td className="wrap service-cell">
         <span className="value">{current.triage.service}</span>
         <small>
           {proposal && proposal.proposal.service !== declared ? (
@@ -223,10 +265,10 @@ function TableRow({
           )}
         </small>
       </td>
-      <td>
+      <td className="priority-cell">
         <PriorityPill triage={current.triage} detail />
       </td>
-      <td>
+      <td className="assignee-cell">
         {current.triage.assignee ? (
           <span className="person">
             <Initials email={current.triage.assignee} />
@@ -236,7 +278,7 @@ function TableRow({
           <span className="muted">Unassigned</span>
         )}
       </td>
-      <td>
+      <td className="status-cell">
         <StatusPill status={current.status} />
       </td>
     </tr>
@@ -286,7 +328,7 @@ function Board({
               if (row) onMove(row, status);
             }}
           >
-            <header title={STATUS_HELP[status]}>
+            <header data-tip={STATUS_HELP[status]}>
               <span>
                 <i className={`dot ${STATUS_DOTS[status]}`} />
                 {STATUS_LABELS[status]}

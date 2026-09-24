@@ -3,6 +3,7 @@ import { ChartColumn, ChevronRight, Inbox, Undo2, Waypoints, X } from "lucide-re
 import { DashboardProvider, useDashboard } from "../state";
 import { TicketFiltersProvider, isOpen } from "../components/tickets";
 import { ThemeToggle } from "../components/theme";
+import { TooltipLayer } from "../components/tooltip";
 
 export const Route = createRootRoute({ component: Root });
 
@@ -52,10 +53,12 @@ function Shell() {
             {open > 0 && <span className="nav-count num">{open}</span>}
           </Link>
         </nav>
+        {/* The header is hidden on phones, so the sidebar carries the toggle there. */}
+        <ThemeToggle className="sidebar-theme" />
         {(model || stronger.configured) && (
           <div className="sidebar-foot">
             {model && (
-              <div className="source-line" title="Model that produced the triage suggestions">
+              <div className="source-line" data-tip="Model that produced the triage suggestions">
                 <i className="dot green" />
                 <span>
                   AI suggestions
@@ -101,6 +104,7 @@ function Shell() {
         </main>
       </div>
       <Toast />
+      <TooltipLayer />
     </div>
   );
 }

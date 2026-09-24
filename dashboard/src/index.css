@@ -39,7 +39,24 @@
   --color-success: #6cc08f;
   --color-warning: #d8a656;
   --color-danger: #e0766b;
+  --color-danger-foreground: #1f0b08;
   --color-info: #67b9c8;
+
+  /* Custom controls. The primary action and a checked box share the action fill; the accent is
+     their icon or check mark. Fields, selected segments and tooltips get their own surfaces so the
+     light theme can raise them instead of tinting them grey. */
+  --color-action: var(--color-primary);
+  --color-action-hover: var(--color-primary-hover);
+  --color-action-foreground: var(--color-primary-foreground);
+  --color-action-accent: var(--color-primary-foreground);
+  --color-field: var(--color-shell);
+  --color-selected: var(--color-active);
+  --color-tooltip: var(--color-elevated);
+  --color-tooltip-foreground: var(--color-foreground);
+  --color-tooltip-border: var(--color-border-hover);
+  --color-scrollbar: rgb(255 255 255 / 0.14);
+  --color-scrollbar-hover: rgb(255 255 255 / 0.26);
+  --color-selection: color-mix(in srgb, var(--color-primary) 30%, transparent);
 
   /* Categorical chart fills: the primary series, then white steps on the dark surface. */
   --color-chart-1: var(--color-primary);
@@ -109,6 +126,8 @@
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.28);
   --shadow-card: none;
   --shadow-rail-active: inset 2px 0 0 var(--color-primary);
+  --shadow-field: none;
+  --shadow-selected: none;
 
   --breakpoint-*: initial;
   --breakpoint-sm: 600px;
@@ -255,18 +274,42 @@
   --color-success: #2f8a57;
   --color-warning: #a36a0e;
   --color-danger: #c4473b;
+  --color-danger-foreground: #fff;
   --color-info: #26808f;
+
+  /* Lime on white reads as a highlighter, so light actions are ink with a lime accent, focus uses
+     the deeper green, and fields and selected segments are raised white surfaces. */
+  --color-primary-subtle: color-mix(in srgb, var(--color-primary-text) 10%, transparent);
+  --color-ring: color-mix(in srgb, var(--color-primary-text) 55%, transparent);
+  --color-action: var(--color-foreground);
+  --color-action-hover: #2b312e;
+  --color-action-foreground: #f8f9f8;
+  --color-action-accent: var(--color-primary);
+  --color-field: var(--color-surface);
+  --color-selected: var(--color-surface);
+  --color-tooltip: #1c201e;
+  --color-tooltip-foreground: #f2f4f3;
+  --color-tooltip-border: transparent;
+  --color-scrollbar: rgb(20 26 23 / 0.2);
+  --color-scrollbar-hover: rgb(20 26 23 / 0.34);
+  --color-selection: color-mix(in srgb, var(--color-primary) 45%, transparent);
 
   --shadow-popover: 0 1px 2px rgb(20 26 23 / 0.06), 0 12px 32px rgb(20 26 23 / 0.12);
   --shadow-float: var(--shadow-popover);
   --shadow-card: 0 1px 2px rgb(20 26 23 / 0.04);
   --shadow-rail-active: inset 2px 0 0 var(--color-primary-text);
+  --shadow-field: 0 1px 2px rgb(20 26 23 / 0.05);
+  --shadow-selected: 0 0 0 1px var(--color-border), 0 1px 2px rgb(20 26 23 / 0.08);
 
   color-scheme: light;
 }
 /* Cards on the board sit on a recessed column, as they do in the dark theme. */
 :root[data-theme="light"] .board-column {
   background: var(--color-shell);
+}
+/* The lime mark needs an edge to hold its shape on the pale canvas. */
+:root[data-theme="light"] .brand-mark {
+  box-shadow: inset 0 0 0 1px rgb(20 26 23 / 0.12);
 }
 * {
   box-sizing: border-box;
@@ -282,6 +325,14 @@ textarea {
 }
 button {
   cursor: pointer;
+}
+/* Taps respond at once, without the grey flash mobile browsers paint on touched links. */
+a,
+button,
+[role="option"],
+tr.clickable {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 a {
   color: inherit;
@@ -307,12 +358,12 @@ svg {
 .app {
   display: grid;
   grid-template-columns: 224px minmax(0, 1fr);
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 .sidebar {
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -377,7 +428,8 @@ svg {
   color: var(--color-secondary);
 }
 .nav-item.active {
-  background: var(--color-active);
+  background: var(--color-selected);
+  box-shadow: var(--shadow-selected);
   color: var(--color-foreground);
 }
 .nav-item.active::before {
@@ -487,14 +539,28 @@ svg {
 }
 .button.primary {
   border-color: transparent;
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
+  background: var(--color-action);
+  color: var(--color-action-foreground);
   font-weight: 600;
+}
+.button.primary svg {
+  color: var(--color-action-accent);
 }
 .button.primary:hover:not(:disabled) {
   border-color: transparent;
-  background: color-mix(in srgb, var(--color-primary) 88%, white);
-  color: var(--color-primary-foreground);
+  background: var(--color-action-hover);
+  color: var(--color-action-foreground);
+}
+.button.danger {
+  border-color: transparent;
+  background: var(--color-danger);
+  color: var(--color-danger-foreground);
+  font-weight: 600;
+}
+.button.danger:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-danger) 88%, var(--color-foreground));
+  color: var(--color-danger-foreground);
 }
 .button.ghost {
   border-color: transparent;
@@ -750,7 +816,8 @@ h3 {
   background: var(--color-hover);
 }
 .segmented button[aria-pressed="true"] {
-  background: var(--color-active);
+  background: var(--color-selected);
+  box-shadow: var(--shadow-selected);
   color: var(--color-foreground);
 }
 .segmented button span {
@@ -777,7 +844,8 @@ textarea,
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  background-color: var(--color-shell);
+  background-color: var(--color-field);
+  box-shadow: var(--shadow-field);
   color: var(--color-foreground);
   font-size: 13px;
   font-weight: 400;
@@ -790,9 +858,13 @@ textarea:focus-visible {
   border-color: var(--color-ring);
   box-shadow: 0 0 0 3px var(--color-primary-subtle);
 }
+/* Textareas grow with their content instead of showing the browser's resize grip. */
 textarea {
+  min-height: calc(3lh + 22px);
+  max-height: 360px;
   padding: 10px 12px;
-  resize: vertical;
+  field-sizing: content;
+  resize: none;
   line-height: 1.55;
 }
 .readonly-value {
@@ -803,6 +875,7 @@ textarea {
   height: 36px;
   padding: 0 12px;
   background: transparent;
+  box-shadow: none;
   border-style: dashed;
   color: var(--color-secondary);
   font-weight: 500;
@@ -1011,7 +1084,7 @@ td .value {
 }
 .modal {
   width: min(640px, 100%);
-  max-height: 85vh;
+  max-height: 85dvh;
   overflow: auto;
   padding: 24px;
   border: 1px solid var(--color-border-hover);
@@ -1053,54 +1126,79 @@ td .value {
   }
 }
 @media (max-width: 860px) {
+  :root {
+    --spacing-page: 20px;
+    scroll-padding-top: 64px;
+  }
   .app {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
+  /* The sidebar turns into a sticky app bar: brand, the two destinations, theme toggle. The
+     breadcrumb header only repeated the page title, so it goes away. */
   .sidebar {
-    position: static;
+    z-index: 5;
     height: auto;
     flex-direction: row;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
+    gap: 8px;
+    padding: max(8px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 8px
+      max(12px, env(safe-area-inset-left));
+    border-bottom: 1px solid var(--color-divider);
+    background: var(--color-background);
   }
-  .sidebar .nav-label,
-  .sidebar-foot {
+  .brand {
+    padding: 0;
+  }
+  .nav-group {
+    grid-auto-flow: column;
+    margin-left: auto;
+  }
+  .nav-item.active::before,
+  .sidebar-foot,
+  .topbar {
     display: none;
   }
   .shell {
-    margin: 0 8px 8px;
-  }
-  .topbar {
-    --page-padding: 16px;
-  }
-  .main {
-    --page-padding: 16px;
+    margin: 8px;
   }
 }
 @media (max-width: 600px) {
   :root {
-    --pad-card: 16px;
+    --spacing-page: 16px;
+    --spacing-card-pad: 16px;
+    --spacing-card-gap: 12px;
   }
-  .topbar {
-    height: auto;
-    flex-wrap: wrap;
-    padding-block: 12px;
+  /* Keep the name for screen readers; the mark alone identifies the app on a phone. */
+  .brand > span:last-child {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
-  .header-actions {
-    flex-wrap: wrap;
+  .shell {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+  }
+  h1 {
+    font-size: 22px;
   }
   .page-heading {
     display: block;
   }
-  .heading-meta {
+  .heading-meta,
+  .heading-actions {
     margin-top: 12px;
   }
   .span-3 {
-    grid-column: span 12;
+    grid-column: span 6;
   }
-  .filters {
+  .card-head {
     flex-wrap: wrap;
+    margin-bottom: 16px;
   }
   .form-grid,
   .original-fields {
@@ -1385,7 +1483,8 @@ td .value {
   padding: 0 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  background: var(--color-shell);
+  background: var(--color-field);
+  box-shadow: var(--shadow-field);
   color: var(--color-muted);
 }
 .search:focus-within {
@@ -1430,11 +1529,76 @@ td .value {
   display: inline-flex;
   gap: 4px;
 }
+/* Checkboxes are drawn from theme tokens. The mark is a mask, so it takes the foreground color
+   and scales in when checked; the indeterminate state swaps the check for a dash. */
 input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--color-primary-text);
+  appearance: none;
+  display: inline-grid;
+  flex: none;
+  place-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid color-mix(in srgb, var(--color-muted) 70%, transparent);
+  border-radius: 5px;
+  background: var(--color-field);
+  box-shadow: var(--shadow-field);
   cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    border-color 120ms ease-out,
+    transform 120ms ease-out;
+}
+input[type="checkbox"]::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: var(--color-action-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transform: scale(0);
+  transition: transform 120ms ease-out;
+}
+input[type="checkbox"]:hover:not(:checked, :indeterminate, :disabled) {
+  border-color: var(--color-secondary);
+}
+input[type="checkbox"]:is(:checked, :indeterminate) {
+  border-color: var(--color-action);
+  background: var(--color-action);
+}
+input[type="checkbox"]:is(:checked, :indeterminate):hover:not(:disabled) {
+  border-color: var(--color-action-hover);
+  background: var(--color-action-hover);
+}
+input[type="checkbox"]:is(:checked, :indeterminate)::before {
+  transform: scale(1);
+}
+input[type="checkbox"]:indeterminate::before {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E");
+}
+input[type="checkbox"]:active:not(:disabled) {
+  transform: scale(0.9);
+}
+input[type="checkbox"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"],
+  input[type="checkbox"]::before {
+    transition: none;
+  }
+}
+/* Pads the checkbox's hit area without moving it, so a near miss still toggles the row. */
+.check-hit {
+  display: inline-flex;
+  flex-direction: row;
+  margin: -10px;
+  padding: 10px;
+  cursor: pointer;
+}
+.check-hit:has(:disabled) {
+  cursor: not-allowed;
 }
 th.check,
 td.check {
@@ -1536,7 +1700,7 @@ tr.selected td {
   top: 16px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 110px);
+  max-height: calc(100dvh - 110px);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   background: var(--color-surface);
@@ -1671,7 +1835,8 @@ kbd {
 .composer {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  background: var(--color-shell);
+  background: var(--color-field);
+  box-shadow: var(--shadow-field);
 }
 .composer:focus-within {
   border-color: var(--color-ring);
@@ -1764,7 +1929,8 @@ kbd {
   padding: 0 10px 0 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  background: var(--color-shell);
+  background: var(--color-field);
+  box-shadow: var(--shadow-field);
   color: var(--color-foreground);
   font-size: 13px;
   font-weight: 400;
@@ -2284,8 +2450,379 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Replacements for native browser UI: selection, caret, placeholder, scrollbars, the search
+   field's clear button and the `title` tooltip. */
+::selection {
+  background: var(--color-selection);
+}
+input,
+textarea {
+  caret-color: var(--color-primary-text);
+}
+::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
+}
+:root {
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+* {
+  scrollbar-width: thin;
+}
+/* Safari still draws scrollbars through the WebKit pseudo-elements. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--color-scrollbar) padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-scrollbar-hover);
+}
+input[type="search"] {
+  appearance: none;
+}
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  display: none;
+  appearance: none;
+}
+.search-clear {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-right: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-active);
+  color: var(--color-secondary);
+}
+.search-clear:hover {
+  background: var(--color-border-hover);
+  color: var(--color-foreground);
+}
+.tooltip {
+  --tip-shift: 3px;
+  position: fixed;
+  z-index: 40;
+  max-width: 280px;
+  padding: 6px 9px;
+  border: 1px solid var(--color-tooltip-border);
+  border-radius: var(--radius-control);
+  background: var(--color-tooltip);
+  box-shadow: var(--shadow-popover);
+  color: var(--color-tooltip-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+  transform-origin: bottom center;
+  animation: tooltip-in 120ms ease-out;
+}
+.tooltip[data-below] {
+  --tip-shift: -3px;
+  transform-origin: top center;
+}
+.tooltip[data-instant] {
+  animation: none;
+}
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--tip-shift)) scale(0.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation: none;
+  }
+}
+.dialog-text {
+  color: var(--color-secondary);
+  line-height: 1.6;
+}
+
+/* Phones and tablets. Kept last so these override the component rules above. */
+.sidebar-theme {
+  display: none;
+}
+@media (max-width: 860px) {
+  .sidebar-theme {
+    display: inline-flex;
+  }
+  /* The queue rail collapses to its back link; previous/next in the heading walk the queue. */
+  .rail {
+    border: 0;
+    background: none;
+    max-height: none;
+  }
+  .rail-head {
+    padding: 0;
+    border: 0;
+  }
+  .rail-head .search,
+  .rail-head .select,
+  .rail-list {
+    display: none;
+  }
+  .rail-back {
+    justify-self: start;
+    margin-left: -8px;
+  }
+  /* Bulk actions sit at the bottom, within thumb reach, instead of sticking under the app bar. */
+  .bulk-bar {
+    position: fixed;
+    top: auto;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    z-index: 20;
+    margin: 0;
+    box-shadow: var(--shadow-float);
+  }
+  .bulk-hint {
+    display: none;
+  }
+  .bulk-bar b {
+    margin-right: 0;
+  }
+  .main:has(.bulk-bar) {
+    padding-bottom: 96px;
+  }
+  /* One column per screen, snapping as the board is swiped. */
+  .board {
+    grid-template-columns: repeat(5, minmax(260px, 82%));
+    margin-inline: calc(var(--spacing-page) * -1);
+    padding-inline: var(--spacing-page);
+    scroll-padding-inline: var(--spacing-page);
+    scroll-snap-type: x mandatory;
+  }
+  .board-column {
+    scroll-snap-align: start;
+  }
+  /* Queue rows become stacked cards: summary first, then service and priority, then owner and
+     status. The header keeps only the select-all checkbox. */
+  .queue-card {
+    padding-top: 4px;
+  }
+  .queue-card table {
+    min-width: 0;
+  }
+  .queue-card thead tr {
+    display: flex;
+    align-items: center;
+  }
+  .queue-card thead th {
+    display: flex;
+    align-items: center;
+    border-top: 0;
+  }
+  .queue-card thead th:nth-child(n + 3) {
+    display: none;
+  }
+  .queue-card tbody,
+  .queue-card td {
+    display: block;
+  }
+  .queue-card tbody tr {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "check summary summary"
+      ". service priority"
+      ". assignee status";
+    align-items: center;
+    gap: 8px 12px;
+    padding: 14px var(--spacing-card-pad);
+    border-top: 1px solid var(--color-divider);
+  }
+  .queue-card tbody tr.selected {
+    background: var(--color-primary-subtle);
+  }
+  .queue-card tbody tr td {
+    width: auto;
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .queue-card td.check {
+    grid-area: check;
+    align-self: start;
+    padding-top: 2px;
+  }
+  .queue-card .summary-cell {
+    grid-area: summary;
+  }
+  .queue-card .summary-link {
+    display: -webkit-box;
+    max-width: none;
+    white-space: normal;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .queue-card .service-cell {
+    grid-area: service;
+  }
+  .queue-card .priority-cell {
+    grid-area: priority;
+    justify-self: end;
+  }
+  .queue-card .priority small {
+    display: none;
+  }
+  .queue-card .assignee-cell {
+    grid-area: assignee;
+  }
+  .queue-card .status-cell {
+    grid-area: status;
+    justify-self: end;
+  }
+}
 @media (max-width: 600px) {
+  .kpi-label {
+    min-height: 36px;
+    align-items: flex-start;
+  }
+  .kpi-value {
+    margin-top: 8px;
+    font-size: 24px;
+  }
   .inline-facts {
-    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .inline-facts dd {
+    font-size: 16px;
+  }
+  .inline-facts small {
+    display: block;
+  }
+  /* Bar lists put the label and value on one line and give the bar the full width below. */
+  .bar-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name value"
+      "track track";
+    gap: 4px 12px;
+    padding: 4px 0;
+  }
+  .bar-name {
+    grid-area: name;
+  }
+  .bar-value {
+    grid-area: value;
+  }
+  .bar-track {
+    grid-area: track;
+    height: 6px;
+  }
+  .toolbar .search {
+    width: 100%;
+  }
+  .filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .filters .select {
+    min-width: 0;
+  }
+  .filters .select:last-child:nth-child(odd) {
+    grid-column: span 2;
+  }
+  .filters .select:nth-child(even) .select-popover {
+    right: 0;
+    left: auto;
+  }
+  .segmented.full button {
+    padding: 0 8px;
+  }
+  .bulk-clear-label {
+    display: none;
+  }
+  .bulk-bar .push {
+    padding: 0 10px;
+  }
+  /* Dialogs open as bottom sheets. */
+  .modal-backdrop {
+    place-items: end stretch;
+    padding: 0;
+  }
+  .modal {
+    width: 100%;
+    max-height: 92dvh;
+    padding: 20px 16px max(16px, env(safe-area-inset-bottom));
+    border-bottom: 0;
+    border-radius: var(--radius-float) var(--radius-float) 0 0;
+  }
+  .modal-foot {
+    flex-wrap: wrap;
+  }
+  .modal-foot .muted {
+    flex-basis: 100%;
+  }
+  .toast {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    max-width: none;
+  }
+}
+/* Touch screens: 40px targets, and 16px inputs so iOS does not zoom the page on focus. */
+@media (pointer: coarse) {
+  .button,
+  .select-trigger,
+  .search {
+    height: 40px;
+  }
+  .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .nav-item {
+    height: 40px;
+  }
+  .segmented button {
+    height: 34px;
+  }
+  .select-option,
+  .menu-popover button {
+    min-height: 40px;
+  }
+  .references footer .button {
+    height: 36px;
+  }
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+  }
+  input[type="checkbox"]::before {
+    width: 12px;
+    height: 12px;
+  }
+  textarea,
+  .search input,
+  .select-search input {
+    font-size: 16px;
+  }
+}
+/* No keyboard shortcuts to hint at without a hover-capable pointer. */
+@media (hover: none) {
+  .kbd-hint {
+    display: none;
   }
 }

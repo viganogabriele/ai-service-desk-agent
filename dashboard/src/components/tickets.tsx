@@ -1,6 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Review } from "../state";
 import {
@@ -146,7 +146,7 @@ export function useTicketRows() {
 
 export function StatusPill({ status }: { status: Status }) {
   return (
-    <span className="pill" title={STATUS_HELP[status]}>
+    <span className="pill" data-tip={STATUS_HELP[status]}>
       <i className={`dot ${STATUS_DOTS[status]}`} />
       {STATUS_LABELS[status]}
     </span>
@@ -159,7 +159,7 @@ export function PriorityPill({ triage, detail = false }: { triage: Triage; detai
   const basis = `Urgency ${triage.urgency} × Impact ${triage.impact}`;
 
   return (
-    <span className="priority" title={`${level} priority · ${basis}`}>
+    <span className="priority" data-tip={`${level} priority · ${basis}`}>
       <span className="pill">
         <i className={`dot ${PRIORITY_DOTS[level]}`} />
         {level}
@@ -201,6 +201,16 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
         value={filters.query}
         onChange={(event) => setFilters({ query: event.target.value })}
       />
+      {filters.query && (
+        <button
+          type="button"
+          className="search-clear"
+          aria-label="Clear search"
+          onClick={() => setFilters({ query: "" })}
+        >
+          <X size={14} strokeWidth={2} />
+        </button>
+      )}
     </label>
   );
 }
