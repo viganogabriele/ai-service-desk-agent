@@ -3,8 +3,8 @@
 External integrations live here:
 
 - `jira/` — the Jira Cloud REST API (tickets, edit metadata, transitions).
-- `core/` — the Core API from `CORE_API.md`: ticket import, the event log and
-  the effective-state export. The fake follows the same contract.
+- `core/` — the Core API from `CORE_API.md`: ticket import, closures, the
+  event log and the effective-state export. The fake follows the same contract.
 
 Convention for each client:
 

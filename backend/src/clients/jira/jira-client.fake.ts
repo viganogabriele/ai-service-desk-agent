@@ -52,11 +52,33 @@ const OPTION_LISTS: Record<string, JiraOption[]> = {
 	]),
 };
 
+// The service desk workflow of the real project, as GET /transitions returns it.
 const RESOLVE_TRANSITION = {
-	id: "31",
+	id: "111",
 	name: "Resolve",
-	to: { name: "Resolved" },
+	to: { name: "Resolved", statusCategory: { key: "done" } },
 };
+const OPEN_TRANSITIONS = [
+	{
+		id: "51",
+		name: "Pending",
+		to: { name: "Pending", statusCategory: { key: "indeterminate" } },
+	},
+	{
+		id: "31",
+		name: "Investigate",
+		to: { name: "Work in progress", statusCategory: { key: "indeterminate" } },
+	},
+	RESOLVE_TRANSITION,
+];
+const IN_PROGRESS_TRANSITIONS = [
+	{
+		id: "61",
+		name: "Back to open",
+		to: { name: "Open", statusCategory: { key: "new" } },
+	},
+	RESOLVE_TRANSITION,
+];
 
 const WORK_TYPES = [
 	{ id: "10010", name: "[System] Service request" },
@@ -193,11 +215,25 @@ export function createFakeJiraClient(
 
 		async getTransitions(key) {
 			const issue = get(key, `/rest/api/3/issue/${key}/transitions`);
-			return issue.fields.resolution ? [] : [RESOLVE_TRANSITION];
+			if (issue.fields.resolution) return [];
+			const status = issue.fields.status as
+				| { statusCategory?: { key?: string } }
+				| undefined;
+			return status?.statusCategory?.key === "indeterminate"
+				? IN_PROGRESS_TRANSITIONS
+				: OPEN_TRANSITIONS;
 		},
 
-		async transitionIssue(key, _transitionId, fields) {
+		async transitionIssue(key, transitionId, fields) {
 			const issue = get(key, `/rest/api/3/issue/${key}/transitions`);
+			const target = [...OPEN_TRANSITIONS, ...IN_PROGRESS_TRANSITIONS].find(
+				(t) => t.id === transitionId,
+			);
+			if (target && target !== RESOLVE_TRANSITION) {
+				issue.fields.status = { ...target.to };
+				touch(issue);
+				return;
+			}
 			const requested = fields?.resolution as { name?: string } | undefined;
 			issue.fields.status = {
 				name: "Resolved",

@@ -1,6 +1,32 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 // Shapes from CORE_API.md §6.A (import), §8 (events) and §7 (export).
+
+/** Python's json.dumps(value, sort_keys=True, ensure_ascii=False), for JSON-safe values. */
+function pythonJson(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(pythonJson).join(", ")}]`;
+	if (value !== null && typeof value === "object") {
+		const entries = Object.entries(value)
+			.filter(([, v]) => v !== undefined)
+			.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+		return `{${entries.map(([k, v]) => `${JSON.stringify(k)}: ${pythonJson(v)}`).join(", ")}}`;
+	}
+	return JSON.stringify(value ?? null);
+}
+
+/** The Core's content_hash of a snapshot's fields (core/api/core.py `content_hash`). */
+export function coreContentHash(fields: Record<string, unknown>): string {
+	return createHash("sha256").update(pythonJson(fields)).digest("hex");
+}
+
+/** The Core expects external_key immediately followed by its own content hash. */
+export function coreIdempotencyKey(
+	externalKey: string,
+	fields: Record<string, unknown>,
+): string {
+	return `${externalKey}${coreContentHash(fields)}`;
+}
 
 export type CoreEvent = {
 	seq: number;
@@ -17,6 +43,15 @@ export type CoreImport = {
 	contentHash: string;
 	/** Normalised fields, same names as the challenge file. */
 	fields: Record<string, unknown>;
+};
+
+/** POST /tickets/{id}/closure body (CORE_API §6C.2, §12). */
+export type CoreClosure = {
+	/** The final record, same names as the challenge file. */
+	fields: Record<string, unknown>;
+	resolutionNote: string | null;
+	resolver: string | null;
+	actor: string;
 };
 
 export class CoreApiError extends Error {
@@ -36,9 +71,16 @@ export interface CoreClient {
 	listEvents(afterSeq: number): Promise<CoreEvent[]>;
 	/** GET /tickets/{id}/export: effective state as one challenge record. */
 	exportTicket(ticketId: string): Promise<Record<string, unknown>>;
+	/** POST /tickets/{id}/closure. Not idempotent: every call is stored. */
+	closeTicket(
+		ticketId: string,
+		closure: CoreClosure,
+	): Promise<{ outcome: string }>;
 }
 
 const importResponse = z.object({ ticket_id: z.string() });
+
+const closureResponse = z.object({ outcome: z.string() });
 
 const eventSchema = z.object({
 	seq: z.number().int(),
@@ -96,7 +138,7 @@ export function createRealCoreClient(baseUrl: string): CoreClient {
 	return {
 		async importTicket({ externalKey, contentHash, fields }) {
 			const data = await call("POST", "/tickets", {
-				headers: { "Idempotency-Key": `${externalKey}:${contentHash}` },
+				headers: { "Idempotency-Key": coreIdempotencyKey(externalKey, fields) },
 				body: { external_key: externalKey, content_hash: contentHash, fields },
 			});
 			return { ticketId: importResponse.parse(data).ticket_id };
@@ -113,6 +155,15 @@ export function createRealCoreClient(baseUrl: string): CoreClient {
 				`/tickets/${encodeURIComponent(ticketId)}/export`,
 			);
 			return exportResponse.parse(data);
+		},
+
+		async closeTicket(ticketId, { fields, resolutionNote, resolver, actor }) {
+			const data = await call(
+				"POST",
+				`/tickets/${encodeURIComponent(ticketId)}/closure`,
+				{ body: { fields, resolution_note: resolutionNote, resolver, actor } },
+			);
+			return { outcome: closureResponse.parse(data).outcome };
 		},
 	};
 }

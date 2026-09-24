@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  REASON_CODES,
   createBackendClient,
   levelOf,
   liveBundle,
@@ -10,12 +11,13 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type { TicketPatch } from "./lib/backend";
+import type { CoreChange, TicketPatch } from "./lib/backend";
 import {
   LEVELS,
   OUTCOMES,
   RESOLUTIONS,
   STATUS_LABELS,
+  TRIAGE_FIELDS,
   priority,
   serviceInfo,
   startingTriage,
@@ -276,6 +278,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     refetchInterval: (state) => (state.state.data?.offline ? false : 15_000),
   });
 
+  // AI proposals from the Core. Without it the dashboard still works on Jira data alone.
+  const core = useQuery({
+    queryKey: ["core-proposals"],
+    queryFn: ({ signal }) => backend.coreProposals(signal),
+    // Offline there is no backend to proxy the Core.
+    enabled: query.data?.offline === false,
+    refetchInterval: 15_000,
+    retry: false,
+  });
+
   const health = useQuery<{ model: string }>({
     queryKey: ["stronger-model-health"],
     enabled: STRONGER_URL !== null,
@@ -304,7 +316,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   if (query.isError) return <div className="loading">{failureText(query.error)}</div>;
 
-  const { bundle: data, offline } = query.data;
+  const { bundle, offline } = query.data;
+
+  // Online, the Core's proposals replace the bundle's (live bundles carry none).
+  const data =
+    !offline && core.data?.size
+      ? {
+          ...bundle,
+          proposals: bundle.challenge.map((ticket) => core.data.get(ticket.Key) ?? null),
+          proposal_source: { kind: "core" as const, path: null },
+        }
+      : bundle;
+
   const idOf = (index: number) => data.challenge[index].Key;
 
   const proposalAt = (index: number, version: number) =>
@@ -405,6 +428,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // The Core has no "unassigned": a cleared assignee is neither overridden nor accepted.
+    const coreChanges: CoreChange[] = changedFields.flatMap(({ field, final }) =>
+      field === "assignee" && !final
+        ? []
+        : [{ field, value: final, reason_code: REASON_CODES[field] }],
+    );
+
+    if (extra.resolution && extra.resolution !== proposal?.proposal.resolution)
+      coreChanges.push({
+        field: "resolution",
+        value: extra.resolution,
+        reason_code: REASON_CODES.resolution,
+      });
+
+    const coreAccepted = [...TRIAGE_FIELDS, ...(extra.resolution ? ["resolution"] : [])].filter(
+      (field) =>
+        !changedFields.some((item) => item.field === field) &&
+        !coreChanges.some((change) => change.field === field),
+    );
+
     write(index, { ...current, updated_at: new Date().toISOString() });
 
     void (async () => {
@@ -412,13 +455,25 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         const [result] = (await backend.patch([patch])).results;
 
         if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
+
+        const recorded = proposal?.core
+          ? await recordInCore(proposal.core, coreChanges, coreAccepted)
+          : null;
+
         // Saved: drop the draft so the ticket shows what Jira now holds.
         write(index, null, entry);
-        await client.invalidateQueries({ queryKey: ["dashboard-data"] });
+        await Promise.all([
+          client.invalidateQueries({ queryKey: ["dashboard-data"] }),
+          client.invalidateQueries({ queryKey: ["core-proposals"] }),
+        ]);
         show({
-          message: result.warnings.length
-            ? `${message} Jira noted: ${result.warnings.join("; ")}`
-            : message,
+          message: [
+            message,
+            result.warnings.length ? `Jira noted: ${result.warnings.join("; ")}` : "",
+            recorded ?? "",
+          ]
+            .filter(Boolean)
+            .join(" "),
         });
       } catch (failure) {
         const error = failure instanceof Error ? failure : new Error(String(failure));
@@ -426,6 +481,67 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         show({ message: `${idOf(index)} was not saved to Jira: ${failureText(error)}` });
       }
     })();
+  };
+
+  /**
+   * Tell the Core what the operator decided, after Jira has it: changed fields become
+   * overrides, the rest are accepted. Returns a note when the Core could not record it.
+   */
+  const recordInCore = async (
+    core: NonNullable<Proposal["core"]>,
+    changes: CoreChange[],
+    accepted: string[],
+  ): Promise<string | null> => {
+    try {
+      if (changes.length) await backend.coreOverride(core, changes);
+
+      if (accepted.length) await backend.coreAccept(core, accepted);
+
+      return null;
+    } catch (failure) {
+      const error = failure instanceof Error ? failure : new Error(String(failure));
+
+      return `The AI record was not updated: ${failureText(error)}`;
+    }
+  };
+
+  /** Move an open ticket between New and In progress through a Jira transition. */
+  const moveInJira = async (index: number, status: "new" | "in_progress") => {
+    const id = idOf(index);
+
+    try {
+      const [result] = (
+        await backend.patch([
+          { Key: id, Status: status === "in_progress" ? "in progress" : "open" },
+        ])
+      ).results;
+
+      if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
+
+      setSaved((state) => ({
+        ...state,
+        actions: [
+          ...state.actions,
+          {
+            ticket_id: id,
+            action: "move",
+            timestamp: new Date().toISOString(),
+            model_id: null,
+            changed_fields: [],
+          },
+        ],
+      }));
+      await client.invalidateQueries({ queryKey: ["dashboard-data"] });
+      show({
+        message: result.warnings.length
+          ? `${id} was not moved: ${result.warnings.join("; ")}`
+          : `${id} moved to ${STATUS_LABELS[status]}.`,
+      });
+    } catch (failure) {
+      const error = failure instanceof Error ? failure : new Error(String(failure));
+
+      show({ message: `${id} was not moved in Jira: ${failureText(error)}` });
+    }
   };
 
   const team = (index: number) =>
@@ -563,7 +679,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             { resolution: "clarification", comment: current.question },
           );
         },
-        // Jira status changes other than assign and resolve are not available through the backend yet.
         move: (index, status) => {
           if (offline) {
             write(index, { ...review(index), status, updated_at: new Date().toISOString() });
@@ -571,9 +686,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
             return;
           }
 
-          show({
-            message: `${idOf(index)} cannot be moved to ${STATUS_LABELS[status]} from here yet. Change its status in Jira.`,
-          });
+          void moveInJira(index, status);
         },
         regenerate,
         reset: () => setSaved(EMPTY),

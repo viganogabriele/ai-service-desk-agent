@@ -35,6 +35,7 @@ type TicketRow = {
 	content_hash: string;
 	core_ticket_id: string | null;
 	core_content_hash: string | null;
+	core_closure_key: string | null;
 };
 
 export type StoredTicket = {
@@ -42,6 +43,7 @@ export type StoredTicket = {
 	contentHash: string;
 	coreTicketId: string | null;
 	coreContentHash: string | null;
+	coreClosureKey: string | null;
 };
 
 // timestamp without time zone comes back as a Date read as UTC.
@@ -78,6 +80,7 @@ function toStored(row: TicketRow): StoredTicket {
 		contentHash: row.content_hash,
 		coreTicketId: row.core_ticket_id,
 		coreContentHash: row.core_content_hash,
+		coreClosureKey: row.core_closure_key,
 	};
 }
 
@@ -91,7 +94,7 @@ export async function loadTickets(
 		       t.service_teams, t.reporter, t.assignee, t.priority, t.urgency, t.impact,
 		       t.severity, t.created_date, t.status, t.linked_issues, t.resolution,
 		       t.due_date, t.resolution_date, t.content_hash, t.core_ticket_id,
-		       t.core_content_hash,
+		       t.core_content_hash, t.core_closure_key,
 		       COALESCE((SELECT array_agg(c.body ORDER BY c.created_at, c.jira_comment_id)
 		                 FROM ticket_comments c
 		                 WHERE c.external_key = t.external_key AND c.is_public), '{}') AS comments
@@ -180,6 +183,30 @@ export async function markCoreContent(
 	await sql`
 		UPDATE tickets SET core_ticket_id = ${coreTicketId}, core_content_hash = ${hash}
 		WHERE external_key = ${key}`;
+}
+
+/** Records the closure (resolution note and resolver) last sent to the Core. */
+export async function markCoreClosure(
+	sql: SQL,
+	key: string,
+	closureKey: string,
+): Promise<void> {
+	await sql`
+		UPDATE tickets SET core_closure_key = ${closureKey} WHERE external_key = ${key}`;
+}
+
+/**
+ * After a human edit through the API: the Core gets the decision as overrides,
+ * so the edited content must not be re-imported and re-triaged.
+ */
+export async function keepCoreContent(
+	sql: SQL,
+	key: string,
+	hash: string,
+): Promise<void> {
+	await sql`
+		UPDATE tickets SET core_content_hash = ${hash}
+		WHERE external_key = ${key} AND core_ticket_id IS NOT NULL`;
 }
 
 export async function keyForCoreTicket(

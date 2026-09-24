@@ -5,6 +5,7 @@ import {
 } from "../clients/jira/jira-client.fake";
 import { loadTickets } from "../db/store";
 import { testBackend } from "../db/test-db";
+import { DASHBOARD_ACTOR } from "./core-sync";
 
 function resolvedIssue(key: string) {
 	return fakeIssue(key, {
@@ -72,6 +73,100 @@ describe("Jira -> Postgres -> Core", () => {
 		expect(core.imports[2]?.fields).toMatchObject({
 			Summary: "Edited by an agent in Jira",
 		});
+	});
+
+	it("does not re-triage a ticket after an operator edits it through the API", async () => {
+		const { syncer, core, app } = await setup();
+		await syncer.syncNow();
+
+		const res = await app.request("/tickets", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ Key: "SUP-1", Assignee: "jane.doe@intcom.com" }),
+		});
+		expect(res.status).toBe(200);
+		await syncer.syncNow();
+
+		expect(core.imports.map((i) => i.externalKey)).toEqual(["SUP-1", "SUP-2"]);
+	});
+});
+
+describe("closures -> Core", () => {
+	async function resolve(
+		app: Awaited<ReturnType<typeof setup>>["app"],
+		key: string,
+		patch: Record<string, unknown>,
+	) {
+		const res = await app.request("/tickets", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ Key: key, ...patch }),
+		});
+		expect(res.status).toBe(200);
+	}
+
+	it("sends the outcome of a ticket resolved as done to the Core, once", async () => {
+		const { syncer, core, app, sql } = await setup();
+		await syncer.syncNow();
+		const { coreTicketId } = await stored(sql, "SUP-1");
+
+		await resolve(app, "SUP-1", {
+			Assignee: "jane.doe@intcom.com",
+			Resolution: "done",
+			"All Comments": [
+				"oliver.varga@intcom.com: Resolution: Renewed the expired portal certificate and verified the login works.",
+			],
+		});
+		const first = await syncer.syncNow();
+		expect(first.core).toMatchObject({ closed: 1 });
+		expect(core.closures).toEqual([
+			expect.objectContaining({
+				ticketId: coreTicketId,
+				resolutionNote:
+					"Resolution: Renewed the expired portal certificate and verified the login works.",
+				resolver: "oliver.varga@intcom.com",
+				actor: "jira-sync",
+				fields: expect.objectContaining({ Status: "done", Resolution: "done" }),
+			}),
+		]);
+		expect(core.closures[0]?.fields).not.toHaveProperty("Key");
+
+		const second = await syncer.syncNow();
+		expect(second.core).toMatchObject({ closed: 0 });
+		expect(core.closures).toHaveLength(1);
+	});
+
+	it("falls back to the assignee and sends a missing note as null", async () => {
+		const { syncer, core, app } = await setup();
+		await syncer.syncNow();
+
+		await resolve(app, "SUP-1", {
+			Assignee: "jane.doe@intcom.com",
+			Resolution: "done",
+		});
+		await syncer.syncNow();
+
+		expect(core.closures).toEqual([
+			expect.objectContaining({
+				resolutionNote: null,
+				resolver: "jane.doe@intcom.com",
+			}),
+		]);
+	});
+
+	it("skips other resolutions and tickets the Core never saw", async () => {
+		const { syncer, core, app } = await setup();
+		await syncer.syncNow();
+
+		await resolve(app, "SUP-2", {
+			Resolution: "clarification",
+			"All Comments": ["Please confirm which entity needs the licence."],
+		});
+		// SUP-3 was resolved before the first sync, so it never reached the Core.
+		const summary = await syncer.syncNow();
+
+		expect(summary.core).toMatchObject({ closed: 0 });
+		expect(core.closures).toEqual([]);
 	});
 });
 
@@ -178,6 +273,47 @@ describe("Core events -> Jira", () => {
 		expect([...rows]).toEqual([{ trigger: "core_override" }]);
 	});
 
+	it("keeps Jira's status when the Core's snapshot of it is stale", async () => {
+		const { syncer, core, sql, app, coreTicketId } = await triaged();
+		const res = await app.request("/tickets", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ Key: "SUP-1", Status: "in progress" }),
+		});
+		expect(res.status).toBe(200);
+
+		// The export still carries the "open" status of the snapshot the Core triaged.
+		core.emit({
+			type: "run.completed",
+			ticket_id: coreTicketId,
+			payload: { lane: "auto_applied" },
+		});
+		await syncer.syncNow();
+
+		expect((await stored(sql, "SUP-1")).record).toMatchObject({
+			Status: "in progress",
+			Assignee: "oliver.varga@intcom.com",
+		});
+	});
+
+	it("leaves Jira alone for overrides the dashboard already wrote", async () => {
+		const { syncer, core, sql, coreTicketId } = await triaged();
+		core.emit({
+			type: "decision.overridden",
+			ticket_id: coreTicketId,
+			payload: { actor: DASHBOARD_ACTOR, changes: [] },
+		});
+		core.emit({
+			type: "comment.updated",
+			ticket_id: coreTicketId,
+			payload: { stale: true, origin: null },
+		});
+
+		const summary = await syncer.syncNow();
+		expect(summary.core).toMatchObject({ processed: 2, writebacks: 0 });
+		expect((await stored(sql, "SUP-1")).record.Urgency).toBe("Medium");
+	});
+
 	it("logs an export the Core refuses and moves on", async () => {
 		const { syncer, core, sql } = await triaged();
 		core.emit({
@@ -185,7 +321,11 @@ describe("Core events -> Jira", () => {
 			ticket_id: "t-unknown-in-core",
 			payload: {},
 		});
-		core.emit({ type: "comment.updated", ticket_id: "t-1", payload: {} });
+		core.emit({
+			type: "comment.updated",
+			ticket_id: "t-1",
+			payload: { stale: false, origin: "edited" },
+		});
 
 		// t-1 is SUP-1; an empty Summary is not a valid challenge record.
 		core.setEffectiveState("t-1", { Summary: "" });

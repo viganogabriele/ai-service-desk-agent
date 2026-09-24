@@ -187,6 +187,8 @@ export interface Proposal {
   // Service or product names the solver found in the ticket text.
   content_clues?: string[];
   explanations?: Partial<Record<TriageField | "resolution_comment", Explanation>>;
+  // The Core run this proposal comes from; accepts and overrides are recorded against it.
+  core?: { ticket_id: string; run_id: string };
 }
 
 export interface SimilarResolution {
@@ -215,7 +217,7 @@ export interface Bundle {
   };
   challenge: IncomingTicket[];
   proposals: (Proposal | null)[];
-  proposal_source: { kind: "file" | "solver_output" | "none"; path: string | null };
+  proposal_source: { kind: "file" | "solver_output" | "core" | "none"; path: string | null };
   similar: Record<string, SimilarResolution[]>;
   assignees: string[];
   historical_examples: Record<string, Ticket>;

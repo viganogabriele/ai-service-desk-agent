@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { SQL } from "bun";
 import {
 	CoreApiError,
@@ -11,6 +12,7 @@ import {
 	hasWriteback,
 	keyForCoreTicket,
 	loadTickets,
+	markCoreClosure,
 	markCoreContent,
 	recordWriteback,
 	setCursor,
@@ -20,12 +22,13 @@ import { isRetryableStatus } from "../lib/errors";
 import { log } from "../lib/log";
 import { writeToJira } from "./jira-sync";
 import { ticketPatchSchema } from "./ticket-patch";
+import type { TicketRecord } from "./tickets";
 
 const EVENT_CURSOR = CORE_EVENT_CURSOR;
 
 /**
  * Sends open tickets whose content the Core doesn't have yet (CORE_API §6.A).
- * Resolved tickets are left for closure harvesting (API step 2).
+ * Resolved tickets reach the Core as closures instead (sendClosures).
  */
 export async function pushToCore(
 	core: CoreClient,
@@ -46,15 +49,73 @@ export async function pushToCore(
 	return { pushed: pending.length };
 }
 
+/** The Core actor the backend's own writes are recorded as. */
+const SYNC_ACTOR = "jira-sync";
+
+// "<resolver>: Resolution: …", as in the dataset, the Core's comments and the dashboard's.
+const RESOLUTION_COMMENT = /^(?:(\S+@\S+): )?(Resolution: [\s\S]+)$/;
+
+/** The latest resolution note on a ticket and who wrote it (else the assignee). */
+export function closureOf(record: TicketRecord) {
+	for (const comment of [...record["All Comments"]].reverse()) {
+		const match = RESOLUTION_COMMENT.exec(comment.trim());
+		if (match?.[2])
+			return {
+				resolutionNote: match[2],
+				resolver: match[1] ?? record.Assignee,
+			};
+	}
+	return { resolutionNote: null, resolver: record.Assignee };
+}
+
+/**
+ * Sends the outcome of tickets resolved as done to the Core for harvesting (CORE_API
+ * §6C.2), once per note and resolver. Other resolutions carry no fix to learn from.
+ */
+export async function sendClosures(
+	core: CoreClient,
+	sql: SQL,
+): Promise<{ closed: number }> {
+	let closed = 0;
+	for (const ticket of await loadTickets(sql)) {
+		const { Key, ...fields } = ticket.record;
+		if (!ticket.coreTicketId || fields.Status !== "done") continue;
+		if (fields.Resolution !== "done") continue;
+		const closure = closureOf(ticket.record);
+		const closureKey = createHash("sha256")
+			.update(JSON.stringify([closure.resolutionNote, closure.resolver]))
+			.digest("hex");
+		if (closureKey === ticket.coreClosureKey) continue;
+		try {
+			await core.closeTicket(ticket.coreTicketId, {
+				fields,
+				...closure,
+				actor: SYNC_ACTOR,
+			});
+			closed++;
+		} catch (error) {
+			if (!isPermanent(error)) throw error;
+			log.warn(`Closure of ${Key} refused, not retried: ${error.message}`);
+		}
+		await markCoreClosure(sql, Key, closureKey);
+	}
+	return { closed };
+}
+
+/** The Core actor the dashboard records its decisions as, after writing them to Jira itself. */
+export const DASHBOARD_ACTOR = "dashboard";
+
 /** The events the sync layer acts on (CORE_API §6.A step 4 and §8). */
 function writebackTrigger(event: CoreEvent): WritebackTrigger | null {
 	switch (event.type) {
 		case "run.completed":
 			return event.payload.lane === "auto_applied" ? "core_auto_applied" : null;
 		case "decision.overridden":
-			return "core_override";
+			// Already in Jira: exporting would also push the AI's other fields, e.g. Resolution.
+			return event.payload.actor === DASHBOARD_ACTOR ? null : "core_override";
 		case "comment.updated":
-			return "core_comment";
+			// Without an origin the comment only went stale; there is no new text to write.
+			return event.payload.origin ? "core_comment" : null;
 		default:
 			return null;
 	}
@@ -130,7 +191,9 @@ async function writeBack(
 	try {
 		const exported = await core.exportTicket(coreTicketId);
 		if (await isSuperseded(core, event)) return false;
-		const patch = ticketPatchSchema.safeParse({ ...exported, Key: key });
+		// The status is Jira's workflow; the Core's snapshot of it may be stale.
+		const { Status: _status, ...record } = exported;
+		const patch = ticketPatchSchema.safeParse({ ...record, Key: key });
 		if (!patch.success) {
 			await fail(
 				`Core export is not a valid ticket record: ${patch.error.message}`,

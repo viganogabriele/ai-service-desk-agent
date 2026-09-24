@@ -188,6 +188,39 @@ describe("POST /tickets", () => {
 		});
 	});
 
+	it("moves a ticket to in progress and back through Jira transitions", async () => {
+		const { client } = await setup();
+
+		const started = await client.tickets.$post({
+			json: { Key: "SUP-1", Status: "in progress" },
+		});
+		expect(await started.json()).toMatchObject({
+			results: [{ key: "SUP-1", ok: true, changed: ["Status"], warnings: [] }],
+		});
+		expect((await recordsByKey(client)).get("SUP-1")?.Status).toBe(
+			"in progress",
+		);
+
+		await client.tickets.$post({ json: { Key: "SUP-1", Status: "open" } });
+		expect((await recordsByKey(client)).get("SUP-1")?.Status).toBe("open");
+	});
+
+	it("resolves only with a Resolution, not with Status alone", async () => {
+		const { client } = await setup();
+		const res = await client.tickets.$post({
+			json: { Key: "SUP-1", Status: "done" },
+		});
+		expect(await res.json()).toMatchObject({
+			results: [
+				{
+					ok: true,
+					warnings: ["Status: set a Resolution to resolve the ticket"],
+				},
+			],
+		});
+		expect((await recordsByKey(client)).get("SUP-1")?.Status).toBe("open");
+	});
+
 	it("applies a bulk patch and reports per-ticket outcomes", async () => {
 		const { client } = await setup();
 		const res = await client.tickets.$post({

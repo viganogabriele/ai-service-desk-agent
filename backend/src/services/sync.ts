@@ -2,7 +2,7 @@ import type { SQL } from "bun";
 import type { CoreClient } from "../clients/core/core-client";
 import type { JiraClient } from "../clients/jira/jira-client";
 import { log } from "../lib/log";
-import { consumeCoreEvents, pushToCore } from "./core-sync";
+import { consumeCoreEvents, pushToCore, sendClosures } from "./core-sync";
 import { syncFromJira } from "./jira-sync";
 
 export type SyncSummary = {
@@ -12,13 +12,14 @@ export type SyncSummary = {
 		| {
 				configured: true;
 				pushed: number;
+				closed: number;
 				processed: number;
 				writebacks: number;
 		  };
 };
 
 export type Syncer = {
-	/** One full pass: Jira -> Postgres -> Core, then Core events -> Jira. */
+	/** One full pass: Jira -> Postgres -> Core (snapshots, closures), then Core events -> Jira. */
 	syncNow(): Promise<SyncSummary>;
 	/** Runs syncNow on an interval until the returned function is called. */
 	start(everySeconds: number): () => void;
@@ -36,8 +37,12 @@ export function createSyncer(
 		const fromJira = await syncFromJira(jira, sql);
 		if (!core) return { jira: fromJira, core: { configured: false } };
 		const { pushed } = await pushToCore(core, sql);
+		const { closed } = await sendClosures(core, sql);
 		const events = await consumeCoreEvents(core, jira, sql);
-		return { jira: fromJira, core: { configured: true, pushed, ...events } };
+		return {
+			jira: fromJira,
+			core: { configured: true, pushed, closed, ...events },
+		};
 	}
 
 	function syncNow(): Promise<SyncSummary> {

@@ -8,11 +8,20 @@ Follow `CORE_API.md` for every interaction with the Core; it is binding.
 - **Jira → Postgres:** every sync pass copies changed tickets, mapped to the
   challenge-record format (`src/services/tickets.ts`, `src/db/store.ts`).
 - **Postgres → Core:** open tickets whose `content_hash` the Core doesn't have
-  go to the Core's `POST /tickets` with `Idempotency-Key: <key>:<hash>`.
+  go to the Core's `POST /tickets` with `Idempotency-Key: <key><core hash>`,
+  where the hash is the Core's own (`coreContentHash`, core/AGENTS.md).
+  A ticket edited through `POST /tickets` is not re-imported: the dashboard
+  records that decision in the Core as accepts and overrides instead.
+- **Closures → Core:** tickets the Core knows that Jira resolves as `done` go
+  to `POST /tickets/{id}/closure` with the latest `"<resolver>: Resolution: …"`
+  comment as the note. The Core stores every call, so the backend sends each
+  note and resolver once (`tickets.core_closure_key`).
 - **Core → Jira:** Core events are polled from `GET /events?after_seq=`.
   `run.completed` with lane `auto_applied`, `decision.overridden` and
-  `comment.updated` write the Core's exported effective state to Jira. Every
-  write is logged in `writebacks`, once per event.
+  `comment.updated` with an `origin` write the Core's exported effective
+  state to Jira. Overrides by the `dashboard` actor are skipped: the dashboard
+  already wrote them to Jira. Every write is logged in `writebacks`, once per
+  event.
 - **UI → Core:** `/core/*` proxies the Core API unchanged, except the
   ingestion endpoints (`POST /tickets`, `POST /batches`, `POST
   /tickets/{id}/closure`), which belong to this backend.

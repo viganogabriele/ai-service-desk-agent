@@ -3,6 +3,7 @@ import type { JiraClient } from "../clients/jira/jira-client";
 import {
 	getCursor,
 	JIRA_SYNC_CURSOR,
+	keepCoreContent,
 	markCoreContent,
 	recordWriteback,
 	setCursor,
@@ -119,6 +120,8 @@ export async function writeToJira(
 						coreTicketId,
 						snapshot.contentHash,
 					);
+				else if (trigger === "api")
+					await keepCoreContent(sql, result.key, snapshot.contentHash);
 			}
 		} catch (error) {
 			await recordWriteback(sql, {

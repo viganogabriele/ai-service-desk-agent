@@ -25,9 +25,11 @@ const resolutionSchema = z.enum(
 
 /**
  * A partial or full ticket record. Fields equal to what Jira already has are
- * skipped, null clears a field, and fields Jira can't take (Status, dates,
- * Request type, Linked issues, ...) are dropped. "All Comments" may be the full
- * history: only comments not already on the ticket are added.
+ * skipped, null clears a field, and fields Jira can't take (dates, Request
+ * type, Linked issues, ...) are dropped. Status moves between open and in
+ * progress through a Jira transition; "done" needs a Resolution. "All
+ * Comments" may be the full history: only comments not already on the ticket
+ * are added.
  */
 export const ticketPatchSchema = z.object({
 	Key: z
@@ -48,6 +50,8 @@ export const ticketPatchSchema = z.object({
 	Severity: z.string().nullable().optional(),
 	// Null is ignored: Jira can't un-resolve through an edit.
 	Resolution: resolutionSchema.nullable().optional(),
+	// "done" is only reached through Resolution.
+	Status: z.enum(["open", "in progress", "done"]).optional(),
 	"All Comments": z.array(z.string().min(1)).optional(),
 });
 
@@ -243,6 +247,31 @@ async function resolve(
 	}
 }
 
+// The Jira status category each record status lives in.
+const STATUS_CATEGORY = {
+	open: "new",
+	"in progress": "indeterminate",
+} as const;
+
+async function moveTo(
+	client: JiraClient,
+	key: string,
+	status: keyof typeof STATUS_CATEGORY,
+	warnings: string[],
+) {
+	const options = (await client.getTransitions(key)).filter(
+		(t) => t.to.statusCategory?.key === STATUS_CATEGORY[status],
+	);
+	// "Investigate" -> "Work in progress" rather than "Pending", when both exist.
+	const transition =
+		options.find((t) => /progress/i.test(t.to.name)) ?? options[0];
+	if (transition) await client.transitionIssue(key, transition.id);
+	else
+		warnings.push(
+			`Status: no Jira transition to ${status} from the current status, not changed`,
+		);
+}
+
 export async function applyTicketPatch(
 	client: JiraClient,
 	patch: TicketPatch,
@@ -286,6 +315,10 @@ export async function applyTicketPatch(
 
 		if (changes.Resolution)
 			await resolve(client, patch.Key, changes.Resolution, meta, warnings);
+		else if (changes.Status === "done")
+			warnings.push("Status: set a Resolution to resolve the ticket");
+		else if (changes.Status)
+			await moveTo(client, patch.Key, changes.Status, warnings);
 
 		return { key: patch.Key, ok: true, changed, warnings };
 	} catch (error) {

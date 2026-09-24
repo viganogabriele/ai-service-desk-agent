@@ -1,12 +1,15 @@
 import {
 	CoreApiError,
 	type CoreClient,
+	type CoreClosure,
 	type CoreEvent,
 	type CoreImport,
+	coreIdempotencyKey,
 } from "./core-client";
 
 export type FakeCore = CoreClient & {
 	imports: CoreImport[];
+	closures: (CoreClosure & { ticketId: string })[];
 	/** Sets the effective state the Core would export for a ticket. */
 	setEffectiveState(ticketId: string, record: Record<string, unknown>): void;
 	/** Appends an event to the Core's log and returns its seq. */
@@ -16,6 +19,7 @@ export type FakeCore = CoreClient & {
 /** In-memory Core for tests and local dev, following CORE_API.md. */
 export function createFakeCoreClient(): FakeCore {
 	const imports: CoreImport[] = [];
+	const closures: FakeCore["closures"] = [];
 	const ticketIds = new Map<string, string>();
 	const seenHashes = new Set<string>();
 	const effective = new Map<string, Record<string, unknown>>();
@@ -23,6 +27,7 @@ export function createFakeCoreClient(): FakeCore {
 
 	return {
 		imports,
+		closures,
 
 		setEffectiveState(ticketId, record) {
 			effective.set(ticketId, record);
@@ -43,7 +48,10 @@ export function createFakeCoreClient(): FakeCore {
 			const ticketId =
 				ticketIds.get(input.externalKey) ?? `t-${ticketIds.size + 1}`;
 			ticketIds.set(input.externalKey, ticketId);
-			const idempotencyKey = `${input.externalKey}:${input.contentHash}`;
+			const idempotencyKey = coreIdempotencyKey(
+				input.externalKey,
+				input.fields,
+			);
 			if (!seenHashes.has(idempotencyKey)) {
 				seenHashes.add(idempotencyKey);
 				imports.push(structuredClone(input));
@@ -60,6 +68,13 @@ export function createFakeCoreClient(): FakeCore {
 			if (!record)
 				throw new CoreApiError(404, "GET", `/tickets/${ticketId}/export`, "");
 			return structuredClone(record);
+		},
+
+		async closeTicket(ticketId, closure) {
+			if (![...ticketIds.values()].includes(ticketId))
+				throw new CoreApiError(404, "POST", `/tickets/${ticketId}/closure`, "");
+			closures.push(structuredClone({ ...closure, ticketId }));
+			return { outcome: closure.resolutionNote ? "proposal" : "backlog" };
 		},
 	};
 }

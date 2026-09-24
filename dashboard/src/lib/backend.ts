@@ -1,13 +1,23 @@
-import { LEVELS, OUTCOMES, serviceInfo, startingTriage } from "../domain.ts";
+import {
+  LEVELS,
+  OUTCOMES,
+  RESOLUTIONS,
+  TRIAGE_FIELDS,
+  serviceInfo,
+  startingTriage,
+} from "../domain.ts";
 import type {
   Bundle,
+  Explanation,
   IncomingTicket,
   Level,
   Outcome,
+  Proposal,
   Resolution,
   Status,
   Ticket,
   Triage,
+  TriageField,
 } from "../domain.ts";
 
 export interface TicketExport {
@@ -33,6 +43,8 @@ export interface TicketPatch {
   Impact?: Level | null;
   Resolution?: Resolution;
   "All Comments"?: string[];
+  // Open <-> in progress go through a Jira transition; done needs a Resolution.
+  Status?: "open" | "in progress";
 }
 
 export interface PatchResult {
@@ -47,8 +59,68 @@ export interface PatchResponse {
   results: PatchResult[];
 }
 
+// The backend sends {error: {message}}; the Core, through the proxy, {error: code, message}.
 interface ApiError {
   error?: { message?: string };
+  message?: string;
+}
+
+/** One field of a Core run (CORE_API §4). */
+interface CoreDecision {
+  effective_value: string | null;
+  confidence: number;
+  reason: string;
+  rule_trace: string | null;
+  evidence: {
+    ticket_spans: { field: string; text: string }[];
+    patterns: { pattern_id: string; similarity: number; service: string; resolver: string }[];
+  };
+  alternatives: { value: string; score: number }[];
+  flags: string[];
+  pinned: boolean;
+}
+
+/** GET /tickets/{id} of the Core (CORE_API §4, ticket-level view). */
+interface CoreTicketView {
+  ticket_id: string;
+  external_key: string;
+  effective_state: Record<string, CoreDecision> | null;
+  latest_run: { run_id: string; versions: { model: string } } | null;
+  resolution_comment: { text: string; stale: boolean } | null;
+  lane_reasons: string[];
+}
+
+interface CoreTicketSummary {
+  ticket_id: string;
+  external_key: string;
+  lane: string | null;
+}
+
+export interface CoreChange {
+  field: string;
+  value: string | null;
+  reason_code: string;
+}
+
+// Read by the backend: overrides by this actor are already in Jira and are not written back.
+export const CORE_ACTOR = "dashboard";
+
+export const REASON_CODES: Record<TriageField | "resolution", string> = {
+  work_type: "wrong_work_type",
+  service: "wrong_service",
+  assignee: "wrong_assignee",
+  urgency: "wrong_urgency",
+  impact: "wrong_impact",
+  resolution: "wrong_resolution_status",
+};
+
+export class HttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
 }
 
 export function createBackendClient(baseUrl: string, fetcher = fetch) {
@@ -59,7 +131,9 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
 
     if (!response.ok) {
       const payload: ApiError = await response.json().catch(() => ({}));
-      throw new Error(payload.error?.message ?? `Request failed (${response.status}).`);
+      const message = payload.message ?? payload.error?.message;
+
+      throw new HttpError(response.status, message ?? `Request failed (${response.status}).`);
     }
 
     return response.json();
@@ -75,6 +149,124 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patches),
       }),
+    /** Core proposals by Jira key; empty when the backend has no Core configured. */
+    coreProposals: async (signal?: AbortSignal) => {
+      let summaries: CoreTicketSummary[];
+
+      try {
+        summaries = (await request<{ tickets: CoreTicketSummary[] }>("/core/tickets", { signal }))
+          .tickets;
+      } catch (failure) {
+        if (failure instanceof HttpError && failure.status === 503) return new Map();
+
+        throw failure;
+      }
+
+      const views = await Promise.all(
+        summaries
+          .filter((summary) => summary.lane !== null)
+          .map((summary) =>
+            request<CoreTicketView>(`/core/tickets/${encodeURIComponent(summary.ticket_id)}`, {
+              signal,
+            }),
+          ),
+      );
+
+      return new Map(
+        views.flatMap((view) => {
+          const proposal = coreProposal(view);
+
+          return proposal ? [[view.external_key, proposal] as const] : [];
+        }),
+      );
+    },
+    coreOverride: (core: NonNullable<Proposal["core"]>, changes: CoreChange[]) =>
+      request<unknown>(`/core/tickets/${encodeURIComponent(core.ticket_id)}/overrides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ base_run_id: core.run_id, actor: CORE_ACTOR, changes }),
+      }),
+    coreAccept: (core: NonNullable<Proposal["core"]>, fields: string[]) =>
+      request<unknown>(`/core/tickets/${encodeURIComponent(core.ticket_id)}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: core.run_id, actor: CORE_ACTOR, fields }),
+      }),
+  };
+}
+
+function explanation(decision: CoreDecision): Explanation {
+  const evidence = [
+    ...(decision.rule_trace ? [decision.rule_trace] : []),
+    ...decision.evidence.ticket_spans.map((span) => `${span.field}: "${span.text}"`),
+    ...decision.evidence.patterns
+      .slice(0, 3)
+      .map(
+        (pattern) =>
+          `Similar past tickets (${Math.round(pattern.similarity * 100)}%): ${pattern.service}, resolved by ${pattern.resolver}`,
+      ),
+    ...(decision.flags.length ? [`Flags: ${decision.flags.join(", ")}`] : []),
+  ];
+
+  return decision.pinned
+    ? { reason: "Set by an operator.", confidence: null, evidence: [] }
+    : { reason: decision.reason, confidence: decision.confidence, evidence };
+}
+
+/** The Core's effective state (AI decisions plus human overrides) as a dashboard proposal. */
+export function coreProposal(view: CoreTicketView): Proposal | null {
+  const state = view.effective_state;
+  const run = view.latest_run;
+
+  if (!state || !run) return null;
+  const value = (field: string) => state[field]?.effective_value ?? null;
+  const workType = value("work_type");
+  const service = value("service");
+  const urgency = levelOf(value("urgency"));
+  const impact = levelOf(value("impact"));
+  const resolution = RESOLUTIONS.find((item) => item === value("resolution"));
+
+  if (!workType || !service || !urgency || !impact || !resolution) return null;
+
+  const assignees = [
+    value("assignee"),
+    ...(state.assignee?.alternatives ?? []).map((a) => a.value),
+  ];
+
+  // The Core writes "<assignee>: Resolution: …"; the dashboard adds the assignee when posting.
+  const comment = view.resolution_comment?.text.replace(/^\S+: (?=Resolution: )/, "") ?? "";
+
+  const explanations: Proposal["explanations"] = {};
+
+  for (const field of TRIAGE_FIELDS) {
+    const decision = state[field];
+
+    if (decision) explanations[field] = explanation(decision);
+  }
+
+  return {
+    ticket_id: view.external_key,
+    model_id: run.versions.model,
+    proposal: {
+      work_type: workType,
+      service,
+      assignee_candidates: [...new Set(assignees)].flatMap((email) =>
+        email ? [{ email, historical_count: 0 }] : [],
+      ),
+      urgency,
+      impact,
+      resolution,
+      resolution_comment: comment,
+    },
+    rationale: state.service?.reason ?? "",
+    review_flags: [
+      ...new Set([
+        ...Object.values(state).flatMap((decision) => decision.flags),
+        ...(view.resolution_comment?.stale ? ["stale_comment"] : []),
+      ]),
+    ],
+    explanations,
+    core: { ticket_id: view.ticket_id, run_id: run.run_id },
   };
 }
 
@@ -103,12 +295,13 @@ export function triagePatch(ticket: IncomingTicket, triage: Triage): TicketPatch
 
   if (triage.work_type !== previous.work_type) patch["Work type"] = triage.work_type;
 
-  if (triage.service !== previous.service) {
+  if (triage.service !== previous.service)
     patch["Affected Business or IT Services"] = triage.service ? [triage.service] : [];
-    const team = serviceInfo(triage.service)?.[1];
 
-    if (team) patch["Service Team(s)"] = [team];
-  }
+  // Team follows the service, also when Jira has the service but not its team yet.
+  const team = serviceInfo(triage.service)?.[1];
+
+  if (team && ticket["Service Team(s)"][0] !== team) patch["Service Team(s)"] = [team];
 
   if (triage.assignee !== previous.assignee) patch.Assignee = triage.assignee || null;
 
@@ -119,8 +312,11 @@ export function triagePatch(ticket: IncomingTicket, triage: Triage): TicketPatch
   return patch;
 }
 
-/** Aggregate only records read from the backend; no challenge files or AI proposals. */
-export function liveBundle(exported: TicketExport): Bundle {
+/** Aggregate only records read from the backend, with the Core's proposals when there are any. */
+export function liveBundle(
+  exported: TicketExport,
+  proposals: ReadonlyMap<string, Proposal> = new Map(),
+): Bundle {
   const challenge = exported.records.map((ticket) => ({
     ...ticket,
     Urgency: levelOf(ticket.Urgency),
@@ -186,8 +382,8 @@ export function liveBundle(exported: TicketExport): Bundle {
       weekly: weeks,
     },
     challenge,
-    proposals: challenge.map(() => null),
-    proposal_source: { kind: "none", path: null },
+    proposals: challenge.map((ticket) => proposals.get(ticket.Key) ?? null),
+    proposal_source: { kind: proposals.size ? "core" : "none", path: null },
     similar: {},
     historical_examples: {},
     assignees: [
