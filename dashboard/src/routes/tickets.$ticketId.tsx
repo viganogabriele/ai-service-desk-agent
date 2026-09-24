@@ -315,7 +315,7 @@ function TicketDetail({ ticketId }: { ticketId: string }) {
           <span className="num">
             {position + 1} of {order.length}
           </span>
-          <span className="kbd-hint" title="Keyboard: K previous, J next">
+          <span className="kbd-hint" data-tip="Keyboard: K previous, J next">
             <kbd>K</kbd>
             <kbd>J</kbd>
           </span>
@@ -405,7 +405,7 @@ function TicketDetail({ ticketId }: { ticketId: string }) {
                   className="button"
                   aria-expanded={strongerOpen}
                   disabled={!stronger.online}
-                  title={
+                  data-tip={
                     stronger.online ? undefined : "The stronger model is currently unavailable"
                   }
                   onClick={() => setStrongerOpen(!strongerOpen)}
@@ -504,7 +504,7 @@ function TicketDetail({ ticketId }: { ticketId: string }) {
               </div>
               <div className="field">
                 Team
-                <div className="readonly-value" title="Each service belongs to exactly one team">
+                <div className="readonly-value" data-tip="Each service belongs to exactly one team">
                   <strong>{team}</strong>
                 </div>
               </div>

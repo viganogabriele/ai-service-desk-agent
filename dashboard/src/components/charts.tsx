@@ -212,7 +212,7 @@ export function BarList({ rows, total }: { rows: BarRow[]; total?: number }) {
         <div
           className="bar-row"
           key={row.label}
-          title={`${row.label}: ${row.value.toLocaleString("en-US")}`}
+          data-tip={`${row.label}: ${row.value.toLocaleString("en-US")}`}
           tabIndex={0}
         >
           <span className="bar-name">
