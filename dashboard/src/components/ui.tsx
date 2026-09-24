@@ -134,6 +134,7 @@ export function CommentEditor({
   label,
   placeholder,
   rows = 6,
+  className = "",
 }: {
   author: string;
   value: string;
@@ -141,11 +142,12 @@ export function CommentEditor({
   label: string;
   placeholder: string;
   rows?: number;
+  className?: string;
 }) {
   return (
     <label className="composer-label">
       {label}
-      <span className="composer">
+      <span className={`composer ${className}`}>
         <span className="composer-author">
           {author ? `Posted as ${personName(author)} · ${author}` : "Choose an assignee to post as"}
         </span>

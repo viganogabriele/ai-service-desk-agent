@@ -108,6 +108,7 @@ def from_solver_output(records):
             },
             "rationale": triage.get("reason") or "",
             "review_flags": triage.get("review_flags") or [],
+            "content_clues": triage.get("content_clues") or [],
         })
     return proposals
 
