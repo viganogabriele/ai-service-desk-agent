@@ -1075,9 +1075,27 @@ h3 {
   margin: -6px calc(var(--spacing-page) * -1) 0;
   padding: 6px var(--spacing-page) 12px;
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   scroll-padding-inline: var(--spacing-page);
   scrollbar-width: thin;
+  scrollbar-color: var(--color-scrollbar) transparent;
+}
+/* Overlay scrollbars stay hidden until you already know you can scroll, which on machines that
+   default to them leaves the strip looking like it has nothing more to show. Opt out of them. */
+.ticket-row::-webkit-scrollbar {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 10px;
+}
+.ticket-row::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: var(--color-scrollbar) padding-box;
+}
+.ticket-row::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-scrollbar-hover);
 }
 .ticket-row .ticket-card {
   flex: 0 0 377px;

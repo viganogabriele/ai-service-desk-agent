@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronsRight, Layers, Sparkles, UserRound } from "lucide-react";
 import { useDashboard } from "../state";
@@ -65,11 +66,60 @@ function byRank(a: Scored, b: Scored) {
 }
 
 /**
+ * A wheel mouse only sends vertical deltas, so the card strip cannot be scrolled at all on a
+ * machine without a trackpad. Steer those deltas sideways; a horizontal delta or shift+wheel is
+ * already handled by the browser. At either end the wheel goes back to scrolling the page.
+ */
+function useSidewaysWheel() {
+  // A callback ref, so the listener follows the strip as it mounts and unmounts with the filters.
+  return useCallback((row: HTMLDivElement | null) => {
+    if (!row) return;
+
+    // Where the smooth scroll in flight will land, so quick notches add up instead of restarting.
+    let target: number | null = null;
+
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY === 0 || event.deltaX !== 0 || event.shiftKey) return;
+      const limit = row.scrollWidth - row.clientWidth;
+      const from = target ?? row.scrollLeft;
+
+      if (event.deltaY < 0 ? from <= 1 : from >= limit - 1) return;
+      event.preventDefault();
+      // Move a whole card per notch: the strip snaps to card edges, so a wheel-sized nudge would
+      // snap straight back to the card it started from.
+      const [first, second] = row.children;
+
+      const card = second
+        ? second.getBoundingClientRect().left - first.getBoundingClientRect().left
+        : row.clientWidth;
+
+      const index = Math.round(from / card) + Math.sign(event.deltaY);
+
+      target = Math.min(limit, Math.max(0, index * card));
+      row.scrollTo({ left: target, behavior: "smooth" });
+    };
+
+    const onScrollEnd = () => {
+      target = null;
+    };
+
+    row.addEventListener("wheel", onWheel, { passive: false });
+    row.addEventListener("scrollend", onScrollEnd);
+
+    return () => {
+      row.removeEventListener("wheel", onWheel);
+      row.removeEventListener("scrollend", onScrollEnd);
+    };
+  }, []);
+}
+
+/**
  * Two ways in: a row of cards for the tickets that need action now, then the whole queue as a
  * table ordered by priority.
  */
 export function PriorityView({ rows }: { rows: TicketRow[] }) {
   const urgent = rows.flatMap((row) => score(row) ?? []).sort(byRank);
+  const lane = useSidewaysWheel();
 
   if (rows.length === 0) return <div className="empty">No tickets match these filters.</div>;
 
@@ -84,7 +134,13 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
           <p>High priority, or medium priority on a critical service, not yet routed</p>
         </div>
         {urgent.length > 0 ? (
-          <div className="ticket-row">
+          <div
+            ref={lane}
+            className="ticket-row"
+            role="group"
+            aria-labelledby="lane-action"
+            tabIndex={0}
+          >
             {urgent.map((item) => (
               <TicketCard key={item.row.id} item={item} />
             ))}
