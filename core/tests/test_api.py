@@ -1,18 +1,23 @@
 """API step 1 (CORE_API §6-§8) against a fake engine: no LLM, inline worker."""
 import json
+import shutil
 import time
 
+import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from api.main import create_app
 from triage import config
+from triage.calibration import calibrate
 from triage.catalog import load_catalog
 from triage.data import load_challenge_raw
 from triage.decisions import original_values, priority_decision, team_decision
+from triage.kb import KBStore
 from triage.lanes import assign_lane
 from triage.output import build_output
 from triage.schemas import DecisionRecord, Evidence, PatternEvidence, ResolutionCommentRecord, RunRecord, RunVersions
+from triage.triage import utc_now
 
 CATALOG = load_catalog()
 VERSIONS = RunVersions(model="fake", prompt="p", kb="v1-test", policy="p1-test")
@@ -21,14 +26,44 @@ DEFAULT = dict(service="Tax Reporting", work_type="Service Request", urgency="Lo
 
 
 class FakeEngine:
-    """Deterministic runs built with the real triage builders; `plan[summary]` steers them."""
+    """Deterministic runs built with the real triage builders; `plan[summary]` steers them.
+    Owns a KB store (a copy of v1 under `kb_root`) like the real engine."""
 
-    def __init__(self):
-        self.catalog, self.versions, self.plan, self.calls = CATALOG, VERSIONS, {}, 0
+    def __init__(self, kb_root=None, model="fake"):
+        self.plan, self.model_plans, self.calls, self.model = {}, {}, 0, model
+        if kb_root is not None:
+            shutil.copytree(config.KB_DIR, kb_root / "v1", ignore=shutil.ignore_patterns("embeddings.npz"))
+            self.kb_store = KBStore(kb_root)
+            self.use_kb("v1")
+        else:
+            self.kb_store, self.kb_version, self.catalog, self.versions = None, "v1", CATALOG, VERSIONS
 
-    def run(self, fields, ticket_id, run_id):
+    def use_kb(self, version):
+        self.catalog, self.cards = self.kb_store.load(version)
+        self.kb_version, self.versions = version, VERSIONS.model_copy(update={"kb": version, "model": self.model})
+
+    def variant(self, kb_version=None, model=None):
+        v = FakeEngine.__new__(FakeEngine)
+        v.plan, v.model_plans, v.calls, v.model = self.plan, self.model_plans, 0, model or self.model
+        v.kb_store = self.kb_store
+        v.use_kb(kb_version or self.kb_version)
+        return v
+
+    def embed(self, texts):
+        words = sorted({w for t in texts for w in t.lower().split()})
+        vecs = np.array([[t.lower().split().count(w) for w in words] for t in texts], dtype=float) + 1e-6
+        return vecs / np.linalg.norm(vecs, axis=1, keepdims=True)
+
+    def generate_cards(self, catalog):
+        return {"version": 1, "model": "fake", "reviewed": False, "cards": [
+            {"service": s, "team": t, "criticality": config.CRITICALITY[s], "scope": f"Scope of {s}.", "boundary": None,
+             "pattern_ids": [p["id"] for p in catalog["patterns"] if p["service"] == s], "scope_source": "llm"}
+            for s, t in catalog["service_team"].items()]}
+
+    def run(self, fields, ticket_id, run_id, policy=None, policy_version=None):
         self.calls += 1
-        p = {**DEFAULT, **self.plan.get(fields.get("Summary"), {})}
+        p = {**DEFAULT, **self.plan.get(fields.get("Summary"), {}),
+             **self.model_plans.get(self.model, {}).get(fields.get("Summary"), {})}
         if p.get("fail"):
             raise RuntimeError("LLM backend unavailable")
         original = original_values(fields)
@@ -40,7 +75,7 @@ class FakeEngine:
                                   and original["service"] != value else [])
         d = {f: ai(f, p[f]) for f in config.AI_FIELDS}
         d["service"] = d["service"].model_copy(update={"evidence": Evidence(patterns=[PatternEvidence(
-            pattern_id=CATALOG["patterns"][0]["id"], similarity=0.8, service=CATALOG["patterns"][0]["service"],
+            pattern_id=CATALOG["patterns"][0]["id"], similarity=p.get("sim", 0.8), service=CATALOG["patterns"][0]["service"],
             resolver=CATALOG["patterns"][0]["resolver"])])})
         d["team"] = team_decision(d["service"], CATALOG["service_team"], original)
         d["priority"] = priority_decision(d["urgency"], d["impact"], p["service"], original)
@@ -50,9 +85,12 @@ class FakeEngine:
         d["assignee"] = DecisionRecord(field="assignee", value=who, effective_value=who, source=source,
                                        confidence=min(p["conf"], 0.2 if source == "fallback" else 1), reason="fake",
                                        flags=["fallback_assignee"] if source == "fallback" else [])
-        lane, reasons, sampled = assign_lane(d, run_id)
-        return RunRecord(run_id=run_id, ticket_id=ticket_id, snapshot_id="x", status="completed", versions=VERSIONS,
-                         started_at="now", completed_at="now", decisions=d, lane=lane, lane_reasons=reasons,
+        d = calibrate(d, (policy or {}).get("calibration"))  # as run_ticket does
+        lane, reasons, sampled = assign_lane(d, run_id, policy)
+        versions = self.versions.model_copy(update={"policy": policy_version or "p?"})
+        now = utc_now()
+        return RunRecord(run_id=run_id, ticket_id=ticket_id, snapshot_id="x", status="completed", versions=versions,
+                         started_at=now, completed_at=now, decisions=d, lane=lane, lane_reasons=reasons,
                          audit_sampled=sampled,
                          resolution_comment=ResolutionCommentRecord(text=f"{who}: Resolution: Handled {fields.get('Summary')}."))
 
@@ -63,7 +101,7 @@ class FakeEngine:
 
 @pytest.fixture
 def api(tmp_path):
-    engine = FakeEngine()
+    engine = FakeEngine(tmp_path / "kb")
     with TestClient(create_app(tmp_path / "core.db", engine=engine, workers=0)) as client:
         client.engine = engine
         yield client
@@ -91,7 +129,8 @@ def types(api):
 
 def test_health(api):
     body = api.get("/health").json()
-    assert body["status"] == "ok" and body["versions"]["kb"] == "v1-test" and body["queue_depth"] == 0
+    assert body["status"] == "ok" and body["kb_version"] == "v1" and body["versions"]["policy"] == "p1"
+    assert body["queue_depth"] == 0 and body["policy_paused"] is False
 
 
 def test_import_is_idempotent_and_new_snapshots_retriage(api):
@@ -254,7 +293,7 @@ def test_batch_export_matches_cli_output(api):
     status = api.get(f"/batches/{body['batch_id']}").json()
     assert status["by_status"] == {"completed": len(raw["records"])}
     exported = api.get(f"/batches/{body['batch_id']}/export").json()
-    cli_runs = [FakeEngine().run(r, f"R{i}", f"x-R{i}") for i, r in enumerate(raw["records"])]
+    cli_runs = [api.engine.run(r, f"R{i}", f"x-R{i}") for i, r in enumerate(raw["records"])]
     assert exported == json.loads(json.dumps(build_output(raw, cli_runs)))
     again = api.post("/batches", json=raw).json()
     assert all(t["status"] == "unchanged" for t in again["tickets"])
@@ -270,7 +309,7 @@ def test_events_paging_and_sse(api):
 
 
 def test_threaded_workers_process_runs(tmp_path):
-    with TestClient(create_app(tmp_path / "t.db", engine=FakeEngine(), workers=1)) as client:
+    with TestClient(create_app(tmp_path / "t.db", engine=FakeEngine(tmp_path / "kb"), workers=1)) as client:
         out = client.post("/tickets", json={"external_key": "T", "fields": fields()}).json()
         for _ in range(100):
             if client.get(f"/runs/{out['run_id']}").json()["status"] == "completed":

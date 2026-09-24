@@ -65,6 +65,19 @@ def get_run(run_id: str, request: Request):
     return record.model_dump() if record else {k: row[k] for k in ("run_id", "ticket_id", "snapshot_id", "mode", "status")}
 
 
+class ClosureIn(BaseModel):
+    fields: dict = {}
+    resolution_note: str | None = None
+    resolver: str | None = None
+    actor: str | None = None
+
+
+@router.post("/tickets/{ticket_id}/closure", status_code=201)
+def closure(ticket_id: str, body: ClosureIn, request: Request):
+    """Final outcome from Jira, harvested for the KB (CORE_API §6C.2)."""
+    return core(request).closure(ticket_id, body.model_dump())
+
+
 @router.get("/tickets/{ticket_id}/export")
 def export_ticket(ticket_id: str, request: Request):
     return core(request).export_ticket(ticket_id)

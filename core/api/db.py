@@ -34,6 +34,19 @@ CREATE TABLE IF NOT EXISTS events (
   seq INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL, type TEXT NOT NULL, occurred_at TEXT NOT NULL,
   ticket_id TEXT, run_id TEXT, payload TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS closures (
+  closure_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, fields TEXT NOT NULL, note TEXT, resolver TEXT,
+  actor TEXT, score TEXT NOT NULL, outcome TEXT NOT NULL, proposal_id TEXT, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS proposals (
+  proposal_id TEXT PRIMARY KEY, type TEXT NOT NULL, payload TEXT NOT NULL, evidence TEXT NOT NULL,
+  status TEXT NOT NULL, signature TEXT, created_at TEXT NOT NULL, decided_by TEXT, decided_at TEXT,
+  decision_note TEXT, target_kb_version TEXT);
+CREATE TABLE IF NOT EXISTS evaluations (
+  evaluation_id TEXT PRIMARY KEY, request TEXT NOT NULL, versions TEXT NOT NULL, ticket_ids TEXT NOT NULL,
+  status TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT, results TEXT);
+CREATE TABLE IF NOT EXISTS policies (
+  policy_version TEXT PRIMARY KEY, content TEXT NOT NULL, parent_version TEXT, created_at TEXT NOT NULL,
+  actor TEXT, changelog TEXT NOT NULL, n INTEGER NOT NULL);
 """
 
 
@@ -214,3 +227,89 @@ class Database:
     def events_for(self, ticket_id: str) -> list[dict]:
         rows = self._all("SELECT * FROM events WHERE ticket_id = ? ORDER BY seq", (ticket_id,))
         return [{**dict(r), "payload": json.loads(r["payload"])} for r in rows]
+
+    # -- closures & proposals (KB lifecycle) ------------------------------------------
+    def add_closure(self, ticket_id: str, fields: dict, note: str | None, resolver: str | None, actor: str | None,
+                    score: dict, outcome: str, proposal_id: str | None) -> dict:
+        cid, now = new_id("cl"), utc_now()
+        self._write("INSERT INTO closures VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cid, ticket_id, json.dumps(fields, ensure_ascii=False), note, resolver, actor, json.dumps(score),
+                     outcome, proposal_id, now))
+        return {"closure_id": cid, "ticket_id": ticket_id, "score": score, "outcome": outcome,
+                "proposal_id": proposal_id, "created_at": now}
+
+    def closures(self, ticket_id: str | None = None) -> list[dict]:
+        sql, args = ("SELECT * FROM closures WHERE ticket_id = ? ORDER BY rowid", (ticket_id,)) if ticket_id \
+            else ("SELECT * FROM closures ORDER BY rowid", ())
+        return [{**dict(r), "fields": json.loads(r["fields"]), "score": json.loads(r["score"])} for r in self._all(sql, args)]
+
+    def add_proposal(self, type_: str, payload: dict, evidence: dict, signature: str | None = None) -> dict:
+        pid, now = new_id("pr"), utc_now()
+        self._write("INSERT INTO proposals VALUES (?, ?, ?, ?, 'open', ?, ?, NULL, NULL, NULL, NULL)",
+                    (pid, type_, json.dumps(payload, ensure_ascii=False), json.dumps(evidence), signature, now))
+        return self.proposal(pid)
+
+    def proposal(self, proposal_id: str) -> dict | None:
+        row = self._one("SELECT * FROM proposals WHERE proposal_id = ?", (proposal_id,))
+        return self._proposal(row) if row else None
+
+    @staticmethod
+    def _proposal(row) -> dict:
+        return {**dict(row), "payload": json.loads(row["payload"]), "evidence": json.loads(row["evidence"])}
+
+    def proposals(self, status: str | None = None) -> list[dict]:
+        sql, args = ("SELECT * FROM proposals WHERE status = ? ORDER BY rowid", (status,)) if status \
+            else ("SELECT * FROM proposals ORDER BY rowid", ())
+        return [self._proposal(r) for r in self._all(sql, args)]
+
+    def decide_proposal(self, proposal_id: str, status: str, actor: str, note: str | None,
+                        payload: dict | None = None) -> dict:
+        with self.lock, self.conn:
+            if payload is not None:
+                self.conn.execute("UPDATE proposals SET payload = ? WHERE proposal_id = ?",
+                                  (json.dumps(payload, ensure_ascii=False), proposal_id))
+            self.conn.execute("UPDATE proposals SET status = ?, decided_by = ?, decided_at = ?, decision_note = ? "
+                              "WHERE proposal_id = ? AND status = 'open'", (status, actor, utc_now(), note, proposal_id))
+        return self.proposal(proposal_id)
+
+    def target_proposals(self, proposal_ids: list[str], kb_version: str) -> None:
+        with self.lock, self.conn:
+            self.conn.executemany("UPDATE proposals SET target_kb_version = ? WHERE proposal_id = ?",
+                                  [(kb_version, p) for p in proposal_ids])
+
+    # -- policy versions ---------------------------------------------------------------
+    def latest_policy(self) -> dict | None:
+        row = self._one("SELECT * FROM policies ORDER BY n DESC LIMIT 1")
+        return {**dict(row), "content": json.loads(row["content"]), "changelog": json.loads(row["changelog"])} if row else None
+
+    def add_policy(self, content: dict, parent: str | None, actor: str | None, changelog: list[str]) -> dict:
+        with self.lock, self.conn:
+            n = self.conn.execute("SELECT COALESCE(MAX(n), 0) + 1 FROM policies").fetchone()[0]
+            self.conn.execute("INSERT INTO policies VALUES (?, ?, ?, ?, ?, ?, ?)",
+                              (f"p{n}", json.dumps(content), parent, utc_now(), actor, json.dumps(changelog), n))
+        return self.latest_policy()
+
+    def events_all(self) -> list[dict]:
+        return [{**dict(r), "payload": json.loads(r["payload"])} for r in self._all("SELECT * FROM events ORDER BY seq")]
+
+    # -- evaluations (shadow) ---------------------------------------------------------
+    def add_evaluation(self, request: dict, versions: dict, ticket_ids: list[str]) -> str:
+        eid = new_id("e")
+        self._write("INSERT INTO evaluations VALUES (?, ?, ?, ?, 'queued', ?, NULL, NULL)",
+                    (eid, json.dumps(request), json.dumps(versions), json.dumps(ticket_ids), utc_now()))
+        return eid
+
+    def finish_evaluation(self, evaluation_id: str, status: str, results: dict) -> None:
+        self._write("UPDATE evaluations SET status = ?, completed_at = ?, results = ? WHERE evaluation_id = ?",
+                    (status, utc_now(), json.dumps(results, ensure_ascii=False), evaluation_id))
+
+    def evaluation(self, evaluation_id: str) -> dict | None:
+        row = self._one("SELECT * FROM evaluations WHERE evaluation_id = ?", (evaluation_id,))
+        if not row:
+            return None
+        return {**dict(row), "request": json.loads(row["request"]), "versions": json.loads(row["versions"]),
+                "ticket_ids": json.loads(row["ticket_ids"]), "results": json.loads(row["results"]) if row["results"] else None}
+
+    def policy_version(self, version: str) -> dict | None:
+        row = self._one("SELECT * FROM policies WHERE policy_version = ?", (version,))
+        return {**dict(row), "content": json.loads(row["content"]), "changelog": json.loads(row["changelog"])} if row else None

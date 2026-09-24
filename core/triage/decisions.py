@@ -35,8 +35,10 @@ def snapshot_id(record: dict) -> str:
     return _hash(record)[:16]
 
 
-def run_versions(prompt_text: str, schema: dict) -> RunVersions:
-    kb_bytes = b"".join(p.read_bytes() for p in (config.CATALOG_PATH, config.SERVICE_CARDS_PATH))
+def run_versions(prompt_text: str, schema: dict, kb_dir=None, kb_version: str | None = None) -> RunVersions:
+    kb_dir = kb_dir or config.KB_DIR
+    kb_version = kb_version or config.KB_VERSION
+    kb_bytes = b"".join((kb_dir / name).read_bytes() for name in ("catalog.json", "service_cards.json"))
     policy = {
         k: getattr(config, k)
         for k in ("ASSIGNEE_SIM_THRESHOLD", "WEAK_MATCH_THRESHOLD", "FALLBACK_CONFIDENCE", "CONFIDENCE_WEIGHTS",
@@ -47,7 +49,7 @@ def run_versions(prompt_text: str, schema: dict) -> RunVersions:
     return RunVersions(
         model=config.TRIAGE_MODEL,
         prompt=f"triage-{_hash([prompt_text, schema])[:10]}",
-        kb=f"{config.KB_VERSION}-{_hash(kb_bytes)[:8]}",
+        kb=f"{kb_version}-{_hash(kb_bytes)[:8]}",
         policy=f"{config.POLICY_VERSION}-{_hash(policy)[:8]}",
     )
 

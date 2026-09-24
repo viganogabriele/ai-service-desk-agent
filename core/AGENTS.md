@@ -152,6 +152,10 @@ triage/
   lanes.py         lane assignment + audit sampling (CORE_API §5)
   state.py         effective state, override validation and cascades (CORE_API §6B)
   engine.py        loaded KB + policy + model, called by the API workers
+  kb.py            KB version store, applying proposals, closure-note scoring, learning from overrides
+  policy.py        lane policy versions (thresholds, autonomy, audit rate, pause)
+  metrics.py       CORE_API §9 metrics as pure functions (incl. emerging issues)
+  calibration.py   isotonic confidence calibration against human outcomes (adopted via policy)
   evaluation.py    scoring for labelled files (hand-written, dev set)
   llm.py           Ollama wrapper: structured calls, retries, cache
   priority.py      matrix lookup
@@ -171,7 +175,7 @@ api/               (milestone 6+) thin FastAPI layer; no pipeline logic
   db.py            SQLite schema + repositories
   worker.py        background run queue
   events.py        event log + SSE stream
-  routers/         tickets.py, review.py, kb.py, policy.py, metrics.py
+  routers/         tickets.py, review.py, kb.py, policy.py (+ /preview), metrics.py (+ /audit), evaluations.py
 docs/
   CORE_API.md      Core integration contract (binding)
   UI_CONCEPT.md    product/UI concept (context only)

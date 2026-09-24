@@ -12,7 +12,7 @@ from triage.state import StateError
 from api import events
 from api.core import Core
 from api.db import Database
-from api.routers import review, tickets
+from api.routers import evaluations, kb, metrics, policy, review, tickets
 from api.worker import WorkerPool
 
 
@@ -45,12 +45,19 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
     @app.get("/health", tags=["health"])
     def health(request: Request):
         core, pool = request.app.state.core, request.app.state.pool
-        return {"status": "ok", "versions": core.engine.versions.model_dump(),
-                "queue_depth": core.db.queue_depth(), "workers": pool.workers, "policy_paused": config.POLICY_PAUSED}
+        policy = core.policy()
+        versions = {**core.engine.versions.model_dump(), "policy": policy["policy_version"]}
+        return {"status": "ok", "versions": versions, "kb_version": core.engine.kb_version,
+                "queue_depth": core.db.queue_depth(), "workers": pool.workers,
+                "policy_paused": policy["content"]["paused"]}
 
     app.include_router(tickets.router)
     app.include_router(review.router)
     app.include_router(events.router)
+    app.include_router(kb.router)
+    app.include_router(policy.router)
+    app.include_router(metrics.router)
+    app.include_router(evaluations.router)
     return app
 
 

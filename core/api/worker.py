@@ -24,6 +24,10 @@ class WorkerPool:
             self.core.process_run(payload["run_id"])
         elif kind == "comment":
             self.core.process_comment(payload["ticket_id"])
+        elif kind == "kb_build":
+            self.core.process_kb_build(payload["actor"])
+        elif kind == "evaluation":
+            self.core.process_evaluation(payload["evaluation_id"])
 
     def _loop(self) -> None:
         while True:

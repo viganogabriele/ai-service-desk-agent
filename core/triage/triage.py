@@ -114,16 +114,18 @@ def utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
 
 
-def triage_versions():
+def triage_versions(kb_dir=None, kb_version: str | None = None):
     from triage.decisions import run_versions
     from triage.resolution import SYSTEM_PROMPT as COMMENT_PROMPT
 
-    return run_versions(TRIAGE_SYSTEM_PROMPT + EVIDENCE_SYSTEM_PROMPT + COMMENT_PROMPT, TriageOutput.model_json_schema())
+    return run_versions(TRIAGE_SYSTEM_PROMPT + EVIDENCE_SYSTEM_PROMPT + COMMENT_PROMPT, TriageOutput.model_json_schema(),
+                        kb_dir, kb_version)
 
 
 def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict, catalog: dict,
                versions, chat=chat_structured, n_samples: int = config.SELF_CONSISTENCY_N,
-               evidence: bool = config.EVIDENCE_ENABLED, comment: bool = config.COMMENT_ENABLED) -> "RunRecord":
+               evidence: bool = config.EVIDENCE_ENABLED, comment: bool = config.COMMENT_ENABLED,
+               policy: dict | None = None) -> "RunRecord":
     """One live run for one ticket -> a CORE_API §3 run record. Failures are recorded,
     not raised, so a batch keeps going."""
     from triage.decisions import (
@@ -134,6 +136,7 @@ def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict
         snapshot_id,
         team_decision,
     )
+    from triage.calibration import calibrate
     from triage.lanes import assign_lane
     from triage.resolution import generate_comment
     from triage.schemas import RunRecord
@@ -142,12 +145,15 @@ def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict
     base = dict(run_id=run_id, ticket_id=ticket_id, snapshot_id=snapshot_id(record), versions=versions, started_at=started)
     try:
         out = triage_ticket(record, retriever, cards, chat=chat, n_samples=n_samples, evidence=evidence)
+        calibration = (policy or {}).get("calibration")
         decisions = build_ai_decisions(record, out["triage"], out["samples"], out["retrieved"], out["evidence"])
+        decisions = calibrate(decisions, calibration, config.AI_FIELDS)  # rule fields then inherit calibrated inputs
         original = original_values(record)
         decisions["team"] = team_decision(decisions["service"], catalog["service_team"], original)
         decisions["priority"] = priority_decision(decisions["urgency"], decisions["impact"], decisions["service"].value, original)
         decisions["assignee"] = assignee_decision(decisions["service"], out["retrieved"], catalog, original)
-        lane, reasons, sampled = assign_lane(decisions, run_id)
+        decisions = calibrate(decisions, calibration, ["assignee"])
+        lane, reasons, sampled = assign_lane(decisions, run_id, policy)
         resolution_comment, error = None, None
         if comment:
             try:

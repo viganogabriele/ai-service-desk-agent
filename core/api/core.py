@@ -24,8 +24,12 @@ def _not_found(kind: str, id_: str) -> StateError:
 class Core:
     def __init__(self, db: Database, engine, submit=None):
         self.db, self.engine = db, engine
-        self.catalog = engine.catalog
         self.submit = submit or (lambda kind, priority, **kw: None)  # set by the worker pool
+        self._training_health = None
+
+    @property
+    def catalog(self) -> dict:
+        return self.engine.catalog  # follows KB promotion
 
     # -- import -----------------------------------------------------------------------
     def import_ticket(self, external_key: str, fields: dict, idempotency_key: str | None = None,
@@ -42,9 +46,9 @@ class Core:
         ticket_id = ticket["ticket_id"] if ticket else self.db.create_ticket(external_key)
         existing = self.db.snapshot_by_hash(ticket_id, h)
         if existing:
-            runs = self.db.runs_for(ticket_id)
+            live = [r for r in self.db.runs_for(ticket_id) if r["mode"] == "live"]
             return 200, {"ticket_id": ticket_id, "snapshot_id": existing["snapshot_id"],
-                         "run_id": runs[-1]["run_id"] if runs else None, "status": "unchanged"}
+                         "run_id": live[-1]["run_id"] if live else None, "status": "unchanged"}
         snapshot_id = self.db.add_snapshot(ticket_id, h, fields)
         self.db.append_event("ticket.imported", {"external_key": external_key, "snapshot_id": snapshot_id},
                              ticket_id=ticket_id)
@@ -83,8 +87,10 @@ class Core:
         previous = self._effective_values(ticket_id)
         self.db.set_run_status(run_id, "running")
         self.db.append_event("run.started", {"mode": row["mode"]}, ticket_id=ticket_id, run_id=run_id)
+        policy = self.policy()
         try:
-            record = self.engine.run(fields, ticket_id, run_id)
+            record = self.engine.run(fields, ticket_id, run_id, policy=policy["content"],
+                                     policy_version=policy["policy_version"])
         except Exception as e:  # noqa: BLE001 - e.g. the LLM backend is down: failed, retryable
             record = RunRecord(run_id=run_id, ticket_id=ticket_id, snapshot_id=row["snapshot_id"], status="failed",
                                versions=self.engine.versions, started_at=utc_now(), completed_at=utc_now(),
@@ -248,6 +254,7 @@ class Core:
             raise StateError(422, "actor_required", "actor is required on every write")
         result = self.preview(ticket_id, body)
         stored = self.db.add_overrides(ticket_id, body["base_run_id"], body["actor"], result["changes"])
+        self.learn_from_overrides()
         _, eff, comment = self.effective(ticket_id)
         effective_state = {f: d.effective_value for f, d in eff.items()}
         self.db.append_event("decision.overridden", {"changes": stored, "actor": body["actor"],
@@ -309,3 +316,384 @@ class Core:
         if not batch:
             raise _not_found("batch", batch_id)
         return {**batch["meta"], "records": [self.export_ticket(t) for t in batch["ticket_ids"]]}
+
+    # -- policy (CORE_API §6D) ----------------------------------------------------------
+    def policy(self) -> dict:
+        """The current policy version; p1 (from config.py) is created on first use."""
+        from triage.policy import default_policy
+
+        current = self.db.latest_policy()
+        if current is None:
+            current = self.db.add_policy(default_policy(), None, "system", ["p1: loaded from config.py"])
+        return current
+
+    def put_policy(self, content: dict, actor: str, note: str | None = None, event: str = "policy.updated") -> dict:
+        from triage.policy import validate_policy
+
+        if not actor:
+            raise StateError(422, "actor_required", "actor is required on every write")
+        parent = self.policy()
+        policy = validate_policy({**parent["content"], **content})
+        new = self.db.add_policy(policy, parent["policy_version"], actor,
+                                 [note or f"{event.split('.')[1]} by {actor}"])
+        self.db.append_event(event, {"policy_version": new["policy_version"], "actor": actor})
+        return new
+
+    def set_paused(self, paused: bool, actor: str, note: str | None = None) -> dict:
+        return self.put_policy({"paused": paused}, actor, note, "policy.paused" if paused else "policy.resumed")
+
+    # -- knowledge base (CORE_API §6C) ---------------------------------------------------
+    @property
+    def kb(self):
+        return self.engine.kb_store
+
+    def kb_versions(self) -> list[dict]:
+        return self.kb.versions()
+
+    def kb_version(self, version: str) -> dict:
+        manifest = self.kb.manifest(version)
+        catalog, cards = self.kb.load(version)
+        return {**manifest, "live": version == self.engine.kb_version,
+                "content": {"services": catalog["service_team"], "criticality": catalog["criticality"],
+                            "patterns": catalog["patterns"], "fallback_assignee": catalog["fallback_assignee"],
+                            "service_cards": cards["cards"]}}
+
+    def request_kb_build(self, actor: str) -> dict:
+        if not actor:
+            raise StateError(422, "actor_required", "actor is required on every write")
+        expected = self.kb.next_version()  # before submitting: an inline worker builds it immediately
+        self.submit("kb_build", 1, actor=actor)
+        return {"status": "building", "expected_version": expected}
+
+    def process_kb_build(self, actor: str) -> dict:
+        """Mine the training corpus and draft service cards (LLM) -> a draft version."""
+        from triage.catalog import build_catalog
+
+        catalog = build_catalog()
+        cards = self.engine.generate_cards(catalog)
+        m = self.kb.create_draft(catalog, cards, parent=None, actor=actor, created_at=utc_now(),
+                                 changelog=["bootstrap: catalog mined from the training corpus, draft service cards"])
+        self.db.append_event("kb.version.drafted", {"kb_version": m["kb_version"], "actor": actor})
+        return m
+
+    def new_kb_draft(self, actor: str) -> dict:
+        """Live version + approved (not yet applied) proposals -> a new draft."""
+        from triage.kb import apply_proposals
+
+        if not actor:
+            raise StateError(422, "actor_required", "actor is required on every write")
+        live = self.engine.kb_version
+        catalog, cards = self.kb.load(live)
+        approved = [p for p in self.db.proposals("approved") if not p["target_kb_version"]]
+        catalog, cards, changelog = apply_proposals(catalog, cards, approved)
+        m = self.kb.create_draft(catalog, cards, parent=live, actor=actor, created_at=utc_now(),
+                                 changelog=changelog or ["no approved proposals: copy of the live version"])
+        self.db.target_proposals([p["proposal_id"] for p in approved], m["kb_version"])
+        self.db.append_event("kb.version.drafted", {"kb_version": m["kb_version"], "actor": actor})
+        return m
+
+    def publish_kb(self, version: str, actor: str) -> dict:
+        m = self.kb.publish(version, actor)
+        self.db.append_event("kb.version.published", {"kb_version": version, "actor": actor})
+        return m
+
+    def promote_kb(self, version: str, actor: str) -> dict:
+        m, previous = self.kb.promote(version, actor)
+        self.engine.use_kb(version)
+        self.db.append_event("kb.version.promoted", {"kb_version": version, "previous": previous, "actor": actor})
+        return m
+
+    # -- closures, proposals, learning ------------------------------------------------
+    def closure(self, ticket_id: str, body: dict) -> dict:
+        """Final outcome from Jira: score the note; a specific note becomes an add_pattern
+        proposal, a vague or missing one lands on the KB health backlog."""
+        from triage.kb import score_note
+
+        self._snapshot(ticket_id)
+        _, eff, _ = self.effective(ticket_id)
+        final = body.get("fields") or {}
+        services = final.get("Affected Business or IT Services")
+        service = (services[0] if services else None) or (eff["service"].effective_value if eff else None)
+        note, resolver = body.get("resolution_note"), body.get("resolver")
+        score = score_note(note)
+        proposal_id, outcome = None, "backlog"
+        if score["specific"] and service in config.SERVICES and resolver:
+            text = note.strip() if note.strip().startswith(config.RESOLUTION_PREFIX) else config.RESOLUTION_PREFIX + note.strip()
+            known = {p["text"] for p in self.catalog["patterns"]} | \
+                {p["payload"].get("text") for p in self.db.proposals() if p["type"] == "add_pattern"}
+            if text in known:
+                outcome = "duplicate"
+            else:
+                prop = self.db.add_proposal("add_pattern", {"text": text, "service": service, "resolver": resolver},
+                                            {"ticket_ids": [ticket_id], "count": 1})
+                proposal_id, outcome = prop["proposal_id"], "proposal"
+                self.db.append_event("kb.proposal.created", {"proposal_id": proposal_id, "type": "add_pattern",
+                                                             "status": "open"}, ticket_id=ticket_id)
+        return self.db.add_closure(ticket_id, final, note, resolver, body.get("actor"), score, outcome, proposal_id)
+
+    def learn_from_overrides(self) -> list[dict]:
+        """Groups of >= PROPOSAL_MIN_SUPPORT distinct tickets with the same correction become
+        a proposal (once per group; a rejected group returns only with more support)."""
+        from triage.kb import PROPOSAL_MIN_SUPPORT, override_groups, proposal_from_group
+
+        overrides = []
+        for tid in self.db.ticket_ids():
+            ov = self.db.overrides_for(tid)
+            if ov:
+                _, eff, _ = self.effective(tid)
+                overrides += [{**o, "service": eff["service"].effective_value} for o in ov]
+        existing = {}
+        for p in self.db.proposals():
+            if p["signature"]:
+                existing.setdefault(p["signature"], []).append(p)
+        created = []
+        for sig, g in override_groups(overrides).items():
+            if len(g["tickets"]) < PROPOSAL_MIN_SUPPORT:
+                continue
+            prior = existing.get(sig, [])
+            if any(p["status"] != "rejected" for p in prior) or \
+                    any(p["evidence"]["count"] >= len(g["tickets"]) for p in prior):
+                continue
+            prop = proposal_from_group(sig, g)
+            p = self.db.add_proposal(prop["type"], prop["payload"], prop["evidence"], sig)
+            self.db.append_event("kb.proposal.created", {"proposal_id": p["proposal_id"], "type": p["type"],
+                                                         "status": "open"})
+            created.append(p)
+        return created
+
+    def proposals(self, status: str | None = None) -> list[dict]:
+        return self.db.proposals(status)
+
+    def decide_proposal(self, proposal_id: str, approve: bool, actor: str, note: str | None = None,
+                        payload: dict | None = None) -> dict:
+        from triage.kb import apply_proposals
+
+        if not actor:
+            raise StateError(422, "actor_required", "actor is required on every write")
+        p = self.db.proposal(proposal_id)
+        if p is None:
+            raise _not_found("proposal", proposal_id)
+        if p["status"] != "open":
+            raise StateError(409, "version_conflict", f"proposal is already {p['status']}")
+        if not approve and not note:
+            raise StateError(422, "note_required", "a rejection needs a reason")
+        if approve:  # dry-run the (possibly edited) payload so a bad one fails now, not at build time
+            apply_proposals(self.catalog, {"cards": [dict(c, pattern_ids=list(c["pattern_ids"]))
+                                                     for c in self.engine.cards["cards"]]},
+                            [{**p, "payload": payload or p["payload"]}])
+        decided = self.db.decide_proposal(proposal_id, "approved" if approve else "rejected", actor, note, payload)
+        self.db.append_event("kb.proposal.decided", {"proposal_id": proposal_id, "type": p["type"],
+                                                     "status": decided["status"], "actor": actor})
+        return decided
+
+    def kb_health(self) -> dict:
+        if self._training_health is None:
+            self._training_health = _training_health()
+        closures = self.db.closures()
+        backlog = [{"ticket_id": c["ticket_id"], "closure_id": c["closure_id"], "note": c["note"],
+                    "reason": "missing" if c["score"]["missing"] else "vague"}
+                   for c in closures if c["outcome"] == "backlog"]
+        generic = [t["ticket_id"] for t in self.list_tickets(service=config.CATCH_ALL_SERVICE)]
+        with_patterns = set(self.catalog["resolvers_by_service"])
+        return {"kb_version": self.engine.kb_version, "training_corpus": self._training_health,
+                "closure_backlog": backlog, "generic_bucket_tickets": generic,
+                "services_without_patterns": sorted(s for s in self.catalog["service_team"] if s not in with_patterns)}
+
+    # -- audit & metrics -------------------------------------------------------------------
+    def audit(self, ticket_id=None, actor=None, type_prefix=None, since=None, until=None, limit=200) -> list[dict]:
+        out = []
+        for e in self.db.events_all():
+            if ticket_id and e["ticket_id"] != ticket_id or type_prefix and not e["type"].startswith(type_prefix):
+                continue
+            if actor and e["payload"].get("actor") != actor or since and e["occurred_at"] < since \
+                    or until and e["occurred_at"] > until:
+                continue
+            out.append(e)
+        return out[-limit:]
+
+    def metric(self, name: str, since=None, until=None, service=None) -> dict:
+        from triage import metrics
+
+        if name not in metrics.METRICS:
+            raise StateError(404, "unknown_metric", f"unknown metric {name}", {"available": list(metrics.METRICS)})
+        facts = []
+        for tid in self.db.ticket_ids():
+            run, eff, _ = self.effective(tid)
+            if service and (not eff or eff["service"].effective_value != service):
+                continue
+            runs = [self.db.run(r["run_id"]) for r in self.db.runs_for(tid)
+                    if r["mode"] == "live" and r["status"] == "completed"]
+            runs = [r for r in runs if (not since or (r.completed_at or "") >= since)
+                    and (not until or (r.completed_at or "") <= until)]
+            facts.append({"ticket_id": tid, "runs": runs, "overrides": self.db.overrides_for(tid),
+                          "acceptances": self.db.acceptances_for(tid), "closures": self.db.closures(tid),
+                          "effective": eff if runs else None})
+        from triage.retrieval import ticket_text
+
+        text_of = lambda tid: ticket_text(self.db.latest_snapshot(tid)["fields"])  # noqa: E731
+        value = metrics.compute(name, [f for f in facts if f["runs"] or name == "resolver_load"], self.catalog,
+                                embed=self.engine.embed, text_of=text_of)
+        return {"metric": name, "from": since, "to": until, "service": service, "value": value}
+
+    # -- human labels, shadow evaluations, policy preview (step 3) -----------------------
+    def human_labels(self, ticket_id: str) -> dict[str, str]:
+        """Human-confirmed values per field: the latest override (derived ones included),
+        else the value of a run a human accepted for that field."""
+        labels = {}
+        for a in self.db.acceptances_for(ticket_id):
+            run = self.db.run(a["run_id"])
+            labels.update({f: run.decisions[f].value for f in a["fields"] if f in run.decisions})
+        for o in self.db.overrides_for(ticket_id):
+            labels[o["field"]] = o["new_value"]
+        return labels
+
+    def _gold(self) -> list[str]:
+        return [t for t in self.db.ticket_ids() if self.db.acceptances_for(t) or self.db.overrides_for(t)]
+
+    def _recent(self, days: int) -> list[str]:
+        import datetime as dt
+
+        cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).isoformat(timespec="seconds")
+        return [t for t in self.db.ticket_ids()
+                if (r := self.db.latest_live_run(t)) is not None and (r.completed_at or "") >= cutoff]
+
+    def create_evaluation(self, body: dict) -> dict:
+        """Queue a shadow evaluation: replay a ticket set under other versions. Shadow runs
+        never change effective state and emit only evaluation.* events."""
+        versions, ticket_set = body.get("versions") or {}, body.get("ticket_set", "gold")
+        unknown = set(versions) - {"model", "prompt", "kb", "policy"}
+        if unknown or ticket_set not in ("gold", "recent"):
+            raise StateError(422, "invalid_evaluation", "versions keys: model, prompt, kb, policy; "
+                                                        "ticket_set: gold | recent", {"unknown": sorted(unknown)})
+        if versions.get("kb"):
+            self.kb.manifest(versions["kb"])  # 404 when unknown
+        if versions.get("policy") and not self.db.policy_version(versions["policy"]):
+            raise _not_found("policy version", versions["policy"])
+        if versions.get("prompt") and versions["prompt"] != self.engine.versions.prompt:
+            raise StateError(422, "unknown_prompt_version", "only the deployed prompt version can be evaluated",
+                             {"available": [self.engine.versions.prompt]})
+        tickets = self._gold() if ticket_set == "gold" else self._recent(int(body.get("days") or 30))
+        tickets = [t for t in tickets if self.db.latest_live_run(t) is not None]
+        eid = self.db.add_evaluation(body, versions, tickets)
+        self.submit("evaluation", 2, evaluation_id=eid)
+        return {"evaluation_id": eid, "status": "queued", "tickets": len(tickets)}
+
+    def process_evaluation(self, evaluation_id: str) -> dict:
+        ev = self.db.evaluation(evaluation_id)
+        req = ev["versions"]
+        engine = self.engine.variant(kb_version=req.get("kb"), model=req.get("model"))
+        policy = self.db.policy_version(req["policy"]) if req.get("policy") else self.policy()
+        per_field = {f: {"n": 0, "agree_live": 0, "n_labelled": 0, "agree_label": 0} for f in config.DECISION_FIELDS}
+        disagreements, run_ids, failed = [], [], 0
+        changed = changed_match = changed_disagree = 0
+        for tid in ev["ticket_ids"]:
+            snap = self.db.latest_snapshot(tid)
+            run_id = self.db.create_run(tid, snap["snapshot_id"], mode="shadow")
+            try:
+                record = engine.run(snap["fields"], tid, run_id, policy=policy["content"],
+                                    policy_version=policy["policy_version"])
+            except Exception as e:  # noqa: BLE001
+                record = RunRecord(run_id=run_id, ticket_id=tid, snapshot_id=snap["snapshot_id"], status="failed",
+                                   versions=engine.versions, started_at=utc_now(), error=f"{type(e).__name__}: {e}")
+            record = record.model_copy(update={"mode": "shadow", "snapshot_id": snap["snapshot_id"]})
+            self.db.finish_run(record)
+            run_ids.append(run_id)
+            if record.status != "completed":
+                failed += 1
+                continue
+            live, labels = self.db.latest_live_run(tid), self.human_labels(tid)
+            for field, d in record.decisions.items():
+                live_value, label = live.decisions[field].value, labels.get(field)
+                stats = per_field[field]
+                stats["n"] += 1
+                stats["agree_live"] += d.value == live_value
+                if label is not None:
+                    stats["n_labelled"] += 1
+                    stats["agree_label"] += d.value == label
+                if d.value != live_value:
+                    changed += 1
+                    changed_match += label is not None and d.value == label
+                    changed_disagree += label is not None and d.value != label
+                if d.value != live_value or (label is not None and d.value != label):
+                    disagreements.append({"ticket_id": tid, "field": field, "shadow": d.value, "live": live_value,
+                                          "label": label})
+        results = {
+            "versions": {**engine.versions.model_dump(), "policy": policy["policy_version"]},
+            "per_field": {f: {**v, "agreement_live": round(v["agree_live"] / v["n"], 4) if v["n"] else None,
+                              "agreement_label": round(v["agree_label"] / v["n_labelled"], 4) if v["n_labelled"] else None}
+                          for f, v in per_field.items()},
+            "summary": {"tickets": len(ev["ticket_ids"]), "failed": failed, "changed_decisions": changed,
+                        "changed_matching_labels": changed_match, "changed_against_labels": changed_disagree,
+                        "changed_unlabelled": changed - changed_match - changed_disagree},
+            "disagreements": disagreements, "shadow_run_ids": run_ids,
+        }
+        self.db.finish_evaluation(evaluation_id, "completed", results)
+        self.db.append_event("evaluation.completed", {"evaluation_id": evaluation_id, "summary": results["summary"]})
+        return results
+
+    def evaluation(self, evaluation_id: str) -> dict:
+        ev = self.db.evaluation(evaluation_id)
+        if not ev:
+            raise _not_found("evaluation", evaluation_id)
+        return ev
+
+    def policy_preview(self, content: dict, days: int = 30) -> dict:
+        """Estimated auto-apply rate (recent tickets) and error rate (auto-applied gold
+        tickets whose decisions disagree with human labels) for the current and a proposed
+        policy. Deterministic: lanes are re-assigned on stored runs, no LLM calls."""
+        from triage.calibration import recalibrate
+        from triage.lanes import assign_lane
+        from triage.policy import validate_policy
+
+        current = self.policy()
+        proposed = validate_policy({**current["content"], **content})
+        recent, gold = self._recent(days), set(self._gold())
+
+        def estimate(policy: dict) -> dict:
+            auto = errors = gold_auto = 0
+            lanes = {}
+            for tid in recent:
+                run = self.db.latest_live_run(tid)
+                decisions = recalibrate(run.decisions, policy["calibration"])
+                lane, _, _ = assign_lane(decisions, run.run_id, policy)
+                lanes[tid] = lane
+                if lane != "auto_applied":
+                    continue
+                auto += 1
+                if tid in gold:
+                    gold_auto += 1
+                    labels = self.human_labels(tid)
+                    errors += any(labels.get(f, d.value) != d.value for f, d in run.decisions.items())
+            n = len(recent)
+            return {"tickets": n, "auto_applied": auto, "auto_apply_rate": round(auto / n, 4) if n else None,
+                    "gold_auto_applied": gold_auto, "errors": errors,
+                    "error_rate": round(errors / gold_auto, 4) if gold_auto else None, "_lanes": lanes}
+
+        now, then = estimate(current["content"]), estimate(proposed)
+        moved = sum(now["_lanes"][t] != then["_lanes"][t] for t in recent)
+        return {"days": days, "current": {"policy_version": current["policy_version"],
+                                          **{k: v for k, v in now.items() if k != "_lanes"}},
+                "proposed": {"policy": proposed, **{k: v for k, v in then.items() if k != "_lanes"}},
+                "tickets_changing_lane": moved}
+
+
+def _training_health() -> dict:
+    """Vague and missing resolutions in the training corpus (the historical backlog)."""
+    from collections import Counter
+
+    from triage.catalog import split_comment
+    from triage.data import load_training
+
+    vague, missing, total = Counter(), Counter(), Counter()
+    for r in load_training():
+        svc = (r.get("Affected Business or IT Services") or ["?"])[0]
+        total[svc] += 1
+        texts = [split_comment(c)[1] for c in r.get("All Comments") or []]
+        if any(t.startswith(config.RESOLUTION_PREFIX) for t in texts):
+            continue
+        if any(t == "Problem fixed." or t.startswith("Resolution recorded:") for t in texts):
+            vague[svc] += 1
+        else:
+            missing[svc] += 1
+    return {"tickets": sum(total.values()), "vague": sum(vague.values()), "missing": sum(missing.values()),
+            "by_service": {s: {"vague": vague[s], "missing": missing[s], "total": total[s]} for s in sorted(total)}}

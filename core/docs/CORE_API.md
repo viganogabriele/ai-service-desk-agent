@@ -285,3 +285,24 @@ All metrics are computed on request from runs, overrides, acceptances and audits
   - The policy is loaded from `config.py` as version `p1`.
 - **API step 2 (milestone 7):** KB versions and promotion, closure harvesting, proposals, KB health, policy CRUD and pause, audit, the basic metrics.
 - **Step 3 (milestone 8):** shadow evaluations, policy preview, calibration, emerging issues.
+
+## 12. Implementation notes (milestones 6–7)
+Details the implementation adds or pins down. §1–§11 are unchanged.
+
+- **Extension event:** `kb.version.drafted` (`kb_version`, `actor`) is emitted when a draft is ready, because `POST /kb/build` runs in the background (it drafts service cards with the LLM) and returns `202` with `expected_version`.
+- **`Idempotency-Key`** on `POST /tickets` is `external_key` immediately followed by the SHA-256 hex of the canonical JSON of `fields`. It is optional; a mismatching key is `422`.
+- **Batch external keys:** a record's `Key` / `Issue key` when present, else `<runId or content hash>#NN`. Re-posting the same file is idempotent.
+- **Comment-only runs:** `POST /tickets/{id}/resolution-comment/regenerate` queues a comment job (not a triage run). Its failure is reported as `run.failed` with `mode: "comment"`. A comment is `stale` when a `service` or `resolution` override was committed after it; `comment.updated` with `origin: null` announces that.
+- **Closure body:** `{fields?, resolution_note, resolver, actor?}`; the response carries the note score (`root_cause`, `action`, `verification`, `filler`, `missing`, `specific`) and `outcome`: `proposal`, `backlog` or `duplicate`.
+- **Proposal payloads:** `add_pattern {text, service, resolver}`; `amend_service_card {service, scope?, boundary?, confused_with, suggestion}` (the approver fills `scope` / `boundary`); `change_resolver {service, from, to}`. Approval validates the (optionally edited) payload immediately. Override learning groups by reason code and value transition (content similarity is not used yet) and proposes once per group; a rejected group returns only with more support.
+- **KB versions** are directories `artifacts/kb/<version>/` with `manifest.json` (`status`, `parent_version`, `changelog`, `files` hashes). Promoting retires the previous live version; promoting a retired one is the rollback. `embeddings.npz` is a derived cache, rebuilt on first use and not part of the hashed content.
+- **Policy** holds the lane policy: `field_thresholds`, `autonomy {default, fields, services}`, `audit_sample_rate`, `paused`. `PUT /policy` merges partial content onto the current version; pause and resume also create versions. Decision thresholds (assignee similarity, weak match) belong to the engine and stay in `config.py`.
+- **SSE:** `GET /events/stream` also accepts `after_seq` and `max_events` (ends the stream after N events).
+- **Audit:** `GET /audit?ticket_id=&actor=&type=<prefix>&from=&to=` searches the event log.
+- **Metrics:** the step-2 set of §9 (`emerging_issues` is step 3 and returns `404`). `from` / `to` filter on run completion time, `service` on the effective service.
+
+### Step 3 (milestone 8)
+- **Shadow evaluations:** `POST /evaluations` returns `202 {evaluation_id, tickets}`; `GET /evaluations/{id}` returns `status` and `results`: `versions` (the resolved model/prompt/kb/policy), `per_field` (`agreement_live`, `agreement_label`), `summary` (`changed_decisions`, `changed_matching_labels`, `changed_against_labels`, `changed_unlabelled`, `failed`), `disagreements[]` (`ticket_id`, `field`, `shadow`, `live`, `label`) and `shadow_run_ids`. `kb` may name any stored version (drafts included, which is how a draft is evaluated before publishing); `policy` a stored policy version; `model` any Ollama model; `prompt` only the deployed prompt version (`422` otherwise). Shadow runs skip evidence and comments. The gold set = tickets with acceptances or overrides; human labels = the latest override per field, else the accepted run's value.
+- **Policy preview:** `POST /policy/preview {content, days?}` re-assigns lanes on stored live runs (no LLM) under the current and the proposed policy: `auto_apply_rate` over recent tickets, `error_rate` over auto-applied gold tickets, and `tickets_changing_lane`. Nothing is persisted.
+- **Calibration:** `GET /metrics/calibration` also returns `fitted`: a per-field isotonic map from raw confidence to the observed acceptance rate (fields with at least 20 reviewed decisions), with ECE before and after. Adopting it is explicit: `PUT /policy {"calibration": fitted.calibration}` (preview first). Runs under a calibrated policy store the calibrated `confidence` and keep the raw one as the `raw_confidence` signal; rule fields inherit calibrated inputs.
+- **Emerging issues:** `GET /metrics/emerging_issues` clusters recent tickets whose best matches are weak (`weak_match`, or best pattern similarity below 0.65) by embedding similarity (cosine 0.80, at least 2 tickets per cluster).
