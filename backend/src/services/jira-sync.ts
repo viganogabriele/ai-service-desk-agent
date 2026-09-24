@@ -3,13 +3,14 @@ import type { JiraClient } from "../clients/jira/jira-client";
 import {
 	getCursor,
 	JIRA_SYNC_CURSOR,
+	markCoreContent,
 	recordWriteback,
 	setCursor,
 	upsertSnapshot,
 	type WritebackTrigger,
 } from "../db/store";
 import {
-	applyTicketPatches,
+	applyTicketPatch,
 	type TicketPatch,
 	type TicketPatchResult,
 } from "./ticket-patch";
@@ -58,27 +59,102 @@ export async function refreshTicket(
 	return snapshot;
 }
 
-/** Writes patches to Jira, logs each write and refreshes the stored copies. */
+const writes = new WeakMap<JiraClient, Map<string, Promise<void>>>();
+
+// API requests and the sync loop share the same client and per-ticket queue.
+async function serialWrite<T>(
+	jira: JiraClient,
+	key: string,
+	write: () => Promise<T>,
+): Promise<T> {
+	let pending = writes.get(jira);
+	if (!pending) {
+		pending = new Map();
+		writes.set(jira, pending);
+	}
+	const run = (pending.get(key) ?? Promise.resolve()).then(write);
+	const settled = run.then(
+		() => undefined,
+		() => undefined,
+	);
+	pending.set(key, settled);
+	try {
+		return await run;
+	} finally {
+		if (pending.get(key) === settled) pending.delete(key);
+	}
+}
+
+/** Each ticket is written, refreshed and logged independently of the other batch items. */
 export async function writeToJira(
 	jira: JiraClient,
 	sql: SQL,
 	patches: readonly TicketPatch[],
 	trigger: WritebackTrigger,
 	coreEventSeq: number | null = null,
+	coreTicketId: string | null = null,
 ): Promise<TicketPatchResult[]> {
-	const results = await applyTicketPatches(jira, patches);
-	for (const [i, result] of results.entries()) {
-		await recordWriteback(sql, {
-			externalKey: result.key,
+	const results: TicketPatchResult[] = new Array(patches.length);
+	const errors: unknown[] = [];
+	let next = 0;
+
+	async function write(patch: TicketPatch): Promise<TicketPatchResult> {
+		const entry = {
+			externalKey: patch.Key,
 			trigger,
 			coreEventSeq,
-			requested: patches[i],
+			requested: patch,
+		};
+		let result: TicketPatchResult | undefined;
+		try {
+			result = await applyTicketPatch(jira, patch, {
+				derivePriority: trigger === "api",
+			});
+			if (result.ok) {
+				const snapshot = await refreshTicket(jira, sql, result.key);
+				if (coreTicketId)
+					await markCoreContent(
+						sql,
+						result.key,
+						coreTicketId,
+						snapshot.contentHash,
+					);
+			}
+		} catch (error) {
+			await recordWriteback(sql, {
+				...entry,
+				changed: result?.ok ? result.changed : [],
+				warnings: result?.warnings ?? [],
+				ok: false,
+				error: error instanceof Error ? error.message : String(error),
+			});
+			throw error;
+		}
+		await recordWriteback(sql, {
+			...entry,
 			changed: result.ok ? result.changed : [],
 			warnings: result.warnings,
 			ok: result.ok,
 			error: result.ok ? null : result.error,
 		});
-		if (result.ok) await refreshTicket(jira, sql, result.key);
+		return result;
 	}
+
+	async function worker() {
+		while (next < patches.length) {
+			const index = next++;
+			const patch = patches[index];
+			if (!patch) continue;
+			try {
+				results[index] = await serialWrite(jira, patch.Key, () => write(patch));
+			} catch (error) {
+				errors.push(error);
+			}
+		}
+	}
+	await Promise.all(
+		Array.from({ length: Math.min(5, patches.length) }, worker),
+	);
+	if (errors.length > 0) throw errors[0];
 	return results;
 }

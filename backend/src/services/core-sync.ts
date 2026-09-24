@@ -16,6 +16,7 @@ import {
 	setCursor,
 	type WritebackTrigger,
 } from "../db/store";
+import { isRetryableStatus } from "../lib/errors";
 import { log } from "../lib/log";
 import { writeToJira } from "./jira-sync";
 import { ticketPatchSchema } from "./ticket-patch";
@@ -62,8 +63,39 @@ function writebackTrigger(event: CoreEvent): WritebackTrigger | null {
 function isPermanent(error: unknown): error is CoreApiError | JiraApiError {
 	return (
 		(error instanceof CoreApiError || error instanceof JiraApiError) &&
-		error.status < 500
+		!isRetryableStatus(error.status)
 	);
+}
+
+const STATE_EVENTS = new Set([
+	"ticket.imported",
+	"run.started",
+	"run.completed",
+	"decision.overridden",
+	"comment.updated",
+]);
+
+/** Check after exporting: even events published during the export invalidate an older write. */
+async function isSuperseded(
+	core: CoreClient,
+	event: CoreEvent,
+): Promise<boolean> {
+	let after = event.seq;
+	for (;;) {
+		const page = await core.listEvents(after);
+		if (
+			page.some(
+				(next) =>
+					next.ticket_id === event.ticket_id && STATE_EVENTS.has(next.type),
+			)
+		)
+			return true;
+		const last = page.at(-1);
+		if (!last) return false;
+		if (last.seq <= after)
+			throw new Error("Core event pagination did not advance");
+		after = last.seq;
+	}
 }
 
 async function writeBack(
@@ -97,6 +129,7 @@ async function writeBack(
 
 	try {
 		const exported = await core.exportTicket(coreTicketId);
+		if (await isSuperseded(core, event)) return false;
 		const patch = ticketPatchSchema.safeParse({ ...exported, Key: key });
 		if (!patch.success) {
 			await fail(
@@ -110,18 +143,15 @@ async function writeBack(
 			[patch.data],
 			trigger,
 			event.seq,
+			coreTicketId,
 		);
-		if (result?.ok) {
-			// Jira now holds the Core's own effective state: not a new snapshot for it.
-			const [stored] = await loadTickets(sql, key);
-			if (stored)
-				await markCoreContent(sql, key, coreTicketId, stored.contentHash);
-		}
+		if (result && !result.ok && result.retryable) throw new Error(result.error);
 		return true;
 	} catch (error) {
-		// 4xx can't succeed on retry: log it and move on. Anything else is retried.
+		// Validation and missing-resource errors are terminal; throttling and outages retry.
 		if (!isPermanent(error)) throw error;
-		await fail(error.message);
+		// writeToJira already recorded Jira failures, including any changes before a failed refresh.
+		if (error instanceof CoreApiError) await fail(error.message);
 		return true;
 	}
 }

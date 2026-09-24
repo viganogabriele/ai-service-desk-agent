@@ -90,6 +90,7 @@ describe("Core events -> Jira", () => {
 			Assignee: "oliver.varga@intcom.com",
 			Urgency: "High",
 			Impact: "Medium",
+			Priority: "High",
 			"All Comments": [
 				...fields["All Comments"],
 				"oliver.varga@intcom.com: Resolution: feed restarted.",

@@ -8,6 +8,7 @@ import {
 	type JiraOption,
 } from "../clients/jira/jira-client";
 import { matchOption, optionLabel, rank } from "../clients/jira/matching";
+import { isRetryableStatus } from "../lib/errors";
 import {
 	descriptionFooter,
 	TICKET_FIELDS,
@@ -62,7 +63,13 @@ export type TicketPatch = z.infer<typeof ticketPatchSchema>;
 
 export type TicketPatchResult =
 	| { key: string; ok: true; changed: string[]; warnings: string[] }
-	| { key: string; ok: false; warnings: string[]; error: string };
+	| {
+			key: string;
+			ok: false;
+			warnings: string[];
+			error: string;
+			retryable: boolean;
+	  };
 
 // README matrix. Rows: urgency rank 0..4, columns: impact rank 0..4.
 const PRIORITY_MATRIX = [
@@ -126,6 +133,7 @@ function buildFields(
 	current: TicketRecord,
 	meta: Record<string, JiraFieldMeta>,
 	footer: string,
+	derivePriority: boolean,
 ) {
 	const w = fieldWriter(meta);
 
@@ -156,9 +164,13 @@ function buildFields(
 		for (const entity of entities) {
 			const option = matchOption(entity, allowed);
 			if (option) options.push({ id: option.id });
-			else w.warnings.push(`Business Entity: '${entity}' not allowed, skipped`);
+			else
+				w.warnings.push(
+					`Business Entity: '${entity}' not allowed, field not changed`,
+				);
 		}
-		w.fields[JIRA_FIELDS.businessEntity] = options;
+		if (options.length === entities.length)
+			w.fields[JIRA_FIELDS.businessEntity] = options;
 	}
 
 	// Priority follows the README matrix whenever urgency or impact changes,
@@ -166,7 +178,10 @@ function buildFields(
 	const urgency = w.select(JIRA_FIELDS.urgency, "Urgency", changes.Urgency);
 	const impact = w.select(JIRA_FIELDS.impact, "Impact", changes.Impact);
 	let priority = changes.Priority ?? null;
-	if (changes.Urgency !== undefined || changes.Impact !== undefined) {
+	if (
+		derivePriority &&
+		(changes.Urgency !== undefined || changes.Impact !== undefined)
+	) {
 		const u = urgency ? optionLabel(urgency) : current.Urgency;
 		const i = impact ? optionLabel(impact) : current.Impact;
 		priority = (u && i && priorityFrom(u, i)) || priority;
@@ -196,7 +211,8 @@ async function changeWorkType(
 		await client.updateIssue(key, { fields: { issuetype: { id: target.id } } });
 	} catch (error) {
 		// Refused when the two work types use different workflows.
-		if (!(error instanceof JiraApiError)) throw error;
+		if (!(error instanceof JiraApiError) || isRetryableStatus(error.status))
+			throw error;
 		warnings.push(
 			`Work type: Jira refused the change to ${wanted} (${error.status})`,
 		);
@@ -230,6 +246,7 @@ async function resolve(
 export async function applyTicketPatch(
 	client: JiraClient,
 	patch: TicketPatch,
+	options: { derivePriority?: boolean } = {},
 ): Promise<TicketPatchResult> {
 	const warnings: string[] = [];
 	try {
@@ -246,7 +263,13 @@ export async function applyTicketPatch(
 
 		// The footer holds data Jira has no field for; keep it when the text changes.
 		const footer = descriptionFooter(adfToText(issue.fields.description));
-		const built = buildFields(changes, current, meta, footer);
+		const built = buildFields(
+			changes,
+			current,
+			meta,
+			footer,
+			options.derivePriority ?? true,
+		);
 		warnings.push(...built.warnings);
 		if (Object.keys(built.fields).length > 0) {
 			await client.updateIssue(patch.Key, { fields: built.fields });
@@ -254,7 +277,11 @@ export async function applyTicketPatch(
 
 		const existing = new Set(current["All Comments"]);
 		for (const text of changes["All Comments"] ?? []) {
-			if (!existing.has(text.trim())) await client.addComment(patch.Key, text);
+			const trimmed = text.trim();
+			if (!existing.has(trimmed)) {
+				await client.addComment(patch.Key, trimmed);
+				existing.add(trimmed);
+			}
 		}
 
 		if (changes.Resolution)
@@ -263,28 +290,12 @@ export async function applyTicketPatch(
 		return { key: patch.Key, ok: true, changed, warnings };
 	} catch (error) {
 		if (!(error instanceof JiraApiError)) throw error;
-		return { key: patch.Key, ok: false, warnings, error: error.message };
+		return {
+			key: patch.Key,
+			ok: false,
+			warnings,
+			error: error.message,
+			retryable: isRetryableStatus(error.status),
+		};
 	}
-}
-
-const CONCURRENCY = 5;
-
-/** Applies patches with bounded concurrency so a large bulk edit doesn't trip Jira's rate limit. */
-export async function applyTicketPatches(
-	client: JiraClient,
-	patches: readonly TicketPatch[],
-): Promise<TicketPatchResult[]> {
-	const results: TicketPatchResult[] = new Array(patches.length);
-	let next = 0;
-	async function worker() {
-		while (next < patches.length) {
-			const index = next++;
-			const patch = patches[index];
-			if (patch) results[index] = await applyTicketPatch(client, patch);
-		}
-	}
-	await Promise.all(
-		Array.from({ length: Math.min(CONCURRENCY, patches.length) }, worker),
-	);
-	return results;
 }

@@ -68,7 +68,7 @@ describe("POST /tickets", () => {
 			],
 		});
 		const rows = await sql`
-			SELECT external_key, trigger, ok, changed FROM writebacks ORDER BY id`;
+			SELECT external_key, trigger, ok, changed FROM writebacks ORDER BY external_key`;
 		expect([...rows]).toEqual([
 			{ external_key: "SUP-1", trigger: "api", ok: true, changed: ["Summary"] },
 			{ external_key: "SUP-99", trigger: "api", ok: false, changed: [] },

@@ -15,3 +15,9 @@ Convention for each client:
 
 Services depend on the interface, not the concrete implementation, so the fake
 can be swapped in for tests without touching business logic.
+
+Core writebacks preserve the exported priority, including forced human overrides.
+After reading an export, the backend checks all later event pages for changes to
+that ticket and skips superseded writes. This relies on the Core making a state
+change and its event visible together; an export ahead of the event log cannot be
+correlated safely through the current API.

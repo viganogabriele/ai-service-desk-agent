@@ -215,7 +215,10 @@ export async function recordWriteback(sql: SQL, w: Writeback): Promise<void> {
 		VALUES (${w.externalKey}, ${w.trigger}, ${w.coreEventSeq}, ${w.requested},
 		        ${sql.array(w.changed, "text")}, ${sql.array(w.warnings, "text")},
 		        ${w.ok}, ${w.error})
-		ON CONFLICT DO NOTHING`;
+		ON CONFLICT (core_event_seq, external_key) WHERE core_event_seq IS NOT NULL
+		DO UPDATE SET requested = EXCLUDED.requested, changed = EXCLUDED.changed,
+			warnings = EXCLUDED.warnings, ok = EXCLUDED.ok, error = EXCLUDED.error
+		WHERE NOT writebacks.ok`;
 }
 
 export async function hasWriteback(
@@ -225,7 +228,7 @@ export async function hasWriteback(
 ): Promise<boolean> {
 	const rows = await sql`
 		SELECT 1 FROM writebacks
-		WHERE core_event_seq = ${coreEventSeq} AND external_key = ${key}`;
+		WHERE core_event_seq = ${coreEventSeq} AND external_key = ${key} AND ok`;
 	return rows.length > 0;
 }
 
