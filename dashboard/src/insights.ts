@@ -1,5 +1,5 @@
-import type { Bundle, Level } from "./domain";
-import { LEVELS, priority, serviceInfo } from "./domain";
+import type { Bundle, Proposal } from "./domain";
+import { LEVELS, STATUSES, TRIAGE_FIELDS, priority, serviceInfo } from "./domain";
 import type { Action, Review } from "./state";
 
 export interface ForecastPoint {
@@ -65,164 +65,140 @@ export function weeklyForecast(weekly: Bundle["historical"]["weekly"], horizon: 
     }),
   ];
 
-  const projected = points.filter((point) => point.projected);
-
   return {
     points,
     slope,
-    sigma,
     meanWeekly: meanY,
-    nextWeeks: projected.reduce((sum, point) => sum + point.fitted, 0),
+    nextWeeks: points.filter((point) => point.projected).reduce((sum, point) => sum + point.fitted, 0),
+    // Band of a sum of independent weekly residuals.
     nextWeeksBand: band * Math.sqrt(horizon),
   };
 }
 
-export function hourlyProfile(heatmap: number[][]) {
-  const hours = Array.from({ length: 24 }, (_, hour) =>
-    heatmap.reduce((sum, day) => sum + day[hour], 0),
-  );
+const OUTCOME_ROWS = [
+  ["done", "Resolved"],
+  ["clarification", "Needed clarification"],
+  ["cannot reproduce", "Cannot reproduce"],
+  ["cancelled", "Cancelled"],
+] as const;
 
-  const weekdays = heatmap.map((day) => day.reduce((sum, value) => sum + value, 0));
-  const mean = hours.reduce((sum, value) => sum + value, 0) / hours.length;
-  const peak = Math.max(...hours);
+/** Every historical ticket by where it ended up: the four resolutions of "done", then still-open states. */
+export function ticketOutcomes(historical: Bundle["historical"]) {
+  return [
+    ...OUTCOME_ROWS.map(([key, label]) => ({
+      label,
+      value: historical.resolution[key] ?? 0,
+      highlight: key === "done",
+    })),
+    { label: "In progress", value: historical.status["in progress"] ?? 0, highlight: false },
+    { label: "Open", value: historical.status.open ?? 0, highlight: false },
+  ];
+}
+
+export function queueStats(data: Bundle, review: (index: number) => Review) {
+  const reviews = data.challenge.map((_, index) => review(index));
 
   return {
-    hours,
-    weekdays,
-    mean,
-    peakHour: hours.indexOf(peak),
-    peakLift: mean ? peak / mean - 1 : 0,
-    weekdaySpread: Math.max(...weekdays) / Math.min(...weekdays) - 1,
+    priorities: LEVELS.map((level) => ({
+      label: level,
+      value: reviews.filter((item) => priority(item.triage.urgency, item.triage.impact) === level)
+        .length,
+      highlight: level === "Highest" || level === "High",
+    })),
+    statuses: STATUSES.map((status) => ({
+      status,
+      value: reviews.filter((item) => item.status === status).length,
+    })),
+    critical: reviews.filter((item) => serviceInfo(item.triage.service)?.[2] === "Critical").length,
+    total: reviews.length,
   };
 }
 
-const RESOLVING = new Set(["accept", "modify"]);
+const DECISIVE = new Set<Action["action"]>(["assign", "resolve", "ask"]);
 
-/** Outcome counts from current reviews and per-field agreement from each ticket's latest resolving action. */
-export function reviewStats(
+/** What the AI changed versus the reporter, and — once operators act — how often they kept its values. */
+export function aiStats(
   data: Bundle,
-  reviews: (index: number) => Review,
+  proposals: (Proposal | null)[],
   actions: Action[],
-  regeneratedCount: number,
+  review: (index: number) => Review,
 ) {
-  const statuses = data.challenge.map((_, index) => reviews(index).status);
-  const count = (status: string) => statuses.filter((item) => item === status).length;
-  const accepted = count("accepted");
-  const modified = count("modified_accepted");
-  const resolvedIds = new Set<string>();
+  // Undo and reopen restore a ticket without removing its log entry, so only current decisions count.
+  const decided = new Set(
+    data.challenge.flatMap((_, index) =>
+      ["assigned", "waiting", "resolved"].includes(review(index).status)
+        ? [`CH-${String(index + 1).padStart(2, "0")}`]
+        : [],
+    ),
+  );
 
-  for (const [index, status] of statuses.entries())
-    if (status === "accepted" || status === "modified_accepted")
-      resolvedIds.add(data.proposals[index].ticket_id);
+  const pairs = data.challenge.flatMap((ticket, index) => {
+    const proposal = proposals[index];
+
+    return proposal ? [{ ticket, proposal }] : [];
+  });
+
+  const latencies = pairs.flatMap(({ proposal }) =>
+    proposal.latency_ms == null ? [] : [proposal.latency_ms],
+  );
+
+  const costs = pairs.flatMap(({ proposal }) =>
+    proposal.cost_chf == null ? [] : [proposal.cost_chf],
+  );
 
   const latest = new Map<string, Action>();
 
   for (const action of actions)
-    if (RESOLVING.has(action.action) && resolvedIds.has(action.ticket_id))
+    if (action.model_id && DECISIVE.has(action.action) && decided.has(action.ticket_id))
       latest.set(action.ticket_id, action);
 
-  const fields = ["work_type", "service", "assignee", "urgency", "impact", "resolution"];
   const changedBy = new Map<string, number>();
   const corrections = new Map<string, number>();
+  let untouched = 0;
 
-  for (const action of latest.values())
+  for (const action of latest.values()) {
+    if (action.changed_fields.length === 0) untouched += 1;
+
     for (const change of action.changed_fields) {
       changedBy.set(change.field, (changedBy.get(change.field) ?? 0) + 1);
-
-      if (change.field !== "resolution_comment") {
-        const key = `${change.field}\u0000${change.proposed}\u0000${change.final}`;
-        corrections.set(key, (corrections.get(key) ?? 0) + 1);
-      }
+      const key = `${change.field}\u0000${change.proposed}\u0000${change.final}`;
+      corrections.set(key, (corrections.get(key) ?? 0) + 1);
     }
+  }
 
   return {
-    total: statuses.length,
-    accepted,
-    modified,
-    escalated: count("escalated"),
-    clarification: count("clarification_requested"),
-    open: count("to_process") + count("proposed") + count("in_review"),
-    regenerated: regeneratedCount,
-    resolved: accepted + modified,
-    fieldAgreement: fields.map((field) => ({
+    covered: pairs.length,
+    total: data.challenge.length,
+    serviceChanged: pairs.filter(
+      ({ ticket, proposal }) =>
+        proposal.proposal.service !== ticket["Affected Business or IT Services"][0],
+    ).length,
+    workChanged: pairs.filter(
+      ({ ticket, proposal }) => proposal.proposal.work_type !== ticket["Work type"],
+    ).length,
+    priorityChanged: pairs.filter(
+      ({ ticket, proposal }) =>
+        priority(proposal.proposal.urgency, proposal.proposal.impact) !==
+        priority(ticket.Urgency, ticket.Impact),
+    ).length,
+    meanLatency: latencies.length
+      ? latencies.reduce((sum, value) => sum + value, 0) / latencies.length
+      : null,
+    latencySamples: latencies.length,
+    meanCost: costs.length ? costs.reduce((sum, value) => sum + value, 0) / costs.length : null,
+    reviewed: latest.size,
+    untouched,
+    fieldKept: TRIAGE_FIELDS.map((field) => ({
       field,
-      rate: latest.size ? 1 - (changedBy.get(field) ?? 0) / latest.size : null,
+      rate: latest.size ? 1 - (changedBy.get(field) ?? 0) / latest.size : 0,
     })),
-    commentEdited: latest.size ? (changedBy.get("resolution_comment") ?? 0) / latest.size : null,
     corrections: [...corrections.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([key, value]) => {
+      .map(([key, count]) => {
         const [field, proposed, final] = key.split("\u0000");
 
-        return { field, proposed, final, count: value };
+        return { field, proposed, final, count };
       }),
-  };
-}
-
-export function queuePrediction(data: Bundle, reviews: (index: number) => Review) {
-  const levels = new Map<Level, number>(LEVELS.map((level) => [level, 0]));
-  let critical = 0;
-  let serviceChanged = 0;
-
-  for (const [index, ticket] of data.challenge.entries()) {
-    const form = reviews(index).form;
-    const level = priority(form.urgency, form.impact);
-    levels.set(level, (levels.get(level) ?? 0) + 1);
-
-    if (serviceInfo(form.service)?.[2] === "Critical") critical += 1;
-
-    if (ticket["Affected Business or IT Services"][0] !== form.service) serviceChanged += 1;
-  }
-
-  const confidences = data.proposals.flatMap((proposal) =>
-    proposal.confidence.service === null ? [] : [proposal.confidence.service],
-  );
-
-  return {
-    levels: LEVELS.map((level) => ({ level, count: levels.get(level) ?? 0 })),
-    critical,
-    serviceChanged,
-    lowConfidence: confidences.filter((value) => value < 0.5).length,
-    meanConfidence: confidences.length
-      ? confidences.reduce((sum, value) => sum + value, 0) / confidences.length
-      : null,
-  };
-}
-
-export interface EconomicsInput {
-  volumePerDay: number;
-  manualMinutes: number;
-  reviewMinutes: number;
-  reviewShare: number;
-  hourlyCost: number;
-  baseCost: number;
-  premiumShare: number;
-  premiumCost: number;
-  latencySeconds: number;
-}
-
-/** ADVISOR_REVIEW.md cost model: model cost + review labour vs. fully manual triage. */
-export function economics(input: EconomicsInput, multiplier: number) {
-  const volume = input.volumePerDay * multiplier;
-  const modelPerTicket = input.baseCost + input.premiumShare * input.premiumCost;
-  const reviewPerTicket = (input.reviewShare * input.reviewMinutes * input.hourlyCost) / 60;
-  const manualPerTicket = (input.manualMinutes * input.hourlyCost) / 60;
-  const assistedDay = volume * (modelPerTicket + reviewPerTicket);
-  const manualDay = volume * manualPerTicket;
-
-  return {
-    volume,
-    modelPerTicket,
-    totalPerTicket: modelPerTicket + reviewPerTicket,
-    manualPerTicket,
-    modelDay: volume * modelPerTicket,
-    assistedDay,
-    manualDay,
-    savingDay: manualDay - assistedDay,
-    savingYear: (manualDay - assistedDay) * 365,
-    hoursSavedDay:
-      (volume * (input.manualMinutes - input.reviewShare * input.reviewMinutes)) / 60,
-    computeHoursDay: (volume * input.latencySeconds) / 3600,
   };
 }

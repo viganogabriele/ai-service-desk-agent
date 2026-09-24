@@ -1,5 +1,3 @@
-import type { Tone } from "./components/ui/badge";
-
 export const SERVICES = [
   ["Trading Platform", "Investment Operations", "Critical"],
   ["Trade Matching", "Investment Operations", "Critical"],
@@ -49,21 +47,55 @@ export const RESOLUTIONS = ["done", "cancelled", "clarification", "cannot reprod
 
 export type Resolution = (typeof RESOLUTIONS)[number];
 
-export type ReviewStatus =
-  | "to_process"
-  | "proposed"
-  | "in_review"
-  | "accepted"
-  | "modified_accepted"
-  | "escalated"
-  | "clarification_requested";
+// Workflow states of an incoming ticket in this desk. They map onto Jira fields at export.
+export const STATUSES = ["new", "in_progress", "assigned", "waiting", "resolved"] as const;
 
-export const COMPLETED_STATUSES: readonly ReviewStatus[] = [
-  "accepted",
-  "modified_accepted",
-  "escalated",
-  "clarification_requested",
-];
+export type Status = (typeof STATUSES)[number];
+
+export const STATUS_LABELS: Record<Status, string> = {
+  new: "New",
+  in_progress: "In progress",
+  assigned: "Assigned",
+  waiting: "Waiting for reporter",
+  resolved: "Resolved",
+};
+
+export const STATUS_HELP: Record<Status, string> = {
+  new: "Not yet reviewed by an operator",
+  in_progress: "Triage edited but not yet assigned or resolved",
+  assigned: "Routed to the service team; still open",
+  waiting: "A question was sent to the reporter",
+  resolved: "Closed with a resolution note",
+};
+
+export const STATUS_DOTS: Record<Status, string> = {
+  new: "",
+  in_progress: "bright",
+  assigned: "cyan",
+  waiting: "amber",
+  resolved: "green",
+};
+
+export const OPEN_STATUSES: readonly Status[] = ["new", "in_progress", "assigned"];
+
+// Outcomes an operator can close a ticket with; "clarification" is set by asking the reporter.
+export const OUTCOMES = ["done", "cancelled", "cannot reproduce"] as const;
+
+export type Outcome = (typeof OUTCOMES)[number];
+
+export const OUTCOME_LABELS: Record<Outcome, string> = {
+  done: "Fixed",
+  cancelled: "Cancelled",
+  "cannot reproduce": "Cannot reproduce",
+};
+
+export const PRIORITY_DOTS: Record<Level, string> = {
+  Highest: "red",
+  High: "amber",
+  Medium: "secondary",
+  Low: "",
+  Lowest: "",
+};
 
 export function serviceInfo(name: string) {
   return SERVICES.find((row) => row[0].toLowerCase() === name.toLowerCase());
@@ -91,59 +123,63 @@ export interface Ticket {
   "Linked issues": string[];
   Resolution: string | null;
   "Due date": string | null;
+  "Resolution date"?: string | null;
   "All Comments": string[];
 }
 
-export interface FormValues {
+/** Incoming tickets; urgency and impact are validated against LEVELS during data preparation. */
+export interface IncomingTicket extends Omit<Ticket, "Urgency" | "Impact"> {
+  Urgency: Level;
+  Impact: Level;
+}
+
+export interface Triage {
   work_type: string;
   service: string;
   assignee: string;
   urgency: Level;
   impact: Level;
-  resolution: Resolution;
-  resolution_comment: string;
 }
+
+export const TRIAGE_FIELDS = ["work_type", "service", "assignee", "urgency", "impact"] as const;
+
+export const FIELD_LABELS: Record<(typeof TRIAGE_FIELDS)[number], string> = {
+  work_type: "Work type",
+  service: "Service",
+  assignee: "Assignee",
+  urgency: "Urgency",
+  impact: "Impact",
+};
 
 export interface Proposal {
   ticket_id: string;
   model_id: string;
-  generated_at?: string;
   latency_ms?: number | null;
   cost_chf?: number | null;
-  proposal: Omit<FormValues, "assignee"> & {
-    assignee_candidates: { email: string; historical_count: number }[];
-  };
-  confidence: { work_type: number | null; service: number | null };
-  rationale: string;
-  similar_tickets: {
-    historical_index: number;
-    summary: string;
+  proposal: {
+    work_type: string;
     service: string;
-    resolution: string;
-    last_comment: string;
-    similarity: number | null;
-  }[];
+    assignee_candidates: { email: string; historical_count: number; support?: number }[];
+    urgency: Level;
+    impact: Level;
+    resolution: Resolution;
+    resolution_comment: string;
+  };
+  rationale: string;
+  review_flags: string[];
 }
 
-export interface ModelMetrics {
-  model_id: string;
-  label: string;
-  kind: "local" | "premium";
-  samples?: number;
-  latency_ms_p50?: number | null;
-  latency_ms_p95?: number | null;
-  latency_ms_mean?: number | null;
-  cost_chf_per_ticket?: number | null;
-  cost_note?: string;
-  holdout?: {
-    n: number;
-    label?: string;
-    accuracy: { service?: number; work_type?: number; team?: number };
-  } | null;
+export interface SimilarResolution {
+  historical_index: number;
+  summary: string;
+  service: string;
+  resolution_date: string | null;
+  resolution_text: string;
+  times_used: number;
+  similarity: number;
 }
 
 export interface Bundle {
-  mock: boolean;
   historical: {
     total: number;
     status: Record<string, number>;
@@ -152,100 +188,57 @@ export interface Bundle {
     generic_bucket: number;
     service: Record<string, number>;
     team: Record<string, number>;
-    entity: Record<string, number>;
     first_day: string;
     last_day: string;
     days: number;
     weekly: { week: string; count: number }[];
-    heatmap: number[][];
   };
-  models: ModelMetrics[];
-  models_source: "file" | "dev_run" | "none";
-  challenge: Ticket[];
-  proposals: Proposal[];
+  challenge: IncomingTicket[];
+  proposals: (Proposal | null)[];
+  proposal_source: { kind: "file" | "solver_output" | "none"; path: string | null };
+  similar: Record<string, SimilarResolution[]>;
   assignees: string[];
   historical_examples: Record<string, Ticket>;
 }
 
-export function startingForm(proposal: Proposal): FormValues {
+/** Starting triage: the AI proposal when one exists, otherwise what the reporter declared. */
+export function startingTriage(ticket: IncomingTicket, proposal: Proposal | null): Triage {
+  if (proposal)
+    return {
+      work_type: proposal.proposal.work_type,
+      service: proposal.proposal.service,
+      assignee: proposal.proposal.assignee_candidates[0]?.email ?? "",
+      urgency: proposal.proposal.urgency,
+      impact: proposal.proposal.impact,
+    };
+
   return {
-    work_type: proposal.proposal.work_type,
-    service: proposal.proposal.service,
-    assignee: proposal.proposal.assignee_candidates[0]?.email ?? "",
-    urgency: proposal.proposal.urgency,
-    impact: proposal.proposal.impact,
-    resolution: proposal.proposal.resolution,
-    resolution_comment: proposal.proposal.resolution_comment,
+    work_type: ticket["Work type"],
+    service: ticket["Affected Business or IT Services"][0] ?? "",
+    assignee: ticket.Assignee ?? "",
+    urgency: ticket.Urgency,
+    impact: ticket.Impact,
   };
 }
 
-export const STATUS_LABELS: Record<ReviewStatus, string> = {
-  to_process: "To process",
-  proposed: "Proposed",
-  in_review: "In review",
-  accepted: "Accepted",
-  modified_accepted: "Modified",
-  escalated: "Escalated",
-  clarification_requested: "Clarification",
-};
+export function fieldLabel(field: string) {
+  const known = TRIAGE_FIELDS.find((item) => item === field);
 
-export const STATUS_DOTS: Record<ReviewStatus, Tone> = {
-  to_process: "muted",
-  proposed: "secondary",
-  in_review: "foreground",
-  accepted: "success",
-  modified_accepted: "success",
-  escalated: "warning",
-  clarification_requested: "info",
-};
-
-export const PRIORITY_DOTS: Record<Level, Tone> = {
-  Highest: "danger",
-  High: "warning",
-  Medium: "secondary",
-  Low: "muted",
-  Lowest: "muted",
-};
-
-export const ESCALATION_REASONS = [
-  "Uncertain service",
-  "Insufficient information",
-  "Possible critical incident",
-  "Other",
-] as const;
-
-export function confidenceLabel(value: number | null) {
-  if (value === null) return "Not measured";
-
-  return value >= 0.8 ? "High" : value >= 0.5 ? "Medium" : "Low";
+  return known ? FIELD_LABELS[known] : field;
 }
 
-export function commentBody(comment: string) {
-  return comment.split(":").slice(1).join(":").trim();
+export function aiValue(proposal: Proposal | null, field: (typeof TRIAGE_FIELDS)[number]) {
+  if (!proposal) return null;
+
+  if (field === "assignee") return proposal.proposal.assignee_candidates[0]?.email ?? null;
+
+  return proposal.proposal[field];
 }
 
-export function formChanges(form: FormValues, baseline: FormValues) {
-  // SAFETY: all own keys of FormValues are declared string-valued fields.
-  return (Object.keys(form) as (keyof FormValues)[]).flatMap((field) =>
-    form[field] === baseline[field] ? [] : [{ field, before: baseline[field], after: form[field] }],
+export function triageChanges(triage: Triage, baseline: Triage) {
+  return TRIAGE_FIELDS.flatMap((field) =>
+    triage[field] === baseline[field]
+      ? []
+      : [{ field, before: baseline[field], after: triage[field] }],
   );
-}
-
-export function reviewWarnings(ticket: Ticket, form: FormValues) {
-  const rating = serviceInfo(form.service)?.[2];
-  const level = priority(form.urgency, form.impact);
-  const body = commentBody(form.resolution_comment);
-
-  return [
-    rating === "Critical" && ["Low", "Lowest"].includes(level)
-      ? "Critical service with low priority"
-      : "",
-    body.length < 40 || /^(fixed|problem fixed|resolution recorded)$/i.test(body)
-      ? "Resolution comment needs more detail"
-      : "",
-    ticket["Request type"] === "Nonsense / Unclear Input" && form.resolution !== "clarification"
-      ? "Unclear input should request clarification"
-      : "",
-    !form.assignee ? "Assignee is empty" : "",
-  ].filter(Boolean);
 }

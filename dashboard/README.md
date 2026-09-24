@@ -11,13 +11,16 @@ pnpm lint
 
 Run the last three commands from the repository root. The matching commands also work inside `dashboard/`. Python 3 is required for `scripts/prepare_data.py`; `dev` and `build` run it automatically. It reads the historical and challenge JSON files at the repository root and writes a compact bundle to `public/dashboard-data.json`. That bundle is generated and is not committed.
 
-## Proposals
+## Data sources
 
-The default proposals are mock fixtures generated from declared ticket fields and historical assignee frequencies. They are marked **MOCK DATA** throughout the UI; confidence and similar-ticket selection have not been measured. No solver is run.
+`scripts/prepare_data.py` builds `public/dashboard-data.json` from files only; nothing is generated or simulated.
 
-To use solver output, create `dashboard/data/proposals.json` with `{ "proposals": [...] }` containing exactly one §3.1 proposal for each `CH-01` through `CH-20`, then restart or rebuild. The generated bundle and UI will use those proposals without changing application code. The real proposal file is intentionally gitignored so a local solver output is not accidentally committed. Similar historical ticket modal records are selected by `historical_index` during preprocessing.
+- **Historical tickets** (`jira_first_20000_requested_fields_synthetic.json`): every Overview figure, the weekly intake and its linear projection, and the similar-resolution index.
+- **Incoming tickets** (`jira_hackathon_blind_eval_challenge_*.json`): the ticket queue. Declared urgency and impact are validated at preparation time.
+- **AI suggestions**: `dashboard/data/proposals.json` in the PRD §3.1 contract if present, otherwise the triage PoC output `output/triaged.json`. Without either, tickets start from the reporter-declared values and no AI element is shown. The dashboard does not classify tickets itself.
+- **Similar resolved tickets**: TF-IDF similarity between the incoming ticket and historical tickets resolved as done that carry a documented `Resolution:` comment. They appear in the resolve step only for the ticket's current service and above a 10% similarity threshold.
 
-Review state and the append-only action log persist in browser local storage. **Reset demo** clears both. **Export JSON** exports all 20 challenge records with final values and a `reviewed` flag. Team and priority are derived in the application and cannot be edited independently.
+Triage decisions and the operator action log persist in browser local storage. **Export triaged tickets** and **Clear all review data** are in the Tickets page menu.
 
 ## Styling
 
@@ -33,8 +36,8 @@ Shared pieces live in `src/components/ui/`: `Button` / `buttonVariants` (also fo
 
 ## Pages
 
-**Insights** (`/`) shows historical KPIs, weekly intake with a linear 8-week projection, the hourly intake profile, resolution outcomes, distributions by service, team and entity, review outcomes from the action log (per-field agreement, top corrections), the predicted priority mix of the incoming queue, a model comparison and an editable unit-economics calculator. Model latency and accuracy come from the saved local run in `output/dev_predictions.json` against `fixtures/dev_reference.json` (six cases, not a benchmark) unless `dashboard/data/models.json` is supplied in the §3.3 format. Calculator defaults other than volume and latency are labelled assumptions.
+**Overview** (`/`) shows historical figures (daily volume, open backlog, share of closed tickets actually resolved, generic-service share), weekly intake with an 8-week linear projection, how tickets ended, tickets by service and team, and the incoming queue by priority and status. The AI triage card appears only when suggestions exist; operator agreement and corrections appear only after operators assign, resolve or question tickets that had an AI suggestion.
 
-**Tickets** (`/tickets`) lists the queue as a table with multi-select bulk actions (resolve, escalate, ask clarification) or as a board grouped by review status. Opening a ticket shows a split view: the filtered queue stays on the left (`J`/`K` move between tickets) and the right side holds the request, the editable triage decision, the response composer, escalation to L3, clarification requests, proposal rationale, similar tickets and the per-ticket action log.
+**Tickets** (`/tickets`) lists the queue with search, filters and bulk assignment, or shows a board with columns New, In progress, Assigned, Waiting for reporter and Resolved. Cards can be dragged between columns; moving to Resolved or Waiting for reporter asks for the comment first. A ticket page shows the request, the triage fields with the AI suggestion and reporter value side by side, and one next step: resolve with a note, ask the reporter, or assign to the service team. Priority is always calculated from urgency and impact. Every action can be undone from the confirmation notice. `J`/`K` move between tickets.
 
-**Ask a stronger model** calls a second triage PoC instance. Start it with `python -m triage_poc --model <larger model> serve --port 8766` from the repository root and run the dashboard with `VITE_PREMIUM_SOLVER_URL=http://127.0.0.1:8766`. The operator hint is appended to the ticket comments; the new proposal replaces the current one, and Undo restores the previous version. Without the variable, the action explains how to enable it and stays disabled.
+**Ask a stronger model** appears only when `VITE_PREMIUM_SOLVER_URL` points to a second triage PoC instance (`python -m triage_poc --model <larger model> serve --port 8766`). The operator hint is appended to the ticket comments. Failures show a plain message and change nothing.

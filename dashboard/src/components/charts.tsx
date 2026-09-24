@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ForecastPoint } from "../insights";
-import { cn } from "../lib/utils";
 
 const fmt = (value: number) => Math.round(value).toLocaleString("en-US");
 
@@ -39,57 +38,11 @@ function niceTicks(min: number, max: number, count: number) {
 
 function Tooltip({ x, y, children }: { x: number; y: number; children: ReactNode }) {
   return (
-    <div
-      className="pointer-events-none absolute z-2 grid min-w-37.5 gap-0.5 rounded-control border border-border-hover bg-elevated px-2.5 py-2 text-sm text-secondary shadow-float"
-      style={{ left: x, top: y }}
-      role="status"
-    >
+    <div className="chart-tooltip" style={{ left: x, top: y }} role="status">
       {children}
     </div>
   );
 }
-
-function TooltipTitle({ children }: { children: ReactNode }) {
-  return <span className="flex items-center gap-1.5 text-xs text-muted">{children}</span>;
-}
-
-function TooltipRow({ children, muted = false }: { children: ReactNode; muted?: boolean }) {
-  return <span className={cn("flex items-center gap-1.5", muted && "text-muted")}>{children}</span>;
-}
-
-function TooltipValue({ children }: { children: ReactNode }) {
-  return <b className="font-semibold text-foreground tabular-nums">{children}</b>;
-}
-
-const KEY_LINES = {
-  primary: "bg-primary",
-  trend: "bg-chart-trend",
-  dashed: "bg-dashed-key",
-};
-
-/** Line sample for a chart legend. */
-export function LineKey({ variant }: { variant: keyof typeof KEY_LINES }) {
-  return <i className={cn("inline-block h-0.5 w-3 rounded-xs", KEY_LINES[variant])} />;
-}
-
-/** Filled square sample for a chart legend. */
-export function BoxKey({ accent = false }: { accent?: boolean }) {
-  return (
-    <i className={cn("inline-block size-2 rounded-sm", accent ? "bg-primary" : "bg-chart-3")} />
-  );
-}
-
-export function LegendInline({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap gap-3.5 text-sm text-secondary">{children}</div>;
-}
-
-export function LegendItem({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{children}</span>;
-}
-
-const SEGMENT_FILLS = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"];
-
-const axisText = "fill-muted text-xs tabular-nums";
 
 const shortDate = (iso: string) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", {
@@ -127,10 +80,9 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   const active = hover === null ? null : points[hover];
 
   return (
-    <div className="relative w-full" ref={ref}>
+    <div className="chart" ref={ref}>
       {width > 0 && (
         <svg
-          className="block overflow-visible"
           width={width}
           height={height}
           role="img"
@@ -147,13 +99,13 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
           {ticks.map((tick) => (
             <g key={tick}>
               <line
-                className="stroke-divider"
+                className="grid-line"
                 x1={pad.left}
                 x2={width - pad.right}
                 y1={y(tick)}
                 y2={y(tick)}
               />
-              <text className={axisText} x={pad.left - 8} y={y(tick)} dy="0.32em" textAnchor="end">
+              <text className="axis-text" x={pad.left - 8} y={y(tick)} dy="0.32em" textAnchor="end">
                 {fmt(tick)}
               </text>
             </g>
@@ -162,7 +114,7 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
             index % labelEvery === 0 ? (
               <text
                 key={point.week}
-                className={axisText}
+                className="axis-text"
                 x={x(index)}
                 y={height - 8}
                 textAnchor="middle"
@@ -174,36 +126,26 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
           {firstProjected > 0 && (
             <>
               <rect
-                className="fill-white/2"
+                className="projection-zone"
                 x={x(firstProjected - 1)}
                 y={pad.top}
                 width={x(points.length - 1) - x(firstProjected - 1)}
                 height={plotHeight}
               />
-              <polygon className="fill-primary opacity-10" points={band} />
+              <polygon className="band" points={band} />
             </>
           )}
           <polyline
-            className="fill-none stroke-chart-trend"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            className="series-trend"
             points={line(actual.map((point, index) => [x(index), y(point.fitted)]))}
           />
           <polyline
-            className="fill-none stroke-primary"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            className="series-line"
             points={line(actual.map((point, index) => [x(index), y(point.actual ?? point.fitted)]))}
           />
           {projected.length > 0 && (
             <polyline
-              className="fill-none stroke-primary"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray="4 4"
+              className="series-projection"
               points={line(
                 projected.map((point, index) => [
                   x(firstProjected - 1 + index),
@@ -215,15 +157,14 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
           {active && hover !== null && (
             <>
               <line
-                className="stroke-border-hover"
+                className="crosshair"
                 x1={x(hover)}
                 x2={x(hover)}
                 y1={pad.top}
                 y2={pad.top + plotHeight}
               />
               <circle
-                className="fill-primary stroke-surface"
-                strokeWidth={2}
+                className="end-dot"
                 cx={x(hover)}
                 cy={y(active.actual ?? active.fitted)}
                 r={4}
@@ -234,21 +175,21 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
       )}
       {active && hover !== null && (
         <Tooltip x={Math.min(x(hover) + 12, width - 190)} y={8}>
-          <TooltipTitle>Week of {shortDate(active.week)}</TooltipTitle>
+          <span className="tooltip-title">Week of {shortDate(active.week)}</span>
           {active.actual !== null ? (
-            <TooltipRow>
-              <LineKey variant="primary" />
-              <TooltipValue>{fmt(active.actual)}</TooltipValue> tickets
-            </TooltipRow>
+            <span>
+              <i className="key accent" />
+              <b>{fmt(active.actual)}</b> tickets
+            </span>
           ) : (
-            <TooltipRow>
-              <LineKey variant="dashed" />
-              <TooltipValue>{fmt(active.fitted)}</TooltipValue> projected
-            </TooltipRow>
+            <span>
+              <i className="key dashed" />
+              <b>{fmt(active.fitted)}</b> projected
+            </span>
           )}
-          <TooltipRow muted>
+          <span className="muted">
             95% band {fmt(active.low)}–{fmt(active.high)}
-          </TooltipRow>
+          </span>
         </Tooltip>
       )}
     </div>
@@ -262,217 +203,34 @@ export interface BarRow {
   note?: string;
 }
 
-export function BarListRoot({ children }: { children: ReactNode }) {
-  return <div className="grid gap-0.5">{children}</div>;
-}
-
-/** One labelled horizontal bar; `width` is a CSS width relative to the longest bar. */
-export function BarListItem({
-  label,
-  note,
-  width,
-  accent = false,
-  value,
-  share,
-  title,
-}: {
-  label: string;
-  note?: string;
-  width: string;
-  accent?: boolean;
-  value: string;
-  share?: string;
-  title?: string;
-}) {
-  return (
-    <div
-      className="grid min-h-6.5 grid-cols-bar-row items-center gap-3 rounded-lg text-sm text-secondary hover:bg-hover focus-visible:bg-hover"
-      title={title}
-      tabIndex={title === undefined ? undefined : 0}
-    >
-      <span className="truncate">
-        {label}
-        {note && <small className="ml-1.5 text-muted">{note}</small>}
-      </span>
-      <span className="flex h-2">
-        <span
-          className={cn("h-full min-w-0.5 rounded-r-md", accent ? "bg-primary" : "bg-chart-3")}
-          style={{ width }}
-        />
-      </span>
-      <span className="text-right font-medium text-foreground tabular-nums">
-        {value}
-        {share !== undefined && (
-          <small className="inline-block w-10 text-xs font-normal text-muted">{share}</small>
-        )}
-      </span>
-    </div>
-  );
-}
-
 export function BarList({ rows, total }: { rows: BarRow[]; total?: number }) {
   const max = Math.max(...rows.map((row) => row.value), 1);
 
   return (
-    <BarListRoot>
+    <div className="bar-list">
       {rows.map((row) => (
-        <BarListItem
+        <div
+          className="bar-row"
           key={row.label}
-          label={row.label}
-          note={row.note}
-          accent={row.highlight}
-          width={`${(row.value / max) * 100}%`}
-          value={row.value.toLocaleString("en-US")}
-          share={total === undefined ? undefined : `${((row.value / total) * 100).toFixed(1)}%`}
           title={`${row.label}: ${row.value.toLocaleString("en-US")}`}
-        />
-      ))}
-    </BarListRoot>
-  );
-}
-
-export function ColumnChart({
-  values,
-  labels,
-  label,
-}: {
-  values: number[];
-  labels: string[];
-  label: string;
-}) {
-  const { ref, width } = useWidth();
-  const [hover, setHover] = useState<number | null>(null);
-  const height = 150;
-  const pad = { top: 10, right: 4, bottom: 22, left: 4 };
-  const plotHeight = height - pad.top - pad.bottom;
-  const max = Math.max(...values, 1);
-  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
-  const slot = (width - pad.left - pad.right) / values.length;
-  const barWidth = Math.min(24, Math.max(2, slot - 2));
-  const y = (value: number) => pad.top + (1 - value / max) * plotHeight;
-
-  return (
-    <div className="relative w-full" ref={ref}>
-      {width > 0 && (
-        <svg
-          className="block overflow-visible"
-          width={width}
-          height={height}
-          role="img"
-          aria-label={label}
+          tabIndex={0}
         >
-          <line
-            className="stroke-border-hover"
-            x1={pad.left}
-            x2={width - pad.right}
-            y1={y(0)}
-            y2={y(0)}
-          />
-          {values.map((value, index) => {
-            const left = pad.left + index * slot + (slot - barWidth) / 2;
-            const top = y(value);
-            const radius = Math.min(4, barWidth / 2, y(0) - top);
-
-            return (
-              <g
-                key={labels[index]}
-                onPointerEnter={() => setHover(index)}
-                onPointerLeave={() => setHover(null)}
-                onFocus={() => setHover(index)}
-                onBlur={() => setHover(null)}
-                tabIndex={0}
-                className="focus:outline-none"
-              >
-                <rect
-                  className="fill-transparent"
-                  x={pad.left + index * slot}
-                  y={pad.top}
-                  width={slot}
-                  height={plotHeight}
-                />
-                <path
-                  className={hover === index ? "fill-primary" : "fill-chart-3"}
-                  d={`M${left},${y(0)} V${top + radius} Q${left},${top} ${left + radius},${top} H${
-                    left + barWidth - radius
-                  } Q${left + barWidth},${top} ${left + barWidth},${top + radius} V${y(0)} Z`}
-                />
-                {index % Math.ceil(values.length / Math.max(1, Math.floor(width / 36))) === 0 && (
-                  <text
-                    className={axisText}
-                    x={left + barWidth / 2}
-                    y={height - 6}
-                    textAnchor="middle"
-                  >
-                    {labels[index]}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-          <line
-            className="stroke-muted"
-            x1={pad.left}
-            x2={width - pad.right}
-            y1={y(mean)}
-            y2={y(mean)}
-          />
-        </svg>
-      )}
-      {hover !== null && (
-        <Tooltip x={Math.min(pad.left + hover * slot + slot, width - 150)} y={4}>
-          <TooltipTitle>{labels[hover]}</TooltipTitle>
-          <TooltipRow>
-            <TooltipValue>{fmt(values[hover])}</TooltipValue> tickets
-          </TooltipRow>
-          <TooltipRow muted>
-            {values[hover] >= mean ? "+" : ""}
-            {(((values[hover] - mean) / mean) * 100).toFixed(1)}% vs mean
-          </TooltipRow>
-        </Tooltip>
-      )}
-    </div>
-  );
-}
-
-export function StackedBar({ rows, total }: { rows: BarRow[]; total: number }) {
-  const [hover, setHover] = useState<string | null>(null);
-
-  return (
-    <>
-      <div className="flex h-3 gap-0.5 overflow-hidden rounded-md bg-hover">
-        {rows.map((row, index) => (
-          <span
-            key={row.label}
-            className={cn("h-full", SEGMENT_FILLS[index], hover === row.label && "brightness-125")}
-            style={{ width: `${(row.value / total) * 100}%` }}
-            title={`${row.label}: ${row.value.toLocaleString("en-US")}`}
-            onPointerEnter={() => setHover(row.label)}
-            onPointerLeave={() => setHover(null)}
-          />
-        ))}
-      </div>
-      <div className="mt-4 grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-        {rows.map((row, index) => (
-          <span
-            key={row.label}
-            className={cn(
-              "flex h-8 items-center gap-2 border-b border-divider text-sm text-secondary",
-              hover === row.label && "text-foreground",
-            )}
-            onPointerEnter={() => setHover(row.label)}
-            onPointerLeave={() => setHover(null)}
-          >
-            <i className={cn("size-2 rounded-sm", SEGMENT_FILLS[index])} />
+          <span className="bar-name">
             {row.label}
-            <b className="ml-auto font-medium text-foreground tabular-nums">
-              {row.value.toLocaleString("en-US")}
-              <small className="ml-1.5 text-xs font-normal text-muted">
-                {((row.value / total) * 100).toFixed(0)}%
-              </small>
-            </b>
+            {row.note && <small>{row.note}</small>}
           </span>
-        ))}
-      </div>
-    </>
+          <span className="bar-track">
+            <span
+              className={row.highlight ? "bar-fill accent" : "bar-fill"}
+              style={{ width: `${(row.value / max) * 100}%` }}
+            />
+          </span>
+          <span className="bar-value num">
+            {row.value.toLocaleString("en-US")}
+            {total !== undefined && <small>{((row.value / total) * 100).toFixed(1)}%</small>}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
