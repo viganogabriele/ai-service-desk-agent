@@ -1,0 +1,10 @@
+{
+  "records": [
+    {"Work type": "Incident", "Affected Business or IT Services": ["Trading Platform"]},
+    {"Work type": "Incident", "Affected Business or IT Services": ["Fund Pricing"]},
+    {"Work type": "Service Request", "Affected Business or IT Services": ["CRM & Client Portal"]},
+    {"Work type": "Incident", "Affected Business or IT Services": ["Portfolio Accounting"]},
+    {"Work type": "Service Request", "Affected Business or IT Services": ["SharePoint & File Storage"]},
+    {"Work type": "Service Request", "Affected Business or IT Services": ["Tax Reporting"]}
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "records": [
+    {
+      "Request type": "Human Created Incident",
+      "Summary": "Execution desk cannot submit trades after FIX session disconnect",
+      "Description": "The primary venue session has stayed disconnected for 30 minutes; four traders cannot submit orders. A secondary venue is available but requires manual rekeying.",
+      "Affected Business or IT Services": ["Outlook & Email"],
+      "Business Entity": ["Switzerland"],
+      "All Comments": []
+    },
+    {
+      "Request type": "Machine Created Alert",
+      "Summary": "Stale bond price from overnight source",
+      "Description": "The pricing snapshot for a bond did not refresh and the price tolerance control blocked today's valuation for one fund.",
+      "Affected Business or IT Services": ["Fund Pricing"],
+      "Business Entity": ["Luxembourg"],
+      "All Comments": []
+    },
+    {
+      "Request type": "Access to a Service",
+      "Summary": "Please grant relationship manager access",
+      "Description": "A new relationship manager needs the client interaction history in CRM. Manager approval is attached; no service is failing.",
+      "Affected Business or IT Services": ["Emailed Support Tickets"],
+      "Business Entity": ["France"],
+      "All Comments": []
+    },
+    {
+      "Request type": "Human Created Incident",
+      "Summary": "Month-end holdings do not reconcile to ledger",
+      "Description": "The accounting team sees a position break between the book of record and general ledger for one portfolio at close.",
+      "Affected Business or IT Services": ["Portfolio Accounting"],
+      "Business Entity": ["Germany"],
+      "All Comments": []
+    },
+    {
+      "Request type": "Misclassified Incident Title",
+      "Summary": "Urgent outage: new SharePoint workspace needed",
+      "Description": "No existing workspace is unavailable. Please create a document library for the project group and grant the approved members edit rights.",
+      "Affected Business or IT Services": ["SharePoint & File Storage"],
+      "Business Entity": ["Nordics"],
+      "All Comments": []
+    },
+    {
+      "Request type": "New License",
+      "Summary": "Tax analyst needs another seat for quarterly filing",
+      "Description": "The tax lead approved an additional license for the withholding tax extract tool for a new analyst.",
+      "Affected Business or IT Services": ["Regulatory Reporting"],
+      "Business Entity": ["Germany"],
+      "All Comments": []
+    }
+  ]
+}
