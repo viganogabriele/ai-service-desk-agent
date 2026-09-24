@@ -2,6 +2,7 @@ import { Link, Outlet, createRootRoute, useMatchRoute, useParams } from "@tansta
 import { ChartColumn, ChevronRight, Inbox, Undo2, Waypoints, X } from "lucide-react";
 import { DashboardProvider, useDashboard } from "../state";
 import { TicketFiltersProvider, isOpen } from "../components/tickets";
+import { ThemeToggle } from "../components/theme";
 
 export const Route = createRootRoute({ component: Root });
 
@@ -91,6 +92,9 @@ function Shell() {
               <span aria-current="page">Overview</span>
             )}
           </nav>
+          <div className="header-actions">
+            <ThemeToggle />
+          </div>
         </header>
         <main className={ticketId ? "main wide" : "main"}>
           <Outlet />
