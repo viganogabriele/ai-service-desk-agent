@@ -29,7 +29,6 @@ import {
   Initials,
   PriorityBadge,
   StatusPill,
-  isOpen,
   personName,
   useTicketRows,
 } from "../components/tickets";
@@ -187,8 +186,6 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
   const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move } =
     useDashboard();
 
-  const navigate = useNavigate();
-  const { rows, visible } = useTicketRows();
   const current = review(index);
   const proposal = proposalFor(index);
 
@@ -212,16 +209,6 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
   const references = (data.similar[ticketId] ?? []).filter(
     (item) => item.service === triage.service && item.similarity >= REFERENCE_SIMILARITY,
   );
-
-  function goNext() {
-    const order = visible.some((row) => row.index === index) ? visible : rows;
-
-    const next =
-      order.find((row) => row.index !== index && isOpen(review(row.index).status)) ??
-      rows.find((row) => row.index !== index && isOpen(review(row.index).status));
-
-    if (next) void navigate({ to: "/tickets/$ticketId", params: { ticketId: next.id } });
-  }
 
   const closed = current.status === "resolved";
   const decided = current.status !== "new" && current.status !== "in_progress";
@@ -525,10 +512,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     <button
                       className="button primary large"
                       disabled={!triage.assignee || !current.reply.trim()}
-                      onClick={() => {
-                        resolve(index);
-                        goNext();
-                      }}
+                      onClick={() => resolve(index)}
                     >
                       <CircleCheck size={16} strokeWidth={2} />
                       Resolve ticket
@@ -552,10 +536,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     <button
                       className="button primary large"
                       disabled={!triage.assignee || !current.question.trim()}
-                      onClick={() => {
-                        askReporter(index);
-                        goNext();
-                      }}
+                      onClick={() => askReporter(index)}
                     >
                       <Send size={16} strokeWidth={2} />
                       Send question
@@ -582,10 +563,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     <button
                       className="button primary large"
                       disabled={current.status === "assigned"}
-                      onClick={() => {
-                        assign(index);
-                        goNext();
-                      }}
+                      onClick={() => assign(index)}
                     >
                       <Users size={16} strokeWidth={2} />
                       Assign ticket
