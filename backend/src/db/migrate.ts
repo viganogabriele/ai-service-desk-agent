@@ -2,7 +2,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { SQL } from "bun";
 
-// Resolved from the working directory: scripts always run from jira/backend.
+// Resolved from the working directory: scripts always run from backend/.
 const MIGRATIONS_DIR = join(process.cwd(), "db", "migrations");
 
 /** Applies every db/migrations/*.sql not applied yet, each in its own transaction. */

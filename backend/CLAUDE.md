@@ -1,4 +1,4 @@
-# Agent instructions — jira/backend
+# Agent instructions — backend
 
 This backend is the **ingestion/sync layer and gateway** of `CORE_API.md` §2.
 Everything goes through it: the UI calls only this backend, the Core (the AI,
