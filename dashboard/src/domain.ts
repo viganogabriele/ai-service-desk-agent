@@ -1,3 +1,5 @@
+import type { Tone } from "./components/ui/badge";
+
 export const SERVICES = [
   ["Trading Platform", "Investment Operations", "Critical"],
   ["Trade Matching", "Investment Operations", "Critical"],
@@ -187,22 +189,22 @@ export const STATUS_LABELS: Record<ReviewStatus, string> = {
   clarification_requested: "Clarification",
 };
 
-export const STATUS_DOTS: Record<ReviewStatus, string> = {
-  to_process: "",
+export const STATUS_DOTS: Record<ReviewStatus, Tone> = {
+  to_process: "muted",
   proposed: "secondary",
-  in_review: "bright",
-  accepted: "green",
-  modified_accepted: "green",
-  escalated: "amber",
-  clarification_requested: "cyan",
+  in_review: "foreground",
+  accepted: "success",
+  modified_accepted: "success",
+  escalated: "warning",
+  clarification_requested: "info",
 };
 
-export const PRIORITY_DOTS: Record<Level, string> = {
-  Highest: "red",
-  High: "amber",
+export const PRIORITY_DOTS: Record<Level, Tone> = {
+  Highest: "danger",
+  High: "warning",
   Medium: "secondary",
-  Low: "",
-  Lowest: "",
+  Low: "muted",
+  Lowest: "muted",
 };
 
 export const ESCALATION_REASONS = [
