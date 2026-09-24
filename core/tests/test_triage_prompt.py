@@ -86,6 +86,23 @@ def test_evidence_prompt_contains_only_ticket_and_decisions():
     assert "Scope of" not in text and "Cleared a lock." not in text and "x@intcom.com" not in text
 
 
+def test_optional_call_errors_keep_final_triage():
+    class R:
+        def retrieve(self, record):
+            return RETRIEVED
+
+    def chat(messages, model_cls, **kw):
+        if model_cls is TriageOutput:
+            return TriageOutput(reasoning="r", work_type="Incident", service="SimCorp Dimension",
+                                urgency="High", impact="Medium", resolution="done")
+        raise RuntimeError("backend error")
+
+    out = triage_ticket(RECORD, R(), CARDS, chat=chat, n_samples=1, evidence=True)
+    assert out["triage"].service == "SimCorp Dimension"
+    assert out["samples"] == [] and out["evidence"] is None
+    assert len(out["warnings"]) == 2
+
+
 def test_prompt_hides_reported_service_and_levels():
     text = str(build_triage_messages({**RECORD, "Urgency": "SENTINEL-U"}, RETRIEVED, CARDS))
     assert "SENTINEL-U" not in text and "Reported service" not in text

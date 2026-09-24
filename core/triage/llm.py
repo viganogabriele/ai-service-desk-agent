@@ -1,9 +1,12 @@
-"""Ollama wrapper: structured JSON-schema calls, validation retries, on-disk cache."""
+"""Structured calls through Ollama or Swisscom, with validation retries and disk cache."""
 import hashlib
 import json
+import os
+import time
 from pathlib import Path
 from typing import TypeVar
 
+import httpx
 from pydantic import BaseModel, ValidationError
 
 from triage import config
@@ -39,6 +42,39 @@ def _cache_path(key: str, cache_dir: Path) -> Path:
     return cache_dir / f"{key}.json"
 
 
+def _swisscom_chat(model: str, messages: list[dict], schema: dict, options: dict) -> dict:
+    key = os.getenv("APERTUS_API_KEY")
+    if not key:
+        raise RuntimeError("APERTUS_API_KEY is required for the Swisscom provider")
+    # Swisscom's schema mode hangs on the full triage schema; JSON object mode
+    # completes, and the Pydantic validation below enforces the field contract.
+    schema_instruction = "Return one JSON object matching this schema exactly:\n" + json.dumps(schema, ensure_ascii=False)
+    prompt = [dict(message) for message in messages]
+    if prompt and prompt[0]["role"] == "system":
+        prompt[0]["content"] += "\n\n" + schema_instruction
+    else:
+        prompt.insert(0, {"role": "system", "content": schema_instruction})
+    started = time.monotonic()
+    response = httpx.post(
+        config.SWISSCOM_API_URL,
+        headers={"Authorization": f"Bearer {key}"},
+        json={
+            "model": model,
+            "messages": prompt,
+            "response_format": {"type": "json_object"},
+            "temperature": options["temperature"],
+            "seed": options["seed"],
+            "max_tokens": options["num_predict"],
+        },
+        timeout=config.LLM_TIMEOUT_S,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    choice = payload["choices"][0]
+    return {"message": {"content": choice["message"]["content"]}, "done_reason": choice["finish_reason"],
+            "usage": payload.get("usage"), "elapsed_s": round(time.monotonic() - started, 3)}
+
+
 def chat_structured(
     messages: list[dict],
     output_model: type[M],
@@ -57,31 +93,50 @@ def chat_structured(
     model = model or config.TRIAGE_MODEL
     schema = output_model.model_json_schema()
     options = _options(temperature, seed)
-    key = cache_key(model, messages, schema, options)  # the output cap is not part of the key
+    provider = config.LLM_PROVIDER
+    if provider not in ("ollama", "swisscom"):
+        raise ValueError(f"Unknown LLM provider: {provider}")
+    key_model = model if provider == "ollama" else f"{provider}:{model}"
+    key = cache_key(key_model, messages, schema, options)  # the output cap is not part of the key
     max_tokens = config.MAX_TOKENS.get(output_model.__name__, config.MAX_TOKENS_DEFAULT)
+    if provider == "swisscom" and output_model.__name__ == "TriageSample":
+        max_tokens = max(max_tokens, 200)
     path = _cache_path(key, cache_dir)
 
     if use_cache and path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))
         return output_model.model_validate_json(cached["content"])
 
-    client = client or get_client()
+    if provider == "ollama":
+        client = client or get_client()
     convo = list(messages)
     last_error: Exception | None = None
     for attempt in range(1 + config.LLM_MAX_RETRIES):
         call_options = {**options, "seed": options["seed"] + 1000 * attempt, "num_predict": max_tokens}
         try:
-            response = client.chat(model=model, messages=convo, format=schema, options=call_options,
-                                   keep_alive=config.KEEP_ALIVE)
+            if provider == "ollama":
+                response = client.chat(model=model, messages=convo, format=schema, options=call_options,
+                                       keep_alive=config.KEEP_ALIVE)
+            else:
+                response = _swisscom_chat(model, convo, schema, call_options)
         except Exception as e:  # noqa: BLE001 - timeouts / transient backend errors are retried
             if not _is_transient(e):
                 raise
             last_error = e
+            if isinstance(e, httpx.HTTPStatusError) and e.response.status_code == 429:
+                time.sleep(min(float(e.response.headers.get("retry-after", "5")), 60))
             continue
         content = response["message"]["content"]
         if _field(response, "done_reason") == "length":
             last_error = RuntimeError(f"output hit the {max_tokens}-token cap")
             continue  # truncated JSON: retry with the shifted seed, do not feed the garbage back
+        if provider == "swisscom":
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, dict) and list(parsed) == [output_model.__name__]:
+                content = json.dumps(parsed[output_model.__name__], ensure_ascii=False)
         try:
             result = output_model.model_validate_json(content)
         except ValidationError as e:
@@ -95,7 +150,9 @@ def chat_structured(
             cache_dir.mkdir(parents=True, exist_ok=True)
             path.write_text(
                 json.dumps(
-                    {"model": model, "attempts": attempt + 1, "schema": output_model.__name__, "content": content},
+                    {"provider": provider, "model": model, "attempts": attempt + 1,
+                     "schema": output_model.__name__, "content": content,
+                     "usage": _field(response, "usage"), "elapsed_s": _field(response, "elapsed_s")},
                     ensure_ascii=False,
                     indent=1,
                 ),
@@ -113,6 +170,5 @@ def _field(response, name: str):
 
 
 def _is_transient(e: Exception) -> bool:
-    import httpx
-
-    return isinstance(e, (httpx.TimeoutException, httpx.NetworkError))
+    return (isinstance(e, (httpx.TimeoutException, httpx.NetworkError)) or
+            isinstance(e, httpx.HTTPStatusError) and e.response.status_code in (429, 500, 502, 503, 504))

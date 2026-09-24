@@ -12,8 +12,8 @@ from triage.retrieval import Retriever
 from triage.schemas import DecisionsFile
 from triage.triage import run_batch, triage_versions, utc_now
 
-FIRM = ("service", "work_type", "resolution")
-SOFT = ("urgency", "impact", "priority")
+CORE_FIELDS = ("service", "work_type", "resolution")
+SEVERITY_FIELDS = ("urgency", "impact", "priority")
 
 
 def load_labelled(path: Path) -> list[tuple[str, dict, dict]]:
@@ -45,7 +45,7 @@ def score(runs, labelled) -> dict:
         pat = d["service"].evidence.patterns[0] if d["service"].evidence.patterns else None
         rows.append({
             "id": tid, "kind": label.get("kind", "-"), "label": label,
-            "pred": {f: d[f].value for f in FIRM + SOFT},
+            "pred": {f: d[f].value for f in CORE_FIELDS + SEVERITY_FIELDS},
             "service_conf": d["service"].confidence,
             "top_pattern": pat.pattern_id if pat else None,
             "top_resolver": pat.resolver if pat else None,
@@ -58,9 +58,16 @@ def score(runs, labelled) -> dict:
     evidence = (sum(bool(d.evidence.ticket_spans) for d in ai), len(ai))
     res = {"n": len(rows), "failed": len(rows) - len(ok), "fields": {}, "by_kind": {}, "rows": rows,
            "evidence": evidence}
+    res["comments"] = {
+        "written": sum(run.resolution_comment is not None for run in runs if run.status == "completed"),
+        "errors": sum(bool(run.error and "comment:" in run.error) for run in runs),
+        "flagged": sum(bool(run.resolution_comment and run.resolution_comment.unsupported_specifics)
+                       for run in runs),
+    }
+    res["completed_with_warnings"] = sum(bool(run.error) for run in runs if run.status == "completed")
     named = [r for r in ok if not r["label"].get("names_service")]
     res["service_unnamed"] = (sum(r["pred"]["service"] == r["label"]["service"] for r in named), len(named))
-    for f in FIRM + SOFT:
+    for f in CORE_FIELDS + SEVERITY_FIELDS:
         scored = [r for r in ok if r["label"].get(f)]
         res["fields"][f] = (sum(r["pred"][f] == r["label"][f] for r in scored), len(scored))
     for kind in sorted({r["kind"] for r in ok}):
@@ -99,10 +106,15 @@ def _dist(xs: list[float]) -> str:
 def format_report(res: dict, elapsed: float) -> str:
     lines = [f"Tickets: {res['n']} ({res['failed']} failed), {elapsed:.0f}s total, "
              f"{elapsed / max(1, res['n']):.1f}s per ticket"]
-    lines.append("Accuracy (firm): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in FIRM))
-    lines.append("Accuracy (soft): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in SOFT))
+    lines.append(f"Completed with optional-stage warnings: {res['completed_with_warnings']}")
+    lines.append("Label match (core): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in CORE_FIELDS))
+    lines.append("Label match (severity): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in SEVERITY_FIELDS))
     lines.append(f"Service on tickets that never name it: {_pct(*res['service_unnamed'])}")
     lines.append(f"AI fields with >= 1 verified evidence span: {_pct(*res['evidence'])}")
+    comments = res["comments"]
+    if comments["written"] or comments["errors"]:
+        lines.append(f"Draft comments: {comments['written']} written, {comments['errors']} errors, "
+                     f"{comments['flagged']} with unsupported specifics (needs human review)")
     lines.append("Service by kind: " + "  ".join(f"{k} {_pct(*v)}" for k, v in res["by_kind"].items()))
     c = res["conf"]
     lines.append(f"Service confidence when right: {_dist(c['right'])}")
@@ -128,14 +140,18 @@ def format_report(res: dict, elapsed: float) -> str:
 
 
 def evaluate_file(path: str, n_samples: int = config.SELF_CONSISTENCY_N, evidence: bool = False,
-                  run_id: str | None = None) -> tuple[DecisionsFile, dict, str]:
+                  run_id: str | None = None, comment: bool = False,
+                  concurrency: int = config.LLM_CONCURRENCY,
+                  limit: int | None = None) -> tuple[DecisionsFile, dict, str]:
     catalog, cards = load_catalog(), load_service_cards()
     retriever = Retriever(catalog, cards)
     labelled = load_labelled(Path(path))
+    if limit is not None:
+        labelled = labelled[:limit]
     run_id = run_id or time.strftime("%Y%m%d-%H%M%S")
     versions, created, t0 = triage_versions(), utc_now(), time.time()
     runs = run_batch([(tid, ticket) for tid, ticket, _ in labelled], run_id, retriever, cards, catalog, versions,
-                     n_samples=n_samples, evidence=evidence, comment=False)
+                     n_samples=n_samples, evidence=evidence, comment=comment, concurrency=concurrency)
     res = score(runs, labelled)
     report = format_report(res, time.time() - t0)
     return DecisionsFile(run_id=run_id, created_at=created, source_file=str(path), versions=versions, runs=runs), res, report

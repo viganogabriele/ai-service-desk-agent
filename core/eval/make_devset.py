@@ -93,15 +93,22 @@ def _names_service(ticket: DevTicket, service: str) -> bool:
 
 
 def _generate(user: str, rng: random.Random, avoid: list[str]) -> DevTicket:
-    """Retry (up to 4 seeds) until the ticket names none of the `avoid` services: its
+    """Retry until the ticket names none of the `avoid` services: its
     true service, and the wrong reported one (that must only live in the reported field)."""
-    for attempt in range(4):
-        seed = rng.randrange(1, 10**6)
-        t = chat_structured([{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}], DevTicket,
+    forbidden = sorted({word for service in avoid for word in [service, *GIVEAWAYS.get(service, [])]})
+    extra_rng = None
+    for attempt in range(12):
+        if attempt == 4:
+            extra_rng = random.Random(repr(rng.getstate()))
+        seed = (extra_rng or rng).randrange(1, 10**6)
+        prompt = user
+        if attempt >= 4:
+            prompt += "\nDo not use any of these service or product names: " + ", ".join(forbidden)
+        t = chat_structured([{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}], DevTicket,
                             temperature=GEN_TEMPERATURE, seed=seed)
         if not any(_names_service(t, s) for s in avoid):
             return t
-    return t  # keep the last one; it is marked below
+    raise RuntimeError(f"Could not generate a ticket without naming {avoid}")
 
 
 # The 7b picks request types poorly (e.g. "New License" for a price-feed incident), so the

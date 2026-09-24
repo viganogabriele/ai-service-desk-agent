@@ -1,5 +1,6 @@
 import json
 
+import httpx
 import pytest
 from pydantic import BaseModel
 
@@ -84,3 +85,40 @@ def test_timeout_retried_other_errors_raised(tmp_path):
     assert chat_structured(MSG, Out, model="m", cache_dir=tmp_path, client=client).n == 4
     with pytest.raises(ValueError):
         chat_structured(MSG, Out, model="m2", cache_dir=tmp_path, client=FakeClient([ValueError("bug")]))
+
+
+def test_swisscom_uses_json_object_and_validates_result(tmp_path, monkeypatch):
+    from triage import config
+
+    sent = []
+
+    def post(url, **kwargs):
+        sent.append(kwargs["json"])
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": '{"level":"Low","n":2}'},
+                                     "finish_reason": "stop"}]},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "swisscom")
+    monkeypatch.setenv("APERTUS_API_KEY", "test-key")
+    monkeypatch.setattr("triage.llm.httpx.post", post)
+    assert chat_structured(MSG, Out, model="swiss-ai/Apertus-v1.5-70B", cache_dir=tmp_path) == Out(level="Low", n=2)
+    assert sent[0]["response_format"] == {"type": "json_object"}
+    assert "level" in sent[0]["messages"][0]["content"]
+
+
+def test_swisscom_unwraps_schema_named_object(tmp_path, monkeypatch):
+    from triage import config
+
+    def post(url, **kwargs):
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": '{"Out":{"level":"Low","n":2}}'},
+                                     "finish_reason": "stop"}]},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "swisscom")
+    monkeypatch.setenv("APERTUS_API_KEY", "test-key")
+    monkeypatch.setattr("triage.llm.httpx.post", post)
+    assert chat_structured(MSG, Out, model="m", cache_dir=tmp_path) == Out(level="Low", n=2)

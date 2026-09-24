@@ -21,7 +21,12 @@ LLM_CACHE_DIR = ARTIFACTS_DIR / "llm_cache"
 
 # --- Models ------------------------------------------------------------------
 # Self-hosted Ollama on the team Mac mini, reached over Tailscale (not a cloud LLM).
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://100.87.163.97:11434")
+SWISSCOM_API_URL = os.getenv(
+    "SWISSCOM_API_URL",
+    "https://api.swisscom.com/products/swiss-ai-weeks/apertus-1.5-70b/v1/chat/completions",
+)
 # AGENTS.md default is qwen2.5:14b; the Mac mini currently runs the 7b variant.
 TRIAGE_MODEL = os.getenv("TRIAGE_MODEL", "qwen2.5:7b")
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"

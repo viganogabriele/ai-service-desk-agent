@@ -96,16 +96,25 @@ def triage_ticket(record: dict, retriever, cards: dict, chat=chat_structured,
                   n_samples: int = config.SELF_CONSISTENCY_N, evidence: bool = config.EVIDENCE_ENABLED) -> dict:
     """Final values from one temperature-0 call with short reasoning; `n_samples` seeded
     samples without reasoning feed self-consistency; an optional small evidence call
-    (ticket + decisions only, so it can only quote the ticket) yields the quotes."""
+    (ticket + decisions only) yields quotes. Optional call errors are returned as
+    warnings so a valid final decision can still be reviewed."""
     retrieved = retriever.retrieve(record)
     messages = build_triage_messages(record, retrieved, cards)
     final = chat(messages, TriageOutput)
-    samples = [
-        chat(messages, TriageSample, temperature=config.SAMPLE_TEMPERATURE, seed=seed)
-        for seed in config.SAMPLE_SEEDS[:n_samples]
-    ]
-    quotes = chat(build_evidence_messages(record, final), TriageEvidence) if evidence else None
-    return {"triage": final, "samples": samples, "evidence": quotes, "retrieved": retrieved, "messages": messages}
+    samples, warnings = [], []
+    for seed in config.SAMPLE_SEEDS[:n_samples]:
+        try:
+            samples.append(chat(messages, TriageSample, temperature=config.SAMPLE_TEMPERATURE, seed=seed))
+        except Exception as exc:  # noqa: BLE001 - a sample must not discard the final decision
+            warnings.append(f"sample {seed}: {type(exc).__name__}: {exc}")
+    quotes = None
+    if evidence:
+        try:
+            quotes = chat(build_evidence_messages(record, final), TriageEvidence)
+        except Exception as exc:  # noqa: BLE001 - evidence is optional; absent spans remain visible
+            warnings.append(f"evidence: {type(exc).__name__}: {exc}")
+    return {"triage": final, "samples": samples, "evidence": quotes, "retrieved": retrieved,
+            "messages": messages, "warnings": warnings}
 
 
 def utc_now() -> str:
@@ -154,14 +163,14 @@ def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict
         decisions["assignee"] = assignee_decision(decisions["service"], out["retrieved"], catalog, original)
         decisions = calibrate(decisions, calibration, ["assignee"])
         lane, reasons, sampled = assign_lane(decisions, run_id, policy)
-        resolution_comment, error = None, None
+        resolution_comment, errors = None, out["warnings"]
         if comment:
             try:
                 resolution_comment = generate_comment(record, decisions, out["retrieved"], catalog, chat=chat)
             except Exception as e:  # noqa: BLE001 - the decisions stand without a comment
-                error = f"comment: {type(e).__name__}: {e}"
+                errors.append(f"comment: {type(e).__name__}: {e}")
         return RunRecord(**base, status="completed", completed_at=utc_now(), decisions=decisions,
-                         resolution_comment=resolution_comment, error=error,
+                         resolution_comment=resolution_comment, error="; ".join(errors) or None,
                          lane=lane, lane_reasons=reasons, audit_sampled=sampled, reasoning=out["triage"].reasoning)
     except Exception as e:  # noqa: BLE001 - recorded on the run, as the API would
         return RunRecord(**base, status="failed", completed_at=utc_now(), error=f"{type(e).__name__}: {e}")
