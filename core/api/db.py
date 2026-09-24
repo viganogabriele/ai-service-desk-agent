@@ -1,0 +1,216 @@
+"""SQLite store (data/core.db): tickets, snapshots, runs, overrides, acceptances, comments,
+batches and the append-only event log. JSON columns for records. Thread-safe via one lock."""
+import json
+import sqlite3
+import threading
+import uuid
+from pathlib import Path
+
+from triage.schemas import ResolutionCommentRecord, RunRecord
+from triage.triage import utc_now
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS tickets (
+  ticket_id TEXT PRIMARY KEY, external_key TEXT UNIQUE NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS snapshots (
+  snapshot_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, content_hash TEXT NOT NULL,
+  fields TEXT NOT NULL, received_at TEXT NOT NULL, UNIQUE (ticket_id, content_hash));
+CREATE TABLE IF NOT EXISTS runs (
+  run_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, snapshot_id TEXT NOT NULL, mode TEXT NOT NULL,
+  status TEXT NOT NULL, created_at TEXT NOT NULL, record TEXT);
+CREATE TABLE IF NOT EXISTS overrides (
+  override_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, field TEXT NOT NULL, old_value TEXT,
+  new_value TEXT, reason_code TEXT NOT NULL, note TEXT, actor TEXT NOT NULL, base_run_id TEXT NOT NULL,
+  created_at TEXT NOT NULL, forced INTEGER NOT NULL DEFAULT 0, cascaded_from TEXT, seq INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS acceptances (
+  acceptance_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, run_id TEXT NOT NULL, fields TEXT NOT NULL,
+  actor TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS comments (
+  comment_id TEXT PRIMARY KEY, ticket_id TEXT NOT NULL, run_id TEXT, record TEXT NOT NULL,
+  origin TEXT NOT NULL, actor TEXT, created_at TEXT NOT NULL, seq INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS batches (
+  batch_id TEXT PRIMARY KEY, meta TEXT NOT NULL, ticket_ids TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS events (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL, type TEXT NOT NULL, occurred_at TEXT NOT NULL,
+  ticket_id TEXT, run_id TEXT, payload TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS counters (name TEXT PRIMARY KEY, value INTEGER NOT NULL);
+"""
+
+
+def new_id(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:12]}"
+
+
+class Database:
+    def __init__(self, path: str | Path):
+        if str(path) != ":memory:":
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(str(path), check_same_thread=False)
+        self.conn.row_factory = sqlite3.Row
+        self.lock = threading.RLock()
+        with self.lock:
+            self.conn.execute("PRAGMA journal_mode=WAL")
+            self.conn.executescript(SCHEMA)
+
+    # -- helpers ------------------------------------------------------------
+    def _one(self, sql: str, args=()) -> sqlite3.Row | None:
+        with self.lock:
+            return self.conn.execute(sql, args).fetchone()
+
+    def _all(self, sql: str, args=()) -> list[sqlite3.Row]:
+        with self.lock:
+            return self.conn.execute(sql, args).fetchall()
+
+    def _write(self, sql: str, args=()) -> int:
+        with self.lock, self.conn:
+            return self.conn.execute(sql, args).lastrowid
+
+    def _bump(self) -> int:
+        """Next value of the global sequence shared by overrides and comments (call inside
+        a transaction), so 'was this comment written before that override?' is exact."""
+        self.conn.execute("INSERT INTO counters VALUES ('global', 1) ON CONFLICT(name) DO UPDATE SET value = value + 1")
+        return self.conn.execute("SELECT value FROM counters WHERE name = 'global'").fetchone()[0]
+
+    # -- tickets & snapshots -------------------------------------------------
+    def ticket_by_key(self, external_key: str) -> dict | None:
+        row = self._one("SELECT * FROM tickets WHERE external_key = ?", (external_key,))
+        return dict(row) if row else None
+
+    def ticket(self, ticket_id: str) -> dict | None:
+        row = self._one("SELECT * FROM tickets WHERE ticket_id = ?", (ticket_id,))
+        return dict(row) if row else None
+
+    def create_ticket(self, external_key: str) -> str:
+        tid = new_id("t")
+        self._write("INSERT INTO tickets VALUES (?, ?, ?)", (tid, external_key, utc_now()))
+        return tid
+
+    def ticket_ids(self) -> list[str]:
+        return [r[0] for r in self._all("SELECT ticket_id FROM tickets ORDER BY created_at, ticket_id")]
+
+    def snapshot_by_hash(self, ticket_id: str, content_hash: str) -> dict | None:
+        row = self._one("SELECT * FROM snapshots WHERE ticket_id = ? AND content_hash = ?", (ticket_id, content_hash))
+        return self._snapshot(row)
+
+    def add_snapshot(self, ticket_id: str, content_hash: str, fields: dict) -> str:
+        sid = new_id("s")
+        self._write("INSERT INTO snapshots VALUES (?, ?, ?, ?, ?)",
+                    (sid, ticket_id, content_hash, json.dumps(fields, ensure_ascii=False), utc_now()))
+        return sid
+
+    def latest_snapshot(self, ticket_id: str) -> dict | None:
+        row = self._one("SELECT * FROM snapshots WHERE ticket_id = ? ORDER BY rowid DESC LIMIT 1", (ticket_id,))
+        return self._snapshot(row)
+
+    def snapshot(self, snapshot_id: str) -> dict | None:
+        return self._snapshot(self._one("SELECT * FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)))
+
+    @staticmethod
+    def _snapshot(row) -> dict | None:
+        return {**dict(row), "fields": json.loads(row["fields"])} if row else None
+
+    # -- runs -----------------------------------------------------------------
+    def create_run(self, ticket_id: str, snapshot_id: str, mode: str = "live") -> str:
+        rid = new_id("r")
+        self._write("INSERT INTO runs VALUES (?, ?, ?, ?, 'queued', ?, NULL)", (rid, ticket_id, snapshot_id, mode, utc_now()))
+        return rid
+
+    def set_run_status(self, run_id: str, status: str) -> None:
+        self._write("UPDATE runs SET status = ? WHERE run_id = ? AND status NOT IN ('completed', 'failed')",
+                    (status, run_id))
+
+    def finish_run(self, record: RunRecord) -> None:
+        """Store the final record once; a finished run is never modified again."""
+        self._write("UPDATE runs SET status = ?, record = ? WHERE run_id = ? AND status NOT IN ('completed', 'failed')",
+                    (record.status, record.model_dump_json(), record.run_id))
+
+    def run_row(self, run_id: str) -> dict | None:
+        row = self._one("SELECT * FROM runs WHERE run_id = ?", (run_id,))
+        return dict(row) if row else None
+
+    def run(self, run_id: str) -> RunRecord | None:
+        row = self._one("SELECT record FROM runs WHERE run_id = ?", (run_id,))
+        return RunRecord.model_validate_json(row[0]) if row and row[0] else None
+
+    def runs_for(self, ticket_id: str) -> list[dict]:
+        return [dict(r) for r in self._all("SELECT * FROM runs WHERE ticket_id = ? ORDER BY rowid", (ticket_id,))]
+
+    def latest_live_run(self, ticket_id: str) -> RunRecord | None:
+        """The latest completed live run: the base of the effective state."""
+        row = self._one("SELECT record FROM runs WHERE ticket_id = ? AND mode = 'live' AND status = 'completed' "
+                        "ORDER BY rowid DESC LIMIT 1", (ticket_id,))
+        return RunRecord.model_validate_json(row[0]) if row else None
+
+    def queue_depth(self) -> int:
+        return self._one("SELECT COUNT(*) FROM runs WHERE status IN ('queued', 'running')")[0]
+
+    # -- overrides, acceptances, comments --------------------------------------
+    def add_overrides(self, ticket_id: str, base_run_id: str, actor: str, changes: list[dict]) -> list[dict]:
+        """Append user + derived overrides atomically; derived ones point at their cause."""
+        now, stored = utc_now(), []
+        with self.lock, self.conn:
+            for ch in changes:
+                oid = new_id("o")
+                cause = stored[ch["cascaded_from"]]["override_id"] if ch["cascaded_from"] is not None else None
+                seq = self._bump()
+                self.conn.execute("INSERT INTO overrides VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                  (oid, ticket_id, ch["field"], ch["old_value"], ch["new_value"], ch["reason_code"],
+                                   ch.get("note"), actor, base_run_id, now, int(ch.get("forced", False)), cause, seq))
+                stored.append({**ch, "override_id": oid, "cascaded_from": cause, "actor": actor,
+                               "base_run_id": base_run_id, "created_at": now, "seq": seq})
+        return stored
+
+    def overrides_for(self, ticket_id: str) -> list[dict]:
+        return [dict(r) for r in self._all("SELECT * FROM overrides WHERE ticket_id = ? ORDER BY seq", (ticket_id,))]
+
+    def add_acceptance(self, ticket_id: str, run_id: str, fields: list[str], actor: str) -> dict:
+        aid, now = new_id("a"), utc_now()
+        self._write("INSERT INTO acceptances VALUES (?, ?, ?, ?, ?, ?)", (aid, ticket_id, run_id, json.dumps(fields), actor, now))
+        return {"acceptance_id": aid, "ticket_id": ticket_id, "run_id": run_id, "fields": fields, "actor": actor,
+                "created_at": now}
+
+    def acceptances_for(self, ticket_id: str) -> list[dict]:
+        return [{**dict(r), "fields": json.loads(r["fields"])}
+                for r in self._all("SELECT * FROM acceptances WHERE ticket_id = ? ORDER BY rowid", (ticket_id,))]
+
+    def add_comment(self, ticket_id: str, record: ResolutionCommentRecord, origin: str, run_id: str | None = None,
+                    actor: str | None = None) -> dict:
+        cid, now = new_id("c"), utc_now()
+        with self.lock, self.conn:
+            seq = self._bump()
+            self.conn.execute("INSERT INTO comments VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                              (cid, ticket_id, run_id, record.model_dump_json(), origin, actor, now, seq))
+        return {"comment_id": cid, "origin": origin, "created_at": now, "seq": seq}
+
+    def latest_comment(self, ticket_id: str) -> dict | None:
+        row = self._one("SELECT * FROM comments WHERE ticket_id = ? ORDER BY seq DESC LIMIT 1", (ticket_id,))
+        if not row:
+            return None
+        return {**dict(row), "record": ResolutionCommentRecord.model_validate_json(row["record"])}
+
+    # -- batches --------------------------------------------------------------
+    def create_batch(self, meta: dict, ticket_ids: list[str]) -> str:
+        bid = new_id("b")
+        self._write("INSERT INTO batches VALUES (?, ?, ?, ?)",
+                    (bid, json.dumps(meta, ensure_ascii=False), json.dumps(ticket_ids), utc_now()))
+        return bid
+
+    def batch(self, batch_id: str) -> dict | None:
+        row = self._one("SELECT * FROM batches WHERE batch_id = ?", (batch_id,))
+        return {**dict(row), "meta": json.loads(row["meta"]), "ticket_ids": json.loads(row["ticket_ids"])} if row else None
+
+    # -- events ---------------------------------------------------------------
+    def append_event(self, type_: str, payload: dict, ticket_id: str | None = None, run_id: str | None = None) -> dict:
+        eid, now = new_id("ev"), utc_now()
+        seq = self._write("INSERT INTO events (event_id, type, occurred_at, ticket_id, run_id, payload) VALUES (?, ?, ?, ?, ?, ?)",
+                          (eid, type_, now, ticket_id, run_id, json.dumps(payload, ensure_ascii=False)))
+        return {"seq": seq, "event_id": eid, "type": type_, "occurred_at": now, "ticket_id": ticket_id,
+                "run_id": run_id, "payload": payload}
+
+    def events_after(self, seq: int, limit: int = 100) -> list[dict]:
+        rows = self._all("SELECT * FROM events WHERE seq > ? ORDER BY seq LIMIT ?", (seq, limit))
+        return [{**dict(r), "payload": json.loads(r["payload"])} for r in rows]
+
+    def events_for(self, ticket_id: str) -> list[dict]:
+        rows = self._all("SELECT * FROM events WHERE ticket_id = ? ORDER BY seq", (ticket_id,))
+        return [{**dict(r), "payload": json.loads(r["payload"])} for r in rows]

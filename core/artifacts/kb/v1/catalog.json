@@ -1,0 +1,400 @@
+{
+  "version": 1,
+  "source": {
+    "file": "jira_first_20000_requested_fields_synthetic.json",
+    "sha256": "6f3ad42cbe5095d6541c47095258c233554c1da46fbc47c529735667876f8844",
+    "n_records": 20000
+  },
+  "service_team": {
+    "CRM & Client Portal": "Client Services",
+    "Cash Management": "Treasury & Cash",
+    "Client Reporting": "Client Services",
+    "Corporate Actions": "Securities Operations",
+    "Emailed Support Tickets": "Service Desk",
+    "Fund Pricing": "Valuation & Pricing",
+    "Identity & Access Management": "Enterprise Applications",
+    "NAV Calculation": "Valuation & Pricing",
+    "Order Management": "Trading Support",
+    "Outlook & Email": "Enterprise Applications",
+    "Portfolio Accounting": "Investment Operations",
+    "Regulatory Reporting": "Risk & Controls",
+    "Rimes Data Feed": "Market Data Services",
+    "Risk & Compliance Monitoring": "Risk & Controls",
+    "Securities Settlement": "Securities Operations",
+    "SharePoint & File Storage": "Enterprise Applications",
+    "SimCorp Dimension": "Enterprise Applications",
+    "Tax Reporting": "Tax & Reporting",
+    "Trade Matching": "Investment Operations",
+    "Trading Platform": "Investment Operations"
+  },
+  "criticality": {
+    "CRM & Client Portal": "Non-Critical",
+    "Cash Management": "Critical",
+    "Client Reporting": "Critical",
+    "Corporate Actions": "Critical",
+    "Emailed Support Tickets": "Non-Critical",
+    "Fund Pricing": "Critical",
+    "Identity & Access Management": "Non-Critical",
+    "NAV Calculation": "Critical",
+    "Order Management": "Critical",
+    "Outlook & Email": "Non-Critical",
+    "Portfolio Accounting": "Critical",
+    "Regulatory Reporting": "Critical",
+    "Rimes Data Feed": "Critical",
+    "Risk & Compliance Monitoring": "Critical",
+    "Securities Settlement": "Critical",
+    "SharePoint & File Storage": "Non-Critical",
+    "SimCorp Dimension": "Critical",
+    "Tax Reporting": "Non-Critical",
+    "Trade Matching": "Critical",
+    "Trading Platform": "Critical"
+  },
+  "patterns": [
+    {
+      "id": "P01",
+      "service": "Cash Management",
+      "team": "Treasury & Cash",
+      "resolver": "vincent.lange@intcom.com",
+      "count": 274,
+      "text": "Resolution: Reconciled the cash ledger against the bank statement and found the sweep missed the prior day's cutoff; booked a value-dated adjustment and confirmed the balance with the desk."
+    },
+    {
+      "id": "P02",
+      "service": "Cash Management",
+      "team": "Treasury & Cash",
+      "resolver": "vincent.lange@intcom.com",
+      "count": 272,
+      "text": "Resolution: Traced the shortfall to a missed banking cutoff on the margin sweep; corrected with an intraday adjustment and confirmed with Treasury."
+    },
+    {
+      "id": "P03",
+      "service": "Client Reporting",
+      "team": "Client Services",
+      "resolver": "pierre.johnson@intcom.com",
+      "count": 281,
+      "text": "Resolution: The fee section was suppressed by a broken conditional in the report template; fixed the condition, regenerated the client batch, and confirmed the fee table now renders correctly."
+    },
+    {
+      "id": "P04",
+      "service": "Client Reporting",
+      "team": "Client Services",
+      "resolver": "pierre.johnson@intcom.com",
+      "count": 288,
+      "text": "Resolution: Traced the defect to a template rendering condition that evaluated incorrectly in production. Corrected the template logic, reran the affected batch, and spot-checked output PDFs before release."
+    },
+    {
+      "id": "P05",
+      "service": "Corporate Actions",
+      "team": "Securities Operations",
+      "resolver": "ursula.klassen@intcom.com",
+      "count": 291,
+      "text": "Resolution: Root cause was an incomplete option-code mapping for a batch of events; corrected the mapping and reprocessed, verifying elections appeared on the dashboard."
+    },
+    {
+      "id": "P06",
+      "service": "Corporate Actions",
+      "team": "Securities Operations",
+      "resolver": "ursula.klassen@intcom.com",
+      "count": 303,
+      "text": "Resolution: Several events were missing option code mappings after ingestion. Updated the mapping table, reprocessed the feed, and confirmed elections displayed correctly."
+    },
+    {
+      "id": "P07",
+      "service": "Order Management",
+      "team": "Trading Support",
+      "resolver": "victor.hamon@intcom.com",
+      "count": 270,
+      "text": "Resolution: A stale clearing account mapping from a recent broker change was blocking order routing. Corrected the mapping, tested with one order, then released the remaining held orders."
+    },
+    {
+      "id": "P08",
+      "service": "Order Management",
+      "team": "Trading Support",
+      "resolver": "victor.hamon@intcom.com",
+      "count": 289,
+      "text": "Resolution: Diagnosed a broken broker routing link after the account switch; updated the routing table and confirmed subsequent orders flowed through without manual intervention."
+    },
+    {
+      "id": "P09",
+      "service": "Outlook & Email",
+      "team": "Enterprise Applications",
+      "resolver": "jack.martin@intcom.com",
+      "count": 313,
+      "text": "Resolution: Reclassified the ticket as a service request, then provisioned the requested shared mailbox and distribution list with the correct access permissions."
+    },
+    {
+      "id": "P10",
+      "service": "Outlook & Email",
+      "team": "Enterprise Applications",
+      "resolver": "jack.martin@intcom.com",
+      "count": 301,
+      "text": "Resolution: Set up the shared mailbox and DL as requested, granted the team the necessary send/access rights, and confirmed visibility in Outlook."
+    },
+    {
+      "id": "P11",
+      "service": "Regulatory Reporting",
+      "team": "Risk & Controls",
+      "resolver": "tara.singh@intcom.com",
+      "count": 295,
+      "text": "Resolution: Submission was rejected due to missing classification data on new entity records. Updated the master data, regenerated the file, and resubmitted successfully."
+    },
+    {
+      "id": "P12",
+      "service": "Regulatory Reporting",
+      "team": "Risk & Controls",
+      "resolver": "tara.singh@intcom.com",
+      "count": 284,
+      "text": "Resolution: Traced the gateway rejection to incomplete counterparty classification; corrected the records, regenerated the submission, and confirmed acceptance."
+    },
+    {
+      "id": "P13",
+      "service": "Securities Settlement",
+      "team": "Securities Operations",
+      "resolver": "ursula.klassen@intcom.com",
+      "count": 193,
+      "text": "Resolution: Custodian was late sending status updates; paused automated fail-chasing while we waited, then matched statements and reconciled the backlog once messages came through."
+    },
+    {
+      "id": "P14",
+      "service": "Securities Settlement",
+      "team": "Securities Operations",
+      "resolver": "xena.schmidt@intcom.com",
+      "count": 210,
+      "text": "Resolution: Reviewed the settlement message queue, cleared several stuck acknowledgements, and replayed the pending confirmations so custody statuses synced back to the dashboard."
+    },
+    {
+      "id": "P15",
+      "service": "Securities Settlement",
+      "team": "Securities Operations",
+      "resolver": "xena.schmidt@intcom.com",
+      "count": 194,
+      "text": "Resolution: Root cause was a stalled consumer on the settlement queue. Restarted the listener, replayed the backlog, and confirmed downstream custody records caught up."
+    },
+    {
+      "id": "P16",
+      "service": "SimCorp Dimension",
+      "team": "Enterprise Applications",
+      "resolver": "xena.schmidt@intcom.com",
+      "count": 315,
+      "text": "Resolution: Diagnosed a timeout on the position sync job caused by a locked staging table; cleared the session and reran the sync, confirming holdings matched afterward."
+    },
+    {
+      "id": "P17",
+      "service": "SimCorp Dimension",
+      "team": "Enterprise Applications",
+      "resolver": "xena.schmidt@intcom.com",
+      "count": 281,
+      "text": "Resolution: Replication job had stalled due to a temporary database lock. Cleared the lock, restarted the job from its last checkpoint, and reconciled positions against downstream reporting."
+    },
+    {
+      "id": "P18",
+      "service": "Tax Reporting",
+      "team": "Tax & Reporting",
+      "resolver": "tania.gupta@intcom.com",
+      "count": 270,
+      "text": "Resolution: Confirmed the withholding tax workflow license was provisioned and validated the user could access the quarterly extract tool."
+    },
+    {
+      "id": "P19",
+      "service": "Tax Reporting",
+      "team": "Tax & Reporting",
+      "resolver": "tania.gupta@intcom.com",
+      "count": 287,
+      "text": "Resolution: Reviewed the request with the tax team lead, granted the standard processing entitlement, and verified access to the output workspace."
+    },
+    {
+      "id": "P20",
+      "service": "Trade Matching",
+      "team": "Investment Operations",
+      "resolver": "quinn.anderson@intcom.com",
+      "count": 323,
+      "text": "Resolution: Adapter was rejecting allocations due to an incomplete broker account setup. Corrected the setup, reprocessed the batch, and validated matching status for all affected trades."
+    },
+    {
+      "id": "P21",
+      "service": "Trade Matching",
+      "team": "Investment Operations",
+      "resolver": "quinn.anderson@intcom.com",
+      "count": 280,
+      "text": "Resolution: Found a missing broker SSI mapping causing allocation rejections. Added the mapping, replayed the rejected messages, and confirmed the trades matched successfully."
+    }
+  ],
+  "resolvers_by_service": {
+    "Cash Management": [
+      "vincent.lange@intcom.com"
+    ],
+    "Client Reporting": [
+      "pierre.johnson@intcom.com"
+    ],
+    "Corporate Actions": [
+      "ursula.klassen@intcom.com"
+    ],
+    "Order Management": [
+      "victor.hamon@intcom.com"
+    ],
+    "Outlook & Email": [
+      "jack.martin@intcom.com"
+    ],
+    "Regulatory Reporting": [
+      "tara.singh@intcom.com"
+    ],
+    "Securities Settlement": [
+      "ursula.klassen@intcom.com",
+      "xena.schmidt@intcom.com"
+    ],
+    "SimCorp Dimension": [
+      "xena.schmidt@intcom.com"
+    ],
+    "Tax Reporting": [
+      "tania.gupta@intcom.com"
+    ],
+    "Trade Matching": [
+      "quinn.anderson@intcom.com"
+    ]
+  },
+  "fallback_assignee": {
+    "CRM & Client Portal": {
+      "assignee": "carlos.ortiz@intcom.com",
+      "count": 36,
+      "runner_up_count": 35,
+      "tied_at_top": 1,
+      "total": 768
+    },
+    "Cash Management": {
+      "assignee": "nora.leclerc@intcom.com",
+      "count": 39,
+      "runner_up_count": 30,
+      "tied_at_top": 1,
+      "total": 716
+    },
+    "Client Reporting": {
+      "assignee": "frank.ross@intcom.com",
+      "count": 35,
+      "runner_up_count": 35,
+      "tied_at_top": 3,
+      "total": 746
+    },
+    "Corporate Actions": {
+      "assignee": "pierre.johnson@intcom.com",
+      "count": 37,
+      "runner_up_count": 36,
+      "tied_at_top": 1,
+      "total": 780
+    },
+    "Emailed Support Tickets": {
+      "assignee": "nora.leclerc@intcom.com",
+      "count": 207,
+      "runner_up_count": 206,
+      "tied_at_top": 1,
+      "total": 5423
+    },
+    "Fund Pricing": {
+      "assignee": "tania.gupta@intcom.com",
+      "count": 37,
+      "runner_up_count": 35,
+      "tied_at_top": 1,
+      "total": 799
+    },
+    "Identity & Access Management": {
+      "assignee": "maya.kerr@intcom.com",
+      "count": 36,
+      "runner_up_count": 32,
+      "tied_at_top": 1,
+      "total": 755
+    },
+    "NAV Calculation": {
+      "assignee": "irina.sokolov@intcom.com",
+      "count": 37,
+      "runner_up_count": 35,
+      "tied_at_top": 1,
+      "total": 737
+    },
+    "Order Management": {
+      "assignee": "adam.paul@intcom.com",
+      "count": 41,
+      "runner_up_count": 34,
+      "tied_at_top": 1,
+      "total": 739
+    },
+    "Outlook & Email": {
+      "assignee": "carla.dubois@intcom.com",
+      "count": 38,
+      "runner_up_count": 32,
+      "tied_at_top": 1,
+      "total": 805
+    },
+    "Portfolio Accounting": {
+      "assignee": "ulrich.fischer@intcom.com",
+      "count": 38,
+      "runner_up_count": 36,
+      "tied_at_top": 1,
+      "total": 774
+    },
+    "Regulatory Reporting": {
+      "assignee": "maya.kerr@intcom.com",
+      "count": 42,
+      "runner_up_count": 36,
+      "tied_at_top": 1,
+      "total": 764
+    },
+    "Rimes Data Feed": {
+      "assignee": "gina.muller@intcom.com",
+      "count": 32,
+      "runner_up_count": 31,
+      "tied_at_top": 1,
+      "total": 751
+    },
+    "Risk & Compliance Monitoring": {
+      "assignee": "gina.muller@intcom.com",
+      "count": 38,
+      "runner_up_count": 36,
+      "tied_at_top": 1,
+      "total": 777
+    },
+    "Securities Settlement": {
+      "assignee": "nora.leclerc@intcom.com",
+      "count": 37,
+      "runner_up_count": 35,
+      "tied_at_top": 1,
+      "total": 778
+    },
+    "SharePoint & File Storage": {
+      "assignee": "xena.schmidt@intcom.com",
+      "count": 44,
+      "runner_up_count": 39,
+      "tied_at_top": 1,
+      "total": 759
+    },
+    "SimCorp Dimension": {
+      "assignee": "karen.brown@intcom.com",
+      "count": 41,
+      "runner_up_count": 35,
+      "tied_at_top": 1,
+      "total": 797
+    },
+    "Tax Reporting": {
+      "assignee": "gina.muller@intcom.com",
+      "count": 32,
+      "runner_up_count": 30,
+      "tied_at_top": 1,
+      "total": 731
+    },
+    "Trade Matching": {
+      "assignee": "henry.patel@intcom.com",
+      "count": 40,
+      "runner_up_count": 38,
+      "tied_at_top": 1,
+      "total": 801
+    },
+    "Trading Platform": {
+      "assignee": "daniel.taylor@intcom.com",
+      "count": 38,
+      "runner_up_count": 36,
+      "tied_at_top": 1,
+      "total": 800
+    }
+  },
+  "warnings": [
+    "fallback tie for Client Reporting: 3 assignees at 35; picked frank.ross@intcom.com alphabetically"
+  ]
+}

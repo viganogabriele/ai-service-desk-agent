@@ -1,0 +1,2526 @@
+{
+ "note": "LLM-generated dev set (eval/make_devset.py) from the KB only, never from the challenge. service/assignee/resolution labels are firm; work_type/urgency/impact are the generator's (soft). Optimistic: the same model writes and solves these tickets.",
+ "model": "qwen2.5:7b",
+ "records": [
+  {
+   "id": "D001",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Critical Error in SimCorp Dimension: Fund Reconciliation Fails",
+   "Description": "During the daily reconciliation process for fund accounts, the system in SimCorp Dimension reported an error, preventing the cash sweep from completing. This has caused delays in liquidity management and potential discrepancies in fund balances. The error message states: 'SWEEP_cutoff_not_met'. We have tried restarting the service and clearing caches, but the issue persists. Impact: This is affecting multiple fund accounts and could lead to incorrect bank reconciliations if not resolved quickly.",
+   "Affected Business or IT Services": [
+    "SimCorp Dimension"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "High",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Other teams are experiencing similar issues with their reconciliations.",
+    "alex.meier@intcom.com: The desk is closely monitoring the situation and will escalate if necessary."
+   ],
+   "_label": {
+    "service": "Cash Management",
+    "resolution": "done",
+    "assignee": "vincent.lange@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P01",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D002",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Cash sweep for fund accounts not processed on time",
+   "Description": "During the daily bank reconciliation process for fund accounts, the cash sweep missed the previous day's cutoff. This resulted in discrepancies between the cash ledger and the bank statement, affecting liquidity management and potentially impacting fund operations. Manual adjustments are required to bring the ledger in line with the bank statement.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Did this happen for all fund accounts or just a few?",
+    "eva.keller@intcom.com: Can we implement a check to prevent this in the future?"
+   ],
+   "_label": {
+    "service": "Cash Management",
+    "resolution": "done",
+    "assignee": "vincent.lange@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P01",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D003",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Error in Tax Reporting Data - Fund Account Mismatch",
+   "Description": "On 2023-10-10, the Tax Reporting system flagged a significant discrepancy in fund account balances, specifically for the Luxembourg-based fund 'Luxury Equity Fund'. The system reported a shortfall of 500,000 EUR, which was unexpected as the fund's reported balance was correct. The error message was 'Mismatch in Fund Balances'. Initial checks on the Asset Management System showed no issues, and the error persisted in both the Production and Testing environments. Colleague from Luxembourg reported similar issues for their internal reconciliation reports.",
+   "Affected Business or IT Services": [
+    "Tax Reporting"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "High",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Colleague from Luxembourg suggests this might be related to margin sweeps, as they also noticed discrepancies.",
+    "alex.meier@intcom.com: Waiting for further analysis from the Data Analytics team."
+   ],
+   "_label": {
+    "service": "Cash Management",
+    "resolution": "done",
+    "assignee": "vincent.lange@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P02",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D004",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Liquidity Management System Down - Bank Reconciliation and Cash Sweep Issues",
+   "Description": "Since 14:30 CET today, the Liquidity Management System has been experiencing issues, impacting bank reconciliations, cash sweeps, and liquidity management for fund accounts. Users are reporting a 20% shortfall in cash balances, with error messages indicating that some margin sweeps did not complete on time. We have tried restarting the system and contacting the helpdesk, but no resolution has been found yet.",
+   "Affected Business or IT Services": [
+    "Cash Management"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Lowest",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Seen similar issues in the past. Likely a missed cutoff in the margin sweep process.",
+    "alex.meier@intcom.com: Treasury is closely monitoring cash positions and will implement intraday adjustments if needed."
+   ],
+   "_label": {
+    "service": "Cash Management",
+    "resolution": "done",
+    "assignee": "vincent.lange@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P02",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D005",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Client reports and factsheets missing fee section in CRM & Client Portal",
+   "Description": "Users reported that the fee section is missing from the latest client reports and factsheets generated in the CRM & Client Portal. This issue affects Switzerland, France, Luxembourg, Germany, and the Nordics. The missing fee section impacts regulatory compliance and client satisfaction. We have tried invalidating the cache and reloading the latest batch, but the issue persists. The last update was at 14:30 CET today.",
+   "Affected Business or IT Services": [
+    "CRM & Client Portal"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Low",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: CC: Compliance Team - need to verify regulatory compliance impact.",
+    "jonas.berg@intcom.com: CC: Reporting Team - please check if this affects any critical reports."
+   ],
+   "_label": {
+    "service": "Client Reporting",
+    "resolution": "done",
+    "assignee": "pierre.johnson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P03",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D006",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Issue with fee section rendering in client reports and factsheets",
+   "Description": "The fee section is missing from the latest batch of client reports and factsheets generated for funds in Switzerland and Luxembourg. The affected reports were generated on 2023-10-10. The error message in the log file reads: 'Conditional check failed: fee_section_suppression.' No manual intervention was attempted beyond checking the template. The impact is that clients in Switzerland and Luxembourg are not seeing the fee details, which could cause confusion.",
+   "Affected Business or IT Services": [
+    "Client Reporting"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Lowest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Colleague in Luxembourg: Noticed this issue with the latest batch. The missing fee details are critical for our clients there."
+   ],
+   "_label": {
+    "service": "Client Reporting",
+    "resolution": "done",
+    "assignee": "pierre.johnson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P03",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D007",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "CRM & Client Portal: Errors in Client Reports and Factsheets",
+   "Description": "We are experiencing issues with the generation and distribution of client reports and factsheets through the Client Portal. Several client-facing documents are missing key sections such as fees, and the template rendering appears incorrect. This has affected multiple clients in Switzerland, France, and Germany. The error messages indicate a misalignment in the template logic, but we are unsure of the exact cause. We have tried re-generating the reports and checking the template settings, but the issue persists.",
+   "Affected Business or IT Services": [
+    "CRM & Client Portal"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: CC: @FinancialAnalystEdu - Please review the latest batch of reports for any missing data.",
+    "eva.keller@intcom.com: CC: @TechSupportLukas - Could you check the template logic for consistency with our standards?"
+   ],
+   "_label": {
+    "service": "Client Reporting",
+    "resolution": "done",
+    "assignee": "pierre.johnson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P04",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D008",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Template rendering issue with client factsheets - missing fee section",
+   "Description": "In the latest batch generation, the template for Client Factsheets did not render the fee section. This affected 10 funds across multiple clients. The PDFs generated for these funds are missing the 'Fees' section entirely. The issue was noticed during the batch distribution process. Attempts to regenerate the affected factsheets manually resulted in the same issue. The last successful run was on 2023-10-10. Colleague from Luxembourg reported similar issues in their region.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Lowest",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague from Luxembourg: Similar issue reported here as well. Need a quick fix to avoid client backlash."
+   ],
+   "_label": {
+    "service": "Client Reporting",
+    "resolution": "done",
+    "assignee": "pierre.johnson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P04",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D009",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Securities Settlement Issues Resulting in Delayed Corporate Actions",
+   "Description": "Several Securities Settlement systems have been experiencing delays in processing corporate actions. For instance, the corporate action processing for a Luxembourg-based fund (XZ0123) is significantly delayed. The latest settlement report shows that the corporate action for the 'XYZ Corp' bond (expected on 2023-04-15) has not been registered, and the dashboard for Fund YZ (€1.5B AUM) is not updating. Error messages indicate 'Settlement queue overflow' and 'Processing timeout'. The last successful batch was on 2023-04-10. The settlement team has already checked the batch configurations and verified that the data is correct. They suspect a broader issue with the corporate action processing system.",
+   "Affected Business or IT Services": [
+    "Securities Settlement"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Lowest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Hi [Colleague],\nDid the settlement team check if the corporate action batch settings are correct? We need to ensure that this doesn't affect upcoming settlements.",
+    "marc.dupont@intcom.com: Follow-up with the settlement team on the progress. Urgent!"
+   ],
+   "_label": {
+    "service": "Corporate Actions",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P05",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D010",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Issue with Corporate Actions Processing - Missing Election Records",
+   "Description": "We are experiencing issues with the Corporate Actions module, specifically with the processing of elections for the 'Europa Fund' in Switzerland. The system is not displaying the expected election records, which is disrupting the distribution of information to stakeholders. The last known update was at 14:30, and the error message states 'Option code mapping incomplete - missing data'. We have tried running a manual update, but the issue persists. Last processed batch ID: 2023-09-15-001.",
+   "Affected Business or IT Services": [
+    "Corporate Actions"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: CC: Compliance - Immediate validation needed to ensure regulatory compliance."
+   ],
+   "_label": {
+    "service": "Corporate Actions",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P05",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D011",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Securities Settlement System Error - Multiple Securities Not Settling",
+   "Description": "Multiple securities are not settling as expected, causing delays in fund distributions. The error seems to be related to the Corporate Actions processing, as some securities are missing their option code mappings. This is impacting the funds in the Luxembourg and Switzerland offices, and potentially affecting the financial counterparties. We have tried to manually settle the securities, but the issue persists. The last successful settlement was at 14:00 yesterday. Error message: 'Option code missing for security XYZ'.",
+   "Affected Business or IT Services": [
+    "Securities Settlement"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Medium",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: CC: @finance-team - Please check if this is affecting any ongoing settlements.",
+    "jonas.berg@intcom.com: CC: @legal-team - Ensure that the legal implications of delayed settlements are monitored."
+   ],
+   "_label": {
+    "service": "Corporate Actions",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P06",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D012",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Missing Option Codes for Corporate Actions",
+   "Description": "During the Corporate Actions processing for several events, we noticed missing option code mappings. This affected the accuracy of the distribution records for multiple funds. For example, Event ID 12345 had no option codes, causing discrepancies in the distribution records for the 'Luxury Fund' and 'France Equities Fund'. We attempted to rerun the affected events, but the issue persisted. The latest batch of events also showed the same problem. The error message was 'Option Code Mismatch' in the logging.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Medium",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague in London: Confirmed the issue is impacting the distribution records for our funds and needs to be resolved by EOD to prevent discrepancies in reports.",
+    "jonas.berg@intcom.com: IT Support: We need to ensure that the option codes are correctly mapped for all upcoming events to avoid any further issues."
+   ],
+   "_label": {
+    "service": "Corporate Actions",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P06",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D013",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "CRM & Client Portal Unresponsive: Multiple Users Reporting Issues",
+   "Description": "Multiple users from Paris, Zurich, and Helsinki have reported that the CRM and Client Portal are unresponsive. Business activity has been severely impacted, as order routing and client information retrieval are now blocked. The issue started at 14:30 CET and appears to be affecting all business entities. Error messages include 'System Timeout' and 'Server Not Responding'. Initial attempts to restart the application and clear cache were unsuccessful. Business operations have been severely hampered, as clients are unable to place orders and review their portfolios.",
+   "Affected Business or IT Services": [
+    "CRM & Client Portal"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: From Zurich: Users are unable to log in to the Client Portal, and orders are not being routed correctly. Multiple users are reporting the same issue."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "done",
+    "assignee": "victor.hamon@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P07",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Highest",
+    "impact": "Highest",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D014",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "Broker routing issue causing order rejection and delays in execution",
+   "Description": "During order capture, multiple orders are being rejected due to an incorrect clearing account mapping. This issue affects the routing process, leading to delays in execution. Specifically, the system is using a stale mapping from a recent broker change, which is blocking order routing. The business is impacted as customer orders are not being processed correctly, and there is a risk of delayed trade confirmations.",
+   "Affected Business or IT Services": [
+    "Order Management"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague: We need to get this fixed as soon as possible to avoid any delays in trade confirmations."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "done",
+    "assignee": "victor.hamon@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P07",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D015",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Fund Pricing System Not Updating Correctly",
+   "Description": "Since the recent fund switch, the Fund Pricing System has not been correctly reflecting the new clearing-account mappings. This is causing discrepancies in the pricing of certain funds, notably in the Luxembourg and Switzerland regions. The system is reporting 'Account Not Found' errors for several orders. We've tried restarting the service, but it persists. Orders are being manually rerouted, but this is inefficient. The issue seems to affect multiple funds, including Fund X, with an impact on over 500 orders today. Urgency: Medium, Impact: Medium.",
+   "Affected Business or IT Services": [
+    "Fund Pricing"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "High",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Colleague in Luxembourg: Confirmed the issue is present across all funds in the region.",
+    "sofia.lind@intcom.com: Colleague in Germany: Suggest checking the routing table configurations again for any inconsistencies."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "done",
+    "assignee": "victor.hamon@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P08",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D016",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Broker Routing Table Issue Affects Order Execution for Fund XYZ",
+   "Description": "We are experiencing issues with order execution for Fund XYZ. Multiple orders are being rejected or getting stuck in the system, causing delays in trades. The broker routing table seems to be incorrectly configured after the recent account switch. Last known order was rejected at 14:30 CET. Error message: 'Broker routing link not found for account: 123456789'. We have checked the routing table and it appears to be inconsistent with the current account setup.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Lowest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: CC: @asset-manager-support-internal - Please review the recent account switch and verify the broker routing table configuration."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "done",
+    "assignee": "victor.hamon@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P08",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D017",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "SharePoint & File Storage Access Issue - Mailbox Permissions Incorrect",
+   "Description": "We are experiencing issues with SharePoint and file storage access. Users in the Frankfurt office are unable to access shared documents and receive error messages stating 'Access Denied' when trying to open files. This issue seems to be related to mailbox permissions, as some users can access files while others cannot. We have already checked the permissions for the affected users and found discrepancies. We suspect a recent change in mailbox settings might have caused this issue. Urgency: Medium, Impact: Low. The issue is affecting 3 out of 5 users in the Frankfurt office but does not impact critical operations.",
+   "Affected Business or IT Services": [
+    "SharePoint & File Storage"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague in Frankfurt: Confirmed the issue for 3 users in Frankfurt. No impact on critical operations.",
+    "alex.meier@intcom.com: Colleague in Zurich: Noted that similar issues were resolved by reclassifying tickets and ensuring correct mailbox permissions."
+   ],
+   "_label": {
+    "service": "Outlook & Email",
+    "resolution": "done",
+    "assignee": "jack.martin@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P09",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D018",
+   "Work type": "Service Request",
+   "Request type": "Access to a Service",
+   "Summary": "Provisioning shared mailbox and distribution list with correct permissions for new fund team",
+   "Description": "We need to set up a shared mailbox and distribution list for the new fund team in Luxembourg. The mailbox should be accessible to fund managers and restricted to the finance department. So far, I've tried to create the mailbox and distribution list through the portal but received an error message: 'Insufficient privileges to perform the operation'. I've also checked the permissions and found they were initially set incorrectly. The shared mailbox is essential for communication within the fund team and the finance department.",
+   "Affected Business or IT Services": [
+    "Outlook & Email"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "High",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: CC: [Colleague Name] - Please review the permissions before we proceed to ensure they align with our policy."
+   ],
+   "_label": {
+    "service": "Outlook & Email",
+    "resolution": "done",
+    "assignee": "jack.martin@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P09",
+    "kind": "pattern",
+    "work_type": "Service Request",
+    "urgency": "Medium",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D019",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "SharePoint & File Storage Access Issue for New Project",
+   "Description": "We are experiencing an issue with accessing a new SharePoint site and file storage for the European Assets Project. The team reported that they can log in, but cannot access shared documents or upload files. We have checked network connectivity and permissions, and the issue seems to be related to the mailbox and distribution lists used for sharing. The problem affects 3 departments across Switzerland and Germany. The project was scheduled for launch last week but is now delayed.",
+   "Affected Business or IT Services": [
+    "SharePoint & File Storage"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "Highest",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague from Luxembourg: Confirmed the issue is not related to network or login credentials. It seems to be a permissions issue."
+   ],
+   "_label": {
+    "service": "Outlook & Email",
+    "resolution": "done",
+    "assignee": "jack.martin@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P10",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D020",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Shared mailbox and distribution list setup for new fund manager in Switzerland",
+   "Description": "We need to set up a shared mailbox and distribution list for a new fund manager joining the Zurich office. The mailbox should be named 'Zurich-Fund-Manager' and the distribution list 'Zurich-Fund-Manager-DL'. The fund manager needs full send/receive rights, and the list should include all relevant team members. The shared mailbox should also be visible in Outlook for team members.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Lowest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Colleague in HR mentioned that the fund manager will start on Monday, so we need to get this set up as soon as possible."
+   ],
+   "_label": {
+    "service": "Outlook & Email",
+    "resolution": "done",
+    "assignee": "jack.martin@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P10",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D021",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Risk & Compliance Monitoring showing false positive alerts on new entities",
+   "Description": "Since the recent integration of new entities, Risk & Compliance Monitoring has been generating a large number of false positive alerts. These alerts are impacting our workflow as they require manual review and resolution, which is time-consuming. We have already reviewed the data and confirmed that the entities meet all regulatory requirements. However, the system continues to flag them as non-compliant. We attempted to clear the alerts through the interface, but they persist. This is delaying the submission of regulatory reports and causing delays in our reporting process.",
+   "Affected Business or IT Services": [
+    "Risk & Compliance Monitoring"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: CC: @RiskTeam - This is impacting our reporting process and needs to be resolved as soon as possible.",
+    "alex.meier@intcom.com: CC: @DataManagement - Please review the master data for the new entities to ensure all classification data is complete."
+   ],
+   "_label": {
+    "service": "Regulatory Reporting",
+    "resolution": "done",
+    "assignee": "tara.singh@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P11",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D022",
+   "Work type": "Incident",
+   "Request type": "Access to a Service",
+   "Summary": "Regulatory report submission failed due to missing classification data on new entity records.",
+   "Description": "During the latest batch of regulatory reports, we encountered a rejection from the supervisory authority due to missing classification data on new entity records. The system did not flag these records during the initial data validation step. We have reviewed the latest data feed and identified the missing fields. Resubmission is pending.",
+   "Affected Business or IT Services": [
+    "Regulatory Reporting"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "High",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: We need to ensure that all new entity records are fully validated against the latest data standards before submission. This could delay the next batch of reports by a few hours."
+   ],
+   "_label": {
+    "service": "Regulatory Reporting",
+    "resolution": "done",
+    "assignee": "tara.singh@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P11",
+    "kind": "pattern",
+    "work_type": "Service Request",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D023",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Risk & Compliance Monitoring showing multiple rejections due to incomplete classification",
+   "Description": "Since 14:00 CET, we have been experiencing multiple rejections from Risk & Compliance Monitoring for our regulatory reports. The system is flagging issues with counterparty classification, but we have not made any recent changes to our data models. We have already checked the latest reporting template and confirmed that the classifications are correct. Could you please review the recent updates to the system to see if there are any known issues or changes that might affect our submissions?",
+   "Affected Business or IT Services": [
+    "Risk & Compliance Monitoring"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Colleague in Luxembourg: Have you tried validating the data in a staging environment first before submitting? It might help to catch any issues early.",
+    "marc.dupont@intcom.com: Swiss colleague: Could it be that the issue is not with the data, but rather with the way the system is interpreting it? Let's check if there are any new validation rules."
+   ],
+   "_label": {
+    "service": "Regulatory Reporting",
+    "resolution": "done",
+    "assignee": "tara.singh@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P12",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D024",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Failure in regulatory report submission to ESMA",
+   "Description": "When attempting to submit the Q1 regulatory report to ESMA, the system rejected the submission with an error message stating 'Incomplete Counterparty Classification'. The report was generated for Fund XYZ (FR0012345678), with a total asset value of €2.5 billion. The error occurred on March 15, 2023, at 14:30 CEST. We have checked the data and confirmed that the counterparty classification was correct but need guidance on next steps.",
+   "Affected Business or IT Services": [
+    "Regulatory Reporting"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "High",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague from Zurich: We have faced similar issues with ESMA in the past. Ensure all counterparty details are fully populated and validated before submission."
+   ],
+   "_label": {
+    "service": "Regulatory Reporting",
+    "resolution": "done",
+    "assignee": "tara.singh@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P12",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D025",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Corporate Actions processing issues causing delays in custody status updates",
+   "Description": "We are experiencing delays in processing Corporate Actions, which are impacting custody status updates, settlement confirmations, and fail-chasing workflows for several fund transactions. The latest batch of Corporate Actions, due last Friday, did not arrive on time, causing a backlog. We have paused automated fail-chasing while we wait for the missing data. Manual intervention is required to match statements and reconcile the backlog once the information is available. This is impacting multiple fund operations and is critical to ensure timely settlement confirmations.",
+   "Affected Business or IT Services": [
+    "Corporate Actions"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Medium",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: CC: [Colleague] - Please coordinate with the Corporate Actions team to expedite the processing.",
+    "eva.keller@intcom.com: CC: [Colleague] - Inform the fund managers to expect delays in status updates."
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P13",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D026",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Custody status updates delayed, impacting fund transaction workflows",
+   "Description": "We have not received status updates for several fund transactions from the custodian. This is causing delays in our settlement confirmations and fail-chasing workflows. The last update was received at 14:00 yesterday, and we are now 2 hours behind schedule. Error messages indicate that the system is waiting for updates: 'CustodianUpdateRequired'. We have attempted to manually chase the custodian, but they are experiencing system issues and could not provide updates until now. This is impacting multiple funds and may affect our compliance reports due to the delayed status updates.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: IT is still waiting for the custodian to provide the missing status updates.",
+    "marc.dupont@intcom.com: Assessing the impact on our compliance reports and financial statements."
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "ursula.klassen@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P13",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D027",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Failed Corporate Actions Processing - Custody Statuses Not Updating",
+   "Description": "Since 14:00 CET today, Corporate Actions processing has been failing, causing custody statuses not to update in the dashboard. This is affecting 10 funds across multiple business entities, including those in Switzerland and France. The issue started with error messages indicating 'Queue Processing Timeout'. We've tried restarting the relevant services but no luck. Urgent as this impacts settlement confirmations and fail-chasing workflows. Impact: High, as it affects multiple critical workflows and business entities.",
+   "Affected Business or IT Services": [
+    "Corporate Actions"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "High",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Seen similar issues in the past, may be related to recent infrastructure updates. Checking logs now.",
+    "marc.dupont@intcom.com: Noted by ITIL and escalation to the next level if not resolved by 17:00."
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P14",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D028",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Custody status updates delayed for multiple funds, affecting settlement confirmations and fail-chasing workflows.",
+   "Description": "Since 10:00 AM, we've noticed delays in receiving custody status updates, which are crucial for settlement confirmations and fail-chasing workflows. For example, Fund XYZ was due to settle on 2023-10-05, but its status hasn't updated. The last transaction for Fund ABC was supposed to be settled by 15:00 but failed to update. Error logs show 'Queue processing timeout' for several transactions. We've tried restarting the settlement service, but it hasn't resolved the issue.",
+   "Affected Business or IT Services": [
+    "Securities Settlement"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Lowest",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: The issue seems to be impacting our ability to confirm settlements and chase fails efficiently. This is affecting multiple fund transactions across different regions.",
+    "jonas.berg@intcom.com: We're experiencing delays in critical processes, which could impact our ability to meet daily settlement deadlines."
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P14",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D029",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Corporate Actions for Fund XYZ Not Processing Correctly",
+   "Description": "We are experiencing issues with corporate actions for Fund XYZ, where some transactions are not processing correctly. This has impacted multiple fund transactions, including status updates, settlement confirmations, and fail-chasing workflows. Error messages indicate that the corporate action process is stuck, but no specific error codes are provided. We have checked the logs and confirmed that the transactions are being received, but they are not being processed further. This has led to delays in settlement confirmations and custody status updates. Urgency: High, Impact: High (affects 2 business entities and financial counterparts).",
+   "Affected Business or IT Services": [
+    "Corporate Actions"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "High",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: We've escalated this to the service desk and are waiting for their investigation. Latest update: no clear error messages in the logs.",
+    "jonas.berg@intcom.com: CC: @team-leader, @it-support"
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P15",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D030",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "Settlement confirmations delayed for multiple funds, impacting custody status and fail-chasing workflows.",
+   "Description": "Since 14:00 CET on 2023-10-15, we've observed delays in settlement confirmations for several funds, including Fund XYZ and ABC. This has caused issues with custody status updates and fail-chasing workflows. Affected funds include EUR001 and GBP002. The most recent update for Fund XYZ was delayed by 3 hours, causing a backlog in the processing of subsequent transactions. Error logs show 'Queue Listener Stalled' errors. We've attempted to manually process transactions, but the issue persists. The issue seems to be affecting 3 out of 5 business entities in the pan-European region.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "High",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Colleague from Luxembourg: Noticed similar delays in our systems starting at 14:00, same error message.",
+    "sofia.lind@intcom.com: Colleague from Germany: Some customers have started to ask about delayed confirmations. Need to address this quickly."
+   ],
+   "_label": {
+    "service": "Securities Settlement",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P15",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D031",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Identity & Access Management portal is inaccessible for users in Luxembourg, France, and Switzerland",
+   "Description": "Users in Luxembourg, France, and Switzerland are experiencing issues logging into the Identity & Access Management portal. Error messages vary but often state 'Failed to authenticate user due to invalid credentials' or 'Internal server error.' This issue is impacting around 50 users and has been ongoing since 10:00 AM today. We have checked the service status page and tried logging in from different browsers, but the problem persists.",
+   "Affected Business or IT Services": [
+    "Identity & Access Management"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "Highest",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Is this issue affecting any other regions?",
+    "sofia.lind@intcom.com: Have we tried contacting the Identity & Access Management support team yet?"
+   ],
+   "_label": {
+    "service": "SimCorp Dimension",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P16",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D032",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Timeout Error on Position Sync Job",
+   "Description": "We are experiencing issues with the SimCorp Dimension platform, specifically with the position sync job. The job has been timing out, likely due to a locked staging table. The last successful run was 2 hours ago. The error message is 'SimCorpDimension: PositionSync: Timeout on job execution.' We have tried restarting the job, but it continues to fail. This affects the daily reconciliation process for Fund X, impacting 3 business entities in Switzerland and France. The system is critical for our daily operations and regulatory reporting. Urgency: High; Impact: Medium.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Medium",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: CC: @FinanceTeam for immediate attention",
+    "sofia.lind@intcom.com: CC: @TechOps for investigation"
+   ],
+   "_label": {
+    "service": "SimCorp Dimension",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P16",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D033",
+   "Work type": "Incident",
+   "Request type": "New License",
+   "Summary": "Outlook synchronization issues affecting multiple users in Frankfurt",
+   "Description": "Users in Frankfurt have reported issues with Outlook synchronization, experiencing delays and missing emails. The issue seems to be intermittent and affects around 30 users. Attempts to clear Outlook cache and restart services have not resolved the problem. The issue appears to coincide with batch jobs running on the SimCorp Dimension platform, which could be related to database locks. Urgency: High, Impact: Medium.",
+   "Affected Business or IT Services": [
+    "Outlook & Email"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Lowest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: CC: Berlin Tech Support - Have you noticed any issues with SimCorp Dimension batch jobs in the last few hours?"
+   ],
+   "_label": {
+    "service": "SimCorp Dimension",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P17",
+    "kind": "pattern",
+    "work_type": "Service Request",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D034",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Replication job stalled due to database lock",
+   "Description": "On 2023-10-15 at 10:00 AM, the SimCorp Dimension replication job for Fund X (123456) stalled. The job was processing positions for the Luxembourg entity. The error message indicated a temporary database lock. We attempted to clear the lock and restart the job from the last checkpoint, but the job did not resume. Position sync and batch jobs are critical for our daily reporting and risk management. The issue affected 200 positions and delayed downstream reporting.",
+   "Affected Business or IT Services": [
+    "SimCorp Dimension"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Low",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Sales team in Frankfurt is getting calls from clients asking for updates. They're getting impatient.",
+    "marc.dupont@intcom.com: Operations team is tracking the progress closely and will escalate if the issue persists."
+   ],
+   "_label": {
+    "service": "SimCorp Dimension",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P17",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D035",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Trade Matching failing due to missing license",
+   "Description": "We are experiencing issues with the Trade Matching process, which is critical for our daily operations. The system is throwing an error message stating 'License not found for Trade Matching [ERR-12345]'. Despite having the correct licenses for other systems, Trade Matching remains inaccessible. We've already checked the configuration and all other systems are functioning normally. Please assist in resolving this as it's causing delays in our fund reporting processes.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague in Luxembourg mentioned similar issues with Trade Matching today, might be a wider problem."
+   ],
+   "_label": {
+    "service": "Tax Reporting",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P18",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D036",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "User unable to access quarterly extract tool for tax data validation",
+   "Description": "A user reported they are unable to access the quarterly extract tool, which is required for tax data validation. The user is part of the withholding tax workflow team and needs this tool to process quarterly reports. Error message: 'Access denied, please check your credentials.' I have verified that the user's withholding tax workflow license is provisioned, but they still cannot access the tool. This affects their ability to validate tax data for upcoming reports.",
+   "Affected Business or IT Services": [
+    "Tax Reporting"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "Highest",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Follow-up: @FinanceTeam - Can you confirm if the user's group membership has been correctly updated in the tool's access control?"
+   ],
+   "_label": {
+    "service": "Tax Reporting",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P18",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D037",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Identity & Access Management issue: Users unable to access withholding tax workflow",
+   "Description": "Users in the Switzerland and Luxembourg offices are unable to access the withholding tax workflow tool. Error message: 'Access Denied: You do not have the required entitlements'. This is impacting the quarterly extract tool access and tax data validation processes. Last successful login was on 2023-09-15 14:30. We have checked user credentials and they are correct. No recent changes to user roles or entitlements have been made.",
+   "Affected Business or IT Services": [
+    "Identity & Access Management"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Colleague from HR: Just confirmed no recent changes in user roles or entitlements.",
+    "alex.meier@intcom.com: Colleague from IT: Suggested checking the entitlements again and ensuring all users have the correct roles."
+   ],
+   "_label": {
+    "service": "Tax Reporting",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P19",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D038",
+   "Work type": "Incident",
+   "Request type": "New License",
+   "Summary": "Access removal for quarterly extract tool and tax data validation for SW101 fund",
+   "Description": "We received a request from the Tax Team to remove access to the quarterly extract tool and tax data validation for SW101 fund, effective immediately. The fund is due to undergo an audit next week. The requester, Anna Müller, mentioned that the current user has completed their task and should no longer have access. Anna noted that the withholding tax workflow is still operational and that she has cross-verified with the fund manager. The request was initiated due to a change in fund responsibilities.",
+   "Affected Business or IT Services": [
+    "Tax Reporting"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "High",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague: Have you verified that Anna has the correct entitlements for the withholding tax workflow?",
+    "marc.dupont@intcom.com: Colleague: Ensure that the removal is logged and communicated to the relevant stakeholders."
+   ],
+   "_label": {
+    "service": "Tax Reporting",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P19",
+    "kind": "pattern",
+    "work_type": "Service Request",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D039",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Issue with Portfolio Accounting - Incorrect Allocation Rejections",
+   "Description": "We are experiencing issues with the allocation rejections in Portfolio Accounting. The system is flagging a number of allocations as incorrect, despite the correct broker account mappings and trades. The error messages mention 'Incomplete Broker Account Setup.' We have checked the mappings and confirmed that all trades are correctly matched. The issue seems to be affecting multiple funds and causing delays in the post-trade processing pipeline. Urgency: Medium; Impact: High; Work Type: Medium.",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Lowest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Can we check if this is a one-off issue or if it's widespread?",
+    "sofia.lind@intcom.com: Is this impacting any specific funds or regions more than others?"
+   ],
+   "_label": {
+    "service": "Trade Matching",
+    "resolution": "done",
+    "assignee": "quinn.anderson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P20",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D040",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Post-trade allocation process failing due to incomplete broker account setup",
+   "Description": "Multiple post-trade allocations are being rejected during the confirmation phase. The issue seems to be related to incomplete broker account mappings. We have checked the recent batch and noticed that several trades are flagged as unmatched. The latest allocation batch from France has 30 trades that cannot be processed, resulting in delays in the confirmation process. Error message: 'Broker account not found - [broker_account_id]'. We have already tried reprocessing the batch, but the issue persists.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Medium",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: CC: TradingDesk@assetmanager.com - This is impacting our daily confirmations with brokers and could affect our financial counterparties."
+   ],
+   "_label": {
+    "service": "Trade Matching",
+    "resolution": "done",
+    "assignee": "quinn.anderson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P20",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D041",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Portfolio Accounting error: Failed to process trade confirmations, suspect incorrect broker SSI mappings",
+   "Description": "We are experiencing issues with the Portfolio Accounting system where trade confirmations are being flagged as errors. The error messages indicate 'broker SSI mapping not found' for several trades. We have already checked the broker details and confirmed that the SSI mappings are correct in the system. This is affecting our post-trade allocation and confirmation with brokers, leading to rejections and potential delays in funding. The affected trades are across multiple fund portfolios, including the Luxembourg and German funds. The latest trades in question are from 12:00 PM CET today, with error logs showing timestamps from 1:00 PM CET. We've tried rerunning the affected trades but are still seeing the same errors.",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Lowest",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: CC: @FinancialControl: Please review the affected trades and provide any additional insights on the SSI mappings.",
+    "alex.meier@intcom.com: CC: @ITSupport: Check if there are any recent changes in the system that might have caused this issue."
+   ],
+   "_label": {
+    "service": "Trade Matching",
+    "resolution": "done",
+    "assignee": "quinn.anderson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P21",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D042",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "Post-trade allocation and confirmation issues with broker SSI mappings",
+   "Description": "Since 14:00 CEST today, we've been experiencing a high volume of allocation rejections during post-trade processing. The error messages indicate 'SSI mapping not found' for several trades. Brokers affected include Société Générale, HSBC, and Credit Suisse. We have checked our mappings and found no discrepancies in our system. Trade 123456789 and 234567890 have been confirmed unmatched despite being validated manually. Business activity is impacted as confirmed trades cannot be sent to our clients.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "High",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Our trading desk is starting to receive complaints from clients regarding delayed trade confirmations. They need immediate resolution.",
+    "marc.dupont@intcom.com: Sales are also concerned about the impact on client relationships."
+   ],
+   "_label": {
+    "service": "Trade Matching",
+    "resolution": "done",
+    "assignee": "quinn.anderson@intcom.com",
+    "assignee_source": "pattern_match",
+    "source_pattern": "P21",
+    "kind": "pattern",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D043",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Issue with Trade Matching System - Front-office Trading Application",
+   "Description": "Portfolio managers and traders are experiencing difficulties with the front-office trading application, particularly with trade matching. Users report that the blotter is showing incorrect trade details, and the system is slow to respond. Several attempts to log in and perform trades have been unsuccessful. Error messages include 'Trade matching system timeout' and 'System busy.' We have tried restarting the application and clearing cache, but the issue persists. This affects multiple portfolios and traders across Switzerland and France.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague: Have you checked the network connectivity for the traders in France?",
+    "marc.dupont@intcom.com: Colleague: The IT support team has been notified and is investigating the root cause."
+   ],
+   "_label": {
+    "service": "Trading Platform",
+    "resolution": "done",
+    "assignee": "daniel.taylor@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D044",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Trouble accessing Front-office trading application for Portfolio Management",
+   "Description": "Since 14:30 today, several portfolio managers and traders have reported issues logging into the Front-office trading application. Some users are receiving a 502 Bad Gateway error while others are experiencing slow response times, making it difficult to execute trades. The error logs show 'Connection refused' and 'Timeout' messages. We've already tried restarting the application and clearing browser cache, but the issue persists. Affected users include users in Geneva, Paris, and Luxembourg.",
+   "Affected Business or IT Services": [
+    "Trading Platform"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "alex.meier@intcom.com: Colleague from Luxembourg reports that the issue started spreading around 15:00."
+   ],
+   "_label": {
+    "service": "Trading Platform",
+    "resolution": "done",
+    "assignee": "daniel.taylor@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D045",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Investigation Needed: Possible Issue with NAV Calculation - Stale Price Feed",
+   "Description": "On 2023-10-15, we noticed discrepancies in the Net Asset Value (NAV) calculation for the Luxembourg-based 'Funds Europe' fund, specifically in the valuation of the German market portfolio. The system reported that prices for several securities were missing or stale, leading to potential inaccuracies in the fund's daily NAV. Initial checks revealed that the vendor price feed from 'PriceFeedService' had not updated for the past 48 hours. We have manually entered the latest prices, but the issue persists for some securities. We are currently investigating why the price feed is not updating as expected. We are considering changing the price feed source as a potential workaround, but need further investigation to ensure this is the best course of action.",
+   "Affected Business or IT Services": [
+    "NAV Calculation"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Medium",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: CC: @colleague1 - Please review the manual price entry for any discrepancies and provide insights.",
+    "jonas.berg@intcom.com: CC: @colleague2 - We need your assistance in verifying the vendor's system status."
+   ],
+   "_label": {
+    "service": "Fund Pricing",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D046",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Price feed service downtime affects fund valuation",
+   "Description": "Since 14:00 CET today, the vendor price feed service has been unavailable, causing stale prices to be used in the fund valuation process. The system reported an error: 'Connection refused to server [99.194.12.214]'. We have tried restarting the service and checking network connectivity, but the issue persists. Over 10 funds are currently impacted, leading to delays in valuation reports. We have a workaround to use historical data, but it's cumbersome and may introduce errors.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "High",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague in Luxembourg reported similar issues with the same vendor service down in their region.",
+    "eva.keller@intcom.com: Monitoring the vendor's status page indicates they are aware of the issue and are working on a fix, but no ETA is available."
+   ],
+   "_label": {
+    "service": "Fund Pricing",
+    "resolution": "done",
+    "assignee": "tania.gupta@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D047",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Investigation Required: Fund Pricing - Multiple Tolerance Breaches",
+   "Description": "Investigated multiple NAV tolerance breaches for the Luxembourg fund F12345 on 10/15/2023. The final NAV was significantly lower than the estimated NAV, with discrepancies of up to 1.5%. This has caused delays in fee accruals and NAV sign-off. The issue is intermittent, with no clear pattern. Attempted to rerun the NAV strike but received an error message: 'Data validation failed - unexpected null value'. Colleague Sarah mentioned similar issues last week, suggesting a potential configuration error. Assessment: Urgency - High, Impact - Medium.",
+   "Affected Business or IT Services": [
+    "Fund Pricing"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague Sarah: 'We've seen this before, might be related to the recent update in the pricing engine.'",
+    "eva.keller@intcom.com: Colleague Mark: 'Check the log files for any recent changes or errors around the same time as the breaches.'"
+   ],
+   "_label": {
+    "service": "NAV Calculation",
+    "resolution": "done",
+    "assignee": "irina.sokolov@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D048",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "NAV calculation for Fund X, Share Class Y shows multiple NAV tolerance breaches in the last 24 hours, affecting 125,000,",
+   "Description": "The NAV calculation for Fund X, Share Class Y showed multiple breaches of the tolerance levels in the last 24 hours. The latest calculated NAV is 125,000, which is significantly different from the estimated NAV. The error message indicates 'ToleranceExceededError: NAV calculation outside tolerance limits.' We have already checked the data sources and re-run the calculations, but the issue persists. The NAV sign-off and publication are delayed, impacting our clients and financial counterparties.",
+   "Affected Business or IT Services": [
+    "NAV Calculation"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "Highest",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague in Luxembourg: Same issue reported for Fund Z, Share Class Z. Check if there's a common pattern."
+   ],
+   "_label": {
+    "service": "NAV Calculation",
+    "resolution": "done",
+    "assignee": "irina.sokolov@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D049",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Investment Book of Record - Trade Matching Error",
+   "Description": "Investors in the Luxembourg office have reported discrepancies in their trade bookings in the Investment Book of Record system. The error appears during the daily close process, specifically when matching trades against the fund positions. The error message states, 'Trade ID 123456789 does not match any existing trade in the system.' We have double-checked the trade details and confirmed that the trades exist in the trade capture system. Additionally, we tried running a manual reconciliation using the system's built-in tools but encountered the same issue. This has caused delays in the closing of the books for today, impacting multiple funds. The error seems to be occurring consistently for a particular fund, Fund X. The total value of the affected trades is approximately 150,000 EUR. The error persists even after multiple restarts of the system and re-running the daily processes.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "High",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague in Germany: We're seeing similar issues with our European funds. They suggest it might be related to the reconciliation process timing out."
+   ],
+   "_label": {
+    "service": "Portfolio Accounting",
+    "resolution": "done",
+    "assignee": "ulrich.fischer@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D050",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Investment book of record - Error in transaction bookings",
+   "Description": "On 2023-09-15 at 14:00, an error occurred in the Investment Book of Record system while processing transaction bookings for the 'Blue Fund'. The system displayed the error message 'Insufficient funds for transaction [TXN12345]'. The transaction was for a purchase of 1,000 shares in company XYZ at €150 per share. The system failed to complete the booking, causing a hold on the transaction. We've tried running the booking again, but the error persists. The Blue Fund is scheduled for an accounting close at 16:00 today. The fund manager is concerned about the impact on the reconciliation process.",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Low",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: It seems that the system might be overdrawn due to recent transactions. We should check the fund's cash position.",
+    "sofia.lind@intcom.com: The fund manager needs a workaround to prevent a delay in the accounting close process."
+   ],
+   "_label": {
+    "service": "Portfolio Accounting",
+    "resolution": "done",
+    "assignee": "ulrich.fischer@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D051",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Issue with Regulatory Reporting System - License Expiry",
+   "Description": "Received an email notification from the Regulatory Reporting System stating that the license for the Compliance Check Module is about to expire on 15th of March. The system is currently reporting 100% compliance, but we are unsure if this is accurate due to the pending license issue. The error message received is 'License Expired, Compliance Check Unavailable.' We have tried extending the license through the usual renewal process, but the system is still reporting issues. This is critical as it affects our ability to conduct pre- and post-trade compliance checks and risk model runs. The system is currently in use by all business entities in Europe, impacting up to 100 users.",
+   "Affected Business or IT Services": [
+    "Regulatory Reporting"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Highest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: It's important to ensure that we have a clear understanding of the compliance status before the license expires. Can we get a clarification on the status from the vendor?",
+    "eva.keller@intcom.com: We need to prepare a fallback plan in case the issue persists until the 15th of March."
+   ],
+   "_label": {
+    "service": "Risk & Compliance Monitoring",
+    "resolution": "done",
+    "assignee": "gina.muller@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D052",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Investigation required for delayed risk model runs",
+   "Description": "We are experiencing delays in risk model runs which are critical for generating exposure alerts. The latest run for the 'Euro Zone Fixed Income' fund started at 14:00 on 2023-10-15 but has not completed as of 16:00. The system is displaying an error message: 'Timeout during data processing'. We have already checked the database connection and it appears to be stable. The issue seems to be related to the large volume of data being processed. Please investigate and resolve as soon as possible to prevent delays in our compliance checks and investment limit breaches.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Is there a way to prioritize the current run to ensure it completes in a timely manner?",
+    "marc.dupont@intcom.com: Can we rerun the latest incomplete batch to ensure we have up-to-date exposure alerts?"
+   ],
+   "_label": {
+    "service": "Risk & Compliance Monitoring",
+    "resolution": "done",
+    "assignee": "gina.muller@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D053",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Error in SharePoint & File Storage Affecting Rimes Deliveries",
+   "Description": "We have noticed that some Rimes benchmark, index, and reference-data deliveries are late or missing. For instance, today's delivery for the 'Europe 500' index constituent weights are not available. Error message: 'Failed to retrieve file from SharePoint: 404 Not Found.' We have already checked our local file storage and it is not present there either. Tried restarting the server and accessing the SharePoint site manually, but the issue persists. This is impacting the daily reporting process for the Luxembourg office.",
+   "Affected Business or IT Services": [
+    "SharePoint & File Storage"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "High",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague from Luxembourg: Confirming that the issue has affected the daily reporting process and is impacting the European clients as well.",
+    "alex.meier@intcom.com: IT Support: Investigating the root cause of the missing files and the error message."
+   ],
+   "_label": {
+    "service": "Rimes Data Feed",
+    "resolution": "done",
+    "assignee": "gina.muller@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D054",
+   "Work type": "Service Request",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "Late Rimes Benchmark File Delivery for European Funds",
+   "Description": "The Rimes benchmark system failed to deliver the scheduled benchmark file for the 'Luxury Goods Fund' on 2023-10-15. The file is crucial for the end-of-month report and is expected to be delivered by 16:00 CET today. The latest log shows an error message: 'Error in file transfer: timeout expired'. The fund manager reported that without this file, they cannot proceed with the report preparation and submission by the deadline. Steps taken: Restarted the Rimes service and manually triggered the file transfer, but the issue persists. The fund manager is concerned about missing data and potential delays.",
+   "Affected Business or IT Services": [
+    "Rimes Data Feed"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: From IT: Investigating the root cause of the timeout issue, suspecting network latency issues.",
+    "jonas.berg@intcom.com: From Compliance: Urgent, need to ensure no regulatory data gaps."
+   ],
+   "_label": {
+    "service": "Rimes Data Feed",
+    "resolution": "done",
+    "assignee": "gina.muller@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D055",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Client Reporting System Shows Incorrect License Expiry Dates",
+   "Description": "We've noticed that the Client Reporting System is displaying incorrect license expiry dates for several funds. For instance, for the Luxembourg fund 'LuxEquities Fund', the system shows the license expires on 2023-11-15, but the correct date is 2023-12-15. This discrepancy might affect our compliance reporting. Steps already taken: Checked the fund's record in the Licensing System, which shows the correct dates. No errors or logs have been found so far. Tried clearing cache and restarting the browser, but the issue persists. Expected resolution: Correct the date in the Client Reporting System.",
+   "Affected Business or IT Services": [
+    "Client Reporting"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Sara from Legal: Confirming that this incorrect expiry date does not affect our legal obligations as of now, but we need to ensure it's fixed before the next reporting period."
+   ],
+   "_label": {
+    "service": "CRM & Client Portal",
+    "resolution": "done",
+    "assignee": "carlos.ortiz@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D056",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "Client unable to access portfolio review due to missing license",
+   "Description": "A client reported that they are unable to access their portfolio review on the self-service portal. The error message states: 'License not found for user.' The client is trying to access their account from the Switzerland office. They have already checked their user profile and confirmed that they are assigned the correct role. This issue affects their ability to review their investment portfolio, which is critical for upcoming meetings with clients. The last successful login was at 14:00 yesterday.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Highest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: Colleague in HR confirmed that the client's license was correctly assigned but the system may still need a cache update."
+   ],
+   "_label": {
+    "service": "CRM & Client Portal",
+    "resolution": "done",
+    "assignee": "carlos.ortiz@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D057",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Outlook sync issues causing email delays - users report 30+ min delay in receiving emails",
+   "Description": "Users in Switzerland and France are experiencing a significant delay in receiving emails via Outlook. The delay is estimated to be 30+ minutes. Users report seeing a message: 'Account not available. Please try again later'. We've already checked the Office 365 status page, and it shows no active incidents. We've also verified network connectivity and user credentials. The issue seems to be with the identity platform as users with the same credentials on mobile devices are receiving emails as expected. We're concerned this might be an authentication issue since it's affecting SSO and MFA users specifically.",
+   "Affected Business or IT Services": [
+    "Outlook & Email"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Highest",
+   "Urgency": "High",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Has anyone seen similar issues with other SaaS applications? Could it be a broader platform issue?",
+    "alex.meier@intcom.com: Should we reach out to the identity platform support team for assistance?"
+   ],
+   "_label": {
+    "service": "Identity & Access Management",
+    "resolution": "done",
+    "assignee": "maya.kerr@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D058",
+   "Work type": "Incident",
+   "Request type": "Email / 3rd Party Warning",
+   "Summary": "User unable to access Fund X due to MFA failure",
+   "Description": "User with the username 'user123' from the 'Manager' group is unable to log in to the Fund X platform using SSO. The user receives the error message 'MFA verification failed'. The user has already attempted the MFA step using their authenticator app, but the verification did not pass. The user is a manager for the 'Luxembourg' office and needs immediate access to Fund X for a meeting at 14:00 CET.",
+   "Affected Business or IT Services": [
+    "Emailed Support Tickets"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Low",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Already checked the user's authenticator app settings and verified that the secret key is correct. Also, the MFA code generated is valid.",
+    "sofia.lind@intcom.com: Will escalate to the next level of support if the issue is not resolved within 30 minutes."
+   ],
+   "_label": {
+    "service": "Identity & Access Management",
+    "resolution": "done",
+    "assignee": "maya.kerr@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D059",
+   "Work type": "Incident",
+   "Request type": "New License",
+   "Summary": "Request for additional storage licenses for the Identity & Access Management system",
+   "Description": "The Zurich office reported that multiple teams are experiencing difficulties uploading new contracts due to insufficient storage space. The error message states: 'Insufficient storage space. Please contact support.' Despite the issue, the storage space is at 70% usage, far from the critical threshold. The teams have tried clearing temporary files and restarting their systems, but the issue persists. The activity affects internal and external teams handling contract uploads and document versioning.",
+   "Affected Business or IT Services": [
+    "Identity & Access Management"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: CC: IT Support - Please verify the current storage usage and check for any misconfigurations that might be causing the issue.",
+    "marc.dupont@intcom.com: CC: Compliance - Ensure that this issue does not impact any regulatory compliance requirements for document storage."
+   ],
+   "_label": {
+    "service": "SharePoint & File Storage",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Service Request",
+    "urgency": "Medium",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D060",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Unable to upload new contract files in the document management system.",
+   "Description": "Users in the Legal and Compliance departments are encountering an 'Access denied' error when trying to upload new contract files. The last successful upload was on 2023-10-05. The system shows that the user's role has the correct permissions. Users have tried clearing their browser cache and signing out/signing back in, but the issue persists. The upload limit for the document is 50MB, and the file size is within this limit. Error message: 'Access denied (code: 403)'.",
+   "Affected Business or IT Services": [
+    "SharePoint & File Storage"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Low",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "marc.dupont@intcom.com: IT Support: The issue seems to be related to a recent update to the document management system. We are investigating the cause."
+   ],
+   "_label": {
+    "service": "SharePoint & File Storage",
+    "resolution": "done",
+    "assignee": "xena.schmidt@intcom.com",
+    "assignee_source": "fallback",
+    "source_pattern": null,
+    "kind": "card",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D061",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Front-office trading application is experiencing issues with logins and blotter functionality. Users report slow screen,",
+   "Description": "Since 10:30 AM, multiple users across different offices in Switzerland and France are reporting difficulties logging into the front-office trading application. Some users are seeing error messages like 'Session Timeout' and 'System Unavailable'. The application is also very slow, making it hard to access blotter and execute trades. We have tried restarting the application and clearing browser cache, but the issue persists. Affected users include portfolio managers and traders in both local and remote offices.",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Lowest",
+   "Urgency": "Lowest",
+   "Impact": "Lowest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Can someone check if there are any network issues affecting the front-office trading application?",
+    "sofia.lind@intcom.com: Let's escalate this to the senior support team as it's impacting multiple users and causing delays in trading activities."
+   ],
+   "_label": {
+    "service": "Trading Platform",
+    "resolution": "clarification",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "clarification",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "High",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D062",
+   "Work type": "Service Request",
+   "Request type": "Human Created Incident",
+   "Summary": "Error encountered during fund reconciliation process",
+   "Description": "During a routine bank reconciliation for the Luxembourg fund account, the system encountered an error message stating 'Insufficient funds for sweep operation'. The cash sweep for fund [XXLUX-001] was unsuccessful, and the liquidity management process was halted. The system did not allow the transaction to proceed, and the error message was logged at 14:30 CET. Steps taken included checking the available balance and re-entering the transaction, but the issue persists. This has affected the daily reconciliation of the Luxembourg fund account, which is critical for the upcoming fund reporting.",
+   "Affected Business or IT Services": [
+    "CRM & Client Portal"
+   ],
+   "Business Entity": [
+    "Nordics"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Highest",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Colleague: Have you verified the fund balance with the bank to ensure the issue isn't due to discrepancies in the bank statement?",
+    "jonas.berg@intcom.com: Colleague: It might also be worth checking if there's a pending approval for this transaction in the workflow system."
+   ],
+   "_label": {
+    "service": "Cash Management",
+    "resolution": "clarification",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "clarification",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D063",
+   "Work type": "Incident",
+   "Request type": "Human Created Incident",
+   "Summary": "Order capture, routing and execution issues preventing order routing and execution for multiple funds",
+   "Description": "Several orders are stuck in the system during the routing and execution phase. The error message states 'Broker routing table mapping not found [ERR-123456]'. Despite checking the clearing-account mappings, no resolution has been found. All orders in the 'Luxembourg' region are affected, including funds LUX-001, LUX-002, and LUX-003. Approvals are pending in the system, causing delays in order execution.",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "High",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Other teams have reported similar issues but with different error codes. We need to coordinate a broader analysis.",
+    "marc.dupont@intcom.com: The finance team is already impacted as some transactions are delayed, but we are not yet aware of any regulatory concerns."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "clarification",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "clarification",
+    "work_type": "Incident",
+    "urgency": "High",
+    "impact": "Medium",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D064",
+   "Work type": "Incident",
+   "Request type": "Machine Created Alert",
+   "Summary": "Automated Monitoring Alert Resolved",
+   "Description": "An automated monitoring alert related to order capture, routing, and execution was triggered but cleared itself after initial checks. No errors or impact were found, and the alert has been confirmed as false-positive by a colleague.",
+   "Affected Business or IT Services": [
+    "Risk & Compliance Monitoring"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Medium",
+   "Urgency": "Low",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "eva.keller@intcom.com: Colleague: Confirmed no errors or impact, alert is likely a false-positive."
+   ],
+   "_label": {
+    "service": "Order Management",
+    "resolution": "cannot reproduce",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "cannot_reproduce",
+    "work_type": "Incident",
+    "urgency": "Low",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D065",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Monitoring alert for Corporate Actions processing cleared automatically",
+   "Description": "An automated monitoring alert for the Corporate Actions processing system was triggered, but it cleared itself. A colleague confirmed no errors or impact were found. The alert likely detected a temporary glitch that resolved on its own.",
+   "Affected Business or IT Services": [
+    "Securities Settlement"
+   ],
+   "Business Entity": [
+    "France"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Medium",
+   "Impact": "Highest",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "sofia.lind@intcom.com: Colleague: Just to confirm, the alert was for the Corporate Actions system and it auto-cleared with no impact observed."
+   ],
+   "_label": {
+    "service": "Corporate Actions",
+    "resolution": "cannot reproduce",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "cannot_reproduce",
+    "work_type": "Incident",
+    "urgency": "Low",
+    "impact": "Low",
+    "names_service": true
+   }
+  },
+  {
+   "id": "D066",
+   "Work type": "Service Request",
+   "Request type": "Machine Created Alert",
+   "Summary": "Front-office trading application issue resolved - monitoring alert cleared",
+   "Description": "An automated monitoring alert for the front-office trading application was triggered but cleared itself. Colleague's follow-up check did not reveal any errors or impact on portfolio managers and traders. Symptoms included temporary login issues and screen slowness, but these resolved on their own. No specific error messages were recorded.",
+   "Affected Business or IT Services": [
+    "Trade Matching"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Highest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [
+    "jonas.berg@intcom.com: Colleague: No errors found, application seems to have self-cleared. Monitoring should be closely watched for any subsequent issues."
+   ],
+   "_label": {
+    "service": "Trading Platform",
+    "resolution": "cannot reproduce",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "cannot_reproduce",
+    "work_type": "Incident",
+    "urgency": "Low",
+    "impact": "Low",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D067",
+   "Work type": "Incident",
+   "Request type": "Nonsense / Unclear Input",
+   "Summary": "Team in Paris is having a picnic",
+   "Description": "Just a friendly reminder that the Paris office is having a picnic today, no IT impact. :)",
+   "Affected Business or IT Services": [
+    "Portfolio Accounting"
+   ],
+   "Business Entity": [
+    "Luxembourg"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "Highest",
+   "Impact": "Medium",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [],
+   "_label": {
+    "service": "Emailed Support Tickets",
+    "resolution": "cancelled",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "nonsense",
+    "work_type": "Incident",
+    "urgency": "Low",
+    "impact": "Lowest",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D068",
+   "Work type": "Incident",
+   "Request type": "Nonsense / Unclear Input",
+   "Summary": "Can someone help with this random message?",
+   "Description": "Just a test message sent from my phone. Nothing to see here!",
+   "Affected Business or IT Services": [
+    "Trading Platform"
+   ],
+   "Business Entity": [
+    "Germany"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "Low",
+   "Urgency": "Medium",
+   "Impact": "Low",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [],
+   "_label": {
+    "service": "Emailed Support Tickets",
+    "resolution": "cancelled",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "nonsense",
+    "work_type": "Service Request",
+    "urgency": "Low",
+    "impact": "Lowest",
+    "names_service": false
+   }
+  },
+  {
+   "id": "D069",
+   "Work type": "Incident",
+   "Request type": "Nonsense / Unclear Input",
+   "Summary": "Why is the cat in the office?",
+   "Description": "Just wondering if anyone saw the cat wander into the office this morning. 🐱",
+   "Affected Business or IT Services": [
+    "Identity & Access Management"
+   ],
+   "Business Entity": [
+    "Switzerland"
+   ],
+   "Business Critical for Entity": [],
+   "Service Team(s)": [],
+   "Assignee": null,
+   "Priority": "High",
+   "Urgency": "High",
+   "Impact": "High",
+   "Resolution": null,
+   "Status": "open",
+   "All Comments": [],
+   "_label": {
+    "service": "Emailed Support Tickets",
+    "resolution": "cancelled",
+    "assignee": null,
+    "assignee_source": null,
+    "source_pattern": null,
+    "kind": "nonsense",
+    "work_type": "Service Request",
+    "urgency": "Lowest",
+    "impact": "Lowest",
+    "names_service": false
+   }
+  }
+ ]
+}

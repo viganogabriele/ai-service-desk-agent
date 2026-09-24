@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "model": "qwen2.5:7b",
+  "catalog_sha256": "6f3ad42cbe5095d6541c47095258c233554c1da46fbc47c529735667876f8844",
+  "reviewed": true,
+  "cards": [
+    {
+      "service": "CRM & Client Portal",
+      "team": "Client Services",
+      "criticality": "Non-Critical",
+      "pattern_ids": [],
+      "scope": "Client communication and self-service for account updates, portfolio reviews, and document requests.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Cash Management",
+      "team": "Treasury & Cash",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P01",
+        "P02"
+      ],
+      "scope": "Bank reconciliations, cash sweeps, and liquidity management for fund accounts.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Client Reporting",
+      "team": "Client Services",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P03",
+        "P04"
+      ],
+      "scope": "Client-facing reports and factsheets: template or rendering defects, missing sections such as fees, batch generation and distribution.",
+      "boundary": "Submissions to supervisors go to Regulatory Reporting.",
+      "scope_source": "edited",
+      "llm_scope": "Generating and distributing client reports including fee statements, performance reports, and regulatory filings."
+    },
+    {
+      "service": "Corporate Actions",
+      "team": "Securities Operations",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P05",
+        "P06"
+      ],
+      "scope": "Corporate actions processing including announcements, elections, and distribution records.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Emailed Support Tickets",
+      "team": "Service Desk",
+      "criticality": "Non-Critical",
+      "pattern_ids": [],
+      "scope": "Last-resort bucket for emailed requests where the content identifies no specific service.",
+      "boundary": null,
+      "scope_source": "edited",
+      "llm_scope": "Handling and resolving support tickets submitted via email, including account issues, data requests, and system notifications."
+    },
+    {
+      "service": "Fund Pricing",
+      "team": "Valuation & Pricing",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Security and holding prices used for fund valuation: vendor price feeds, stale or missing prices, price challenges and fair-value overrides.",
+      "boundary": "NAV strike and NAV tolerance breaches go to NAV Calculation.",
+      "scope_source": "edited",
+      "llm_scope": "Pricing of fund assets, including NAV calculations, share class valuations, and reconciliation with accounting systems."
+    },
+    {
+      "service": "Identity & Access Management",
+      "team": "Enterprise Applications",
+      "criticality": "Non-Critical",
+      "pattern_ids": [],
+      "scope": "The identity platform itself: user accounts, SSO, MFA, password resets, directory groups and joiner/mover/leaver provisioning.",
+      "boundary": "Access or licences for one specific business application go to that application's service.",
+      "scope_source": "edited",
+      "llm_scope": "User and role provisioning, access revocation, and permission management for various systems and applications."
+    },
+    {
+      "service": "NAV Calculation",
+      "team": "Valuation & Pricing",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Daily NAV strike per fund and share class: NAV tolerance breaches, estimated versus final NAV, fee accruals, NAV sign-off and publication delays.",
+      "boundary": "Wrong input prices for individual securities go to Fund Pricing.",
+      "scope_source": "edited",
+      "llm_scope": "Net asset value (NAV) calculations for funds, including daily valuation and pricing of assets."
+    },
+    {
+      "service": "Order Management",
+      "team": "Trading Support",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P07",
+        "P08"
+      ],
+      "scope": "Order capture, routing and execution: broker routing tables, clearing-account mappings, rejected or stuck orders.",
+      "boundary": "Post-trade allocation and confirmation mismatches go to Trade Matching.",
+      "scope_source": "edited",
+      "llm_scope": "Order routing and execution for trades: ensuring correct allocation, handling broker account setups, and managing order statuses."
+    },
+    {
+      "service": "Outlook & Email",
+      "team": "Enterprise Applications",
+      "criticality": "Non-Critical",
+      "pattern_ids": [
+        "P09",
+        "P10"
+      ],
+      "scope": "Provisioning and managing shared mailboxes, distribution lists, and email permissions.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Portfolio Accounting",
+      "team": "Investment Operations",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Investment book of record: transaction bookings, accruals, position and cash reconciliation, portfolio P&L and accounting close.",
+      "boundary": null,
+      "scope_source": "edited",
+      "llm_scope": "Accounting of fund assets, including valuation, allocation, and reconciliation of portfolio transactions."
+    },
+    {
+      "service": "Regulatory Reporting",
+      "team": "Risk & Controls",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P11",
+        "P12"
+      ],
+      "scope": "Generating and submitting regulatory reports to supervisory authorities: ensuring completeness and accuracy of data, handling rejections and resubmissions.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Rimes Data Feed",
+      "team": "Market Data Services",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Rimes benchmark, index and reference-data deliveries: late or missing files, index constituent or weight errors, feed load failures.",
+      "boundary": "Security prices used for valuation go to Fund Pricing.",
+      "scope_source": "edited",
+      "llm_scope": "Real-time market data feed for pricing and risk models: tick data, quotes, and market events."
+    },
+    {
+      "service": "Risk & Compliance Monitoring",
+      "team": "Risk & Controls",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Pre- and post-trade compliance checks, investment-limit breaches, risk model runs and exposure alerts.",
+      "boundary": "Submissions to regulators go to Regulatory Reporting.",
+      "scope_source": "edited",
+      "llm_scope": "Real-time monitoring of fund risks and compliance issues, including alerts on breaches, regulatory changes, and internal controls."
+    },
+    {
+      "service": "Securities Settlement",
+      "team": "Securities Operations",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P13",
+        "P14",
+        "P15"
+      ],
+      "scope": "Custody status updates, settlement confirmations, and fail-chasing workflows for fund transactions.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "SharePoint & File Storage",
+      "team": "Enterprise Applications",
+      "criticality": "Non-Critical",
+      "pattern_ids": [],
+      "scope": "File storage and document management for internal and external teams: contract uploads, document versioning, and access control.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "SimCorp Dimension",
+      "team": "Enterprise Applications",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P16",
+        "P17"
+      ],
+      "scope": "The SimCorp Dimension platform itself: batch jobs, position sync, replication, database locks and application errors.",
+      "boundary": "Accounting bookings and results go to Portfolio Accounting.",
+      "scope_source": "edited",
+      "llm_scope": "Asset valuation and portfolio accounting: position synchronization, holdings, and reporting."
+    },
+    {
+      "service": "Tax Reporting",
+      "team": "Tax & Reporting",
+      "criticality": "Non-Critical",
+      "pattern_ids": [
+        "P18",
+        "P19"
+      ],
+      "scope": "Withholding tax workflow, quarterly extract tool access, and tax data validation.",
+      "boundary": null,
+      "scope_source": "llm"
+    },
+    {
+      "service": "Trade Matching",
+      "team": "Investment Operations",
+      "criticality": "Critical",
+      "pattern_ids": [
+        "P20",
+        "P21"
+      ],
+      "scope": "Post-trade allocation, confirmation and affirmation with brokers: allocation rejections, SSI and broker-account mappings, unmatched trades.",
+      "boundary": "Failures after matching, at the custodian, go to Securities Settlement.",
+      "scope_source": "edited",
+      "llm_scope": "Matching of trades between counterparties, ensuring accurate allocation and settlement of transactions."
+    },
+    {
+      "service": "Trading Platform",
+      "team": "Investment Operations",
+      "criticality": "Critical",
+      "pattern_ids": [],
+      "scope": "Front-office trading application used by portfolio managers and traders: availability, logins, blotter or screen errors and slowness.",
+      "boundary": "Broker routing and order-flow configuration go to Order Management.",
+      "scope_source": "edited",
+      "llm_scope": "Execution and management of trades, including order routing, confirmation, and reconciliation."
+    }
+  ],
+  "review_note": "Human-approved: 8 LLM scopes kept, 12 replaced with reviewer-approved edits (llm_scope keeps the original)."
+}
