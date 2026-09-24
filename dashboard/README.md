@@ -19,6 +19,12 @@ To use solver output, create `dashboard/data/proposals.json` with `{ "proposals"
 
 Review state and the append-only action log persist in browser local storage. **Reset demo** clears both. **Export JSON** exports all 20 challenge records with final values and a `reviewed` flag. Team and priority are derived in the application and cannot be edited independently.
 
+## Styling
+
+Styles are Tailwind v4 utilities; there is no component stylesheet. `src/index.css` holds the design tokens in `@theme`, so each one is a CSS variable (`var(--color-primary)`) and a utility (`bg-primary`, `text-muted`, `border-ring`, `rounded-card`, `shadow-float`). Colors: `primary` (accent) with `primary-foreground`, `primary-subtle`, `primary-hover` and `ring`; surfaces `background`, `shell`, `surface`, `elevated`; text `foreground`, `secondary`, `muted`, `nav`; lines `border`, `border-hover`, `divider`; fills `hover`, `active`; status `success`, `warning`, `danger`, `info`; charts `chart-1` to `chart-5`. The default Tailwind palette, type scale, radii and breakpoints are reset, so only these tokens exist. `text-base` is the 13px body size, and sizes inherit the surrounding line-height. Re-theme by changing `--color-primary`.
+
+Shared pieces live in `src/components/ui/`: `Button` / `buttonVariants` (also for router links), `Card`, `Pill`, `Dot`, `MockBadge`, `Tag`, `Field`, `Select`, `Textarea`, `InputGroup`, `Segmented`, `Chip`, `Table`, `Meter`, `Kbd`, page headings and the 12-column `Grid` with `SPAN`. They follow shadcn/ui conventions (`cn`, `class-variance-authority`) without depending on shadcn. Use `cn()` from `src/lib/utils.ts` to merge classes. It knows the custom scales and `@utility` classes, so overrides passed through `className` replace the defaults instead of stacking with them.
+
 ## Lint and formatting
 
 `pnpm lint` runs Oxlint with the vendored generic rules from [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop) at `c44ef22` and `@shadcn/lint`'s `no-arbitrary-values` rule. The anti-slop repository's `.oxlintrc.json` contains only `oxc/no-accumulating-spread`; its README documents the full vendored plugin rule set. Both are merged in `oxlint.config.ts`. Effect-specific rules were omitted because this project does not use Effect. No ESLint or Prettier is installed.

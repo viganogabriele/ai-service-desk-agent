@@ -178,9 +178,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [saved]);
 
-  if (query.isPending) return <div className="loading">Loading ticket data…</div>;
+  if (query.isPending)
+    return <div className="px-5 py-15 text-center text-muted">Loading ticket data…</div>;
 
-  if (query.isError) return <div className="loading">{query.error.message}</div>;
+  if (query.isError)
+    return <div className="px-5 py-15 text-center text-muted">{query.error.message}</div>;
 
   const data = query.data;
   const idOf = (index: number) => data.proposals[index].ticket_id;

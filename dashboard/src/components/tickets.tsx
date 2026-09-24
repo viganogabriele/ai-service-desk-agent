@@ -13,6 +13,10 @@ import {
   serviceInfo,
 } from "../domain";
 import type { Proposal, ReviewStatus, Ticket } from "../domain";
+import { Dot, Pill } from "./ui/badge";
+import { Field, InputGroup, InputGroupInput, Select } from "./ui/field";
+import { Meter } from "./ui/meter";
+import { cn } from "../lib/utils";
 
 export interface TicketFilters {
   query: string;
@@ -132,12 +136,12 @@ export function useTicketRows() {
   return { rows, visible };
 }
 
-export function StatusPill({ status }: { status: ReviewStatus }) {
+export function StatusPill({ status, className }: { status: ReviewStatus; className?: string }) {
   return (
-    <span className="pill">
-      <i className={`dot ${STATUS_DOTS[status]}`} />
+    <Pill className={className}>
+      <Dot tone={STATUS_DOTS[status]} />
       {STATUS_LABELS[status]}
-    </span>
+    </Pill>
   );
 }
 
@@ -145,23 +149,21 @@ export function PriorityPill({ row }: { row: TicketRow }) {
   const level = priority(row.current.form.urgency, row.current.form.impact);
 
   return (
-    <span className="pill">
-      <i className={`dot ${PRIORITY_DOTS[level]}`} />
+    <Pill>
+      <Dot tone={PRIORITY_DOTS[level]} />
       {level}
-    </span>
+    </Pill>
   );
 }
 
 export function Confidence({ value }: { value: number | null }) {
-  if (value === null) return <span className="muted">Not measured</span>;
+  if (value === null) return <span className="text-muted">Not measured</span>;
   const percent = Math.round(value * 100);
 
   return (
-    <span className="confidence-cell">
+    <span className="inline-flex items-center gap-2 text-foreground tabular-nums">
       {percent}%
-      <span className="meter neutral">
-        <span style={{ width: `${percent}%` }} />
-      </span>
+      <Meter value={percent / 100} tone="neutral" className="w-10" />
     </span>
   );
 }
@@ -170,27 +172,32 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
   const { filters, setFilters } = useTicketFilters();
 
   return (
-    <label className={compact ? "search compact" : "search"}>
+    <InputGroup
+      as="label"
+      className={cn("gap-2 text-sm font-medium text-muted", compact ? "w-full" : "w-80 max-w-full")}
+    >
       <Search size={14} strokeWidth={1.75} />
       <span className="sr-only">Search tickets</span>
-      <input
+      <InputGroupInput
+        className="font-normal"
         type="search"
         placeholder="Search id, summary, reporter…"
         value={filters.query}
         onChange={(event) => setFilters({ query: event.target.value })}
       />
-    </label>
+    </InputGroup>
   );
 }
 
-export function StatusSelect() {
+export function StatusSelect({ className }: { className?: string }) {
   const { filters, setFilters } = useTicketFilters();
   const { rows } = useTicketRows();
 
   return (
-    <label>
+    <Field>
       <span className="sr-only">Review status</span>
-      <select
+      <Select
+        className={className}
         value={filters.status}
         onChange={(event) => {
           const value = event.target.value;
@@ -213,19 +220,20 @@ export function StatusSelect() {
             {label} · {rows.filter((row) => row.current.status === key).length}
           </option>
         ))}
-      </select>
-    </label>
+      </Select>
+    </Field>
   );
 }
 
-export function FilterSelects() {
+export function FilterSelects({ className }: { className?: string }) {
   const { filters, setFilters } = useTicketFilters();
 
   return (
     <>
-      <label>
+      <Field>
         <span className="sr-only">Proposed service</span>
-        <select
+        <Select
+          className={className}
           value={filters.service}
           onChange={(event) => setFilters({ service: event.target.value })}
         >
@@ -235,30 +243,36 @@ export function FilterSelects() {
               {name}
             </option>
           ))}
-        </select>
-      </label>
-      <label>
+        </Select>
+      </Field>
+      <Field>
         <span className="sr-only">Rating</span>
-        <select
+        <Select
+          className={className}
           value={filters.rating}
           onChange={(event) => setFilters({ rating: event.target.value })}
         >
           <option value="all">All ratings</option>
           <option>Critical</option>
           <option>Non-Critical</option>
-        </select>
-      </label>
-      <label>
+        </Select>
+      </Field>
+      <Field>
         <span className="sr-only">Changes</span>
-        <select
+        <Select
+          className={className}
           value={filters.change}
           onChange={(event) => setFilters({ change: event.target.value })}
         >
           <option value="all">Any change</option>
           <option value="service">Service changed</option>
           <option value="work">Work type changed</option>
-        </select>
-      </label>
+        </Select>
+      </Field>
     </>
   );
+}
+
+export function BoardEmpty({ children }: { children: ReactNode }) {
+  return <p className="px-1 py-4 text-center text-sm text-muted">{children}</p>;
 }
