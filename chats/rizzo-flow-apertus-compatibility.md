@@ -1,5 +1,7 @@
 # Rizzo Flow e compatibilità con Apertus
 
+> **Archived technical discussion — not a current compatibility guarantee.** The 2026-09-24 advisor review does not verify the model versions, architecture claims or runtime support below. Check primary model/runtime documentation before selecting an alternative. See [ANALYSIS.md](../ANALYSIS.md) and [ADVISOR_REVIEW.md](../ADVISOR_REVIEW.md) for the current measured baseline and experiment plan. Original conversation preserved below.
+
 ## User
 
 guarda [https://github.com/Rizzo-AI-Academy/rizzo-flow](https://github.com/Rizzo-AI-Academy/rizzo-flow) dimmi come funziona ad alto livello e se posso applicarlo anche ad altri modelli come apertus 1.5 o 1.1 mini

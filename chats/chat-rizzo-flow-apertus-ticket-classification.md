@@ -1,5 +1,7 @@
 # Rizzo Flow, Apertus e classificazione dei ticket
 
+> **Archived conversation — recommendations superseded 2026-09-24.** See [ANALYSIS.md](../ANALYSIS.md) and [ADVISOR_REVIEW.md](../ADVISOR_REVIEW.md). Model availability, runtime compatibility, quality and timing estimates below are not verified benchmarks of this repository. The implemented baseline uses two constrained-JSON model calls per ticket, not logit scoring or shared KV-cache decisions. Original conversation preserved below.
+
 Conversazione esportata da **Training aggiuntivo modello**. I messaggi sono riportati in ordine cronologico; sono stati esclusi soltanto frammenti vocali esplicitamente identificati come rumore e la richiesta tecnica di esportazione.
 
 ---

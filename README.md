@@ -1,6 +1,14 @@
 # Local ticket triage PoC
 
-This backend turns a batch of blind Jira tickets into **draft** triage decisions. It runs on a Mac mini M4 with 24 GB using [Ollama](https://docs.ollama.com/macos) and the [Qwen3 4B Instruct 2507 Q4_K_M model](https://ollama.com/library/qwen3%3A4b-instruct-2507-q4_K_M) (4.02B parameters, about 2.5 GB of model weights). Python 3.10+ is enough for the backend; it has no pip dependencies.
+This backend turns a batch of blind Jira tickets into **draft** triage decisions. It is configured for [Ollama](https://docs.ollama.com/macos) and `qwen3:4b-instruct-2507-q4_K_M`; the intended local deployment is a Mac mini M4 with 24 GB. Python 3.10+ is enough for the backend; it has no pip dependencies.
+
+## Direction after the advisor review
+
+Build the demo around an agent's workflow: **incoming ticket → solver proposal → review/edit → approved triage**. English is sufficient for the challenge. Keep historical anomaly review and measured model economics as optional extensions; all seven official output targets still matter.
+
+Read [ADVISOR_REVIEW.md](ADVISOR_REVIEW.md) for the revised scope, demo, experiments and scaling assumptions, and [ANALYSIS.md](ANALYSIS.md) for corrected findings and evidence limits. These supersede recommendations in the archived chats and `report-20tickets.md`; [instructions.md](instructions.md) remains the official specification.
+
+The backend and `dashboard.html` explorer already exist. The queue's solver integration, persisted review/approval workflow and cost comparison are **planned**, not implemented. Approval of a proposal does not execute a repair or close a Jira ticket.
 
 ## Run on the Mac
 
@@ -78,7 +86,9 @@ For each record, the service, team, assignee, work type, urgency, impact, priori
 - Ignores the training priority, urgency, impact and resolution labels as supervision. The 4B model applies the official rubric to the blind ticket; Python computes priority from the official matrix and enforces service → team. The model returns constrained JSON enums, which are checked again by Python. [Ollama documents schema constrained output](https://docs.ollama.com/capabilities/structured-outputs).
 - Removes obvious instruction-like sentences from untrusted ticket text before model calls. Review flags show when this happened.
 
-The `fixtures/` set contains six separate, hand-labelled cases for service and work type. It is a smoke benchmark, not a claim about the hidden evaluation. The supplied `sample_blind_eval_20.json` is treated only as an input-format sample; no ticket-specific result is hardcoded. Run `evaluate` against a real reference file if one becomes available. The Mac's actual throughput must be measured locally; the Linux development environment used here has no Ollama installation or Apple GPU, so no Mac latency or model accuracy is asserted.
+The `fixtures/` set contains six separate, hand-labelled cases for service and work type. It is a smoke benchmark, not a claim about the hidden evaluation. Re-evaluating the saved `output/dev_predictions.json` gives 6/6 for both fields and a recorded mean of 4.74 seconds per ticket. The saved `output/triaged.json` has 20 outputs, all matrix-consistent, and records a mean of 5.80 seconds per ticket across classification and comment generation. Neither artifact records hardware or benchmark conditions; these are saved-run measurements, not a new live run or verified Mac throughput. The 20-ticket output has no reference answers.
+
+The supplied `sample_blind_eval_20.json` is an input-format and manual-inspection sample, not a held-out benchmark; earlier dashboard keyword tuning used it. No ticket-specific output is hardcoded. Do not replay saved predictions as fresh challenge inference. Run `evaluate` against an independent reference if one becomes available, and measure actual deployment throughput locally.
 
 The earlier chats suggest direct logit scoring with Rizzo Flow and possibly Apertus Mini 4B. This PoC uses a quantized 4B instruct model with constrained JSON because it is a simpler end-to-end baseline that also writes resolution comments. It makes **two model calls per ticket** (classification, then comment) and deliberately does not claim the logits/KV-cache speedups discussed in those chats. Measure this baseline first; a logit classifier or an Apertus swap can be compared using the same fixtures and output contract.
 

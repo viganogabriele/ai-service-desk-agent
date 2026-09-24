@@ -1,5 +1,7 @@
 # Analisi e soluzione proposta
 
+> **Archived conversation — conclusions superseded 2026-09-24.** Use [ANALYSIS.md](../ANALYSIS.md) for corrected counts and evidence limits and [ADVISOR_REVIEW.md](../ADVISOR_REVIEW.md) for the current plan. In particular, 21 narratives cover 10 services; assignee/resolution randomness is not established by the official instructions; sample corrections are not ground truth. References below to `demo_trap_tickets.json` describe an earlier session; that file is not present in this checkout. Original conversation preserved below.
+
 - Exported: 2026-09-24
 - Source conversation: `6ab4efc8-a810-83eb-b6c0-c83b0c118c92`
 

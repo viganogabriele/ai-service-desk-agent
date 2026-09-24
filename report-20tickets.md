@@ -1,3 +1,5 @@
+> **Historical inspection notes — superseded 2026-09-24.** See [ANALYSIS.md](ANALYSIS.md) and [ADVISOR_REVIEW.md](ADVISOR_REVIEW.md) for current conclusions. Proposed sample corrections are not verified reference answers; “two errors / no false positives” was not an independent evaluation. A blank Business Critical for Entity field does not make it a required challenge output. Original notes follow for traceability.
+
 Sì, ci sono diverse cose importanti da sapere.
 
 Ho salvato il file come `sample_blind_eval_20.json` solo come **format sample** e **test fixture**. Né il tool né le note dipendono da questi specifici ticket.
