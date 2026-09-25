@@ -11,7 +11,7 @@ import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import { Button, buttonVariants } from "../components/ui/button";
 import { cn } from "../lib/utils";
-import logo from "../assets/logo.svg";
+import logo from "../assets/logo.png";
 
 export const Route = createRootRoute({ component: Root });
 
