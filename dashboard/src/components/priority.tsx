@@ -563,6 +563,10 @@ function StageDetail({ row, stage, team }: { row: TicketRow; stage: Stage; team:
     ) : null;
   }
 
+  // Why an assigned ticket is in Attention needed.
+  if (stage === "assigned" && proposal?.core?.lane === "human_only")
+    return <Note ai>AI left this one to you</Note>;
+
   if (stage === "assigned")
     return (
       <p className="flex min-w-0 items-center gap-2 text-sm text-secondary">

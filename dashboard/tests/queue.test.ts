@@ -100,6 +100,28 @@ test("replies and started triage need attention at any priority; new tickets onl
   assert.ok(needsAttention({ ...item("A", { level: "Lowest" }), classification: "failed" }));
 });
 
+test("an assigned ticket needs attention only when the AI could not settle it", () => {
+  const humanOnly = { core: { lane: "human_only" } } as Proposal;
+  const autoApplied = { core: { lane: "auto_applied" } } as Proposal;
+
+  assert.ok(!needsAttention(item("A", { level: "Highest", status: "assigned" })));
+  assert.ok(
+    needsAttention({ ...item("A", { level: "Lowest", status: "assigned" }), proposal: humanOnly }),
+  );
+  assert.ok(
+    needsAttention({
+      ...item("A", { level: "Lowest", status: "assigned" }),
+      classification: "failed",
+    }),
+  );
+  assert.ok(
+    !needsAttention({ ...item("A", { level: "High", status: "assigned" }), proposal: autoApplied }),
+  );
+  assert.ok(
+    !needsAttention({ ...item("A", { level: "Lowest", status: "resolved" }), proposal: humanOnly }),
+  );
+});
+
 test("priority decides first, then how far along the ticket is", () => {
   const queue = [
     item("new-high"),

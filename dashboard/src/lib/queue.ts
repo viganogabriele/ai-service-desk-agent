@@ -100,9 +100,9 @@ const isCritical = (item: QueueItem) =>
   serviceInfo(item.current.triage.service)?.[2] === "Critical";
 
 /**
- * Tickets the operator should pick up now: every reply and every started triage, every ticket the
- * AI could not classify or left to a human, and the rest of the untouched ones when they are high
- * priority, or medium on a critical service.
+ * Tickets the operator should pick up now: every reply and every started triage, every open ticket
+ * the AI could not classify or left to a human, even one already assigned, and the rest of the
+ * untouched ones when they are high priority, or medium on a critical service.
  */
 export function needsAttention(item: QueueItem) {
   if (item.classification === "queued" || item.classification === "classifying") return false;
@@ -110,9 +110,14 @@ export function needsAttention(item: QueueItem) {
 
   if (stage === "reply" || stage === "in_progress") return true;
 
+  // Jira's assignee is often a guess from before triage, so it does not settle what the AI could not.
+  const aiDeferred = item.classification === "failed" || item.proposal?.core?.lane === "human_only";
+
+  if (stage === "assigned") return aiDeferred;
+
   if (stage !== "review" && stage !== "unclassified") return false;
 
-  if (item.classification === "failed" || item.proposal?.core?.lane === "human_only") return true;
+  if (aiDeferred) return true;
   const level = triageLevel(item.current.triage);
 
   return level === "Highest" || level === "High" || (level === "Medium" && isCritical(item));
