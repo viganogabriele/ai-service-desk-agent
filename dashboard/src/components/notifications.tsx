@@ -37,20 +37,14 @@ function load(): Saved {
  * tab title counts what is unread. Opening a ticket marks its notifications read.
  */
 export function Notifications({ className }: { className?: string }) {
-  const { data, review, proposalFor, classification, idOf, announce } = useDashboard();
+  const { ticketRows, announce } = useDashboard();
   const [saved, setSaved] = useState(load);
   const [open, setOpen] = useState(false);
   const matchRoute = useMatchRoute();
   const viewing = matchRoute({ to: "/tickets/$ticketId" });
   const viewingKey = viewing ? viewing.ticketId : null;
 
-  const items: KeyedItem[] = data.challenge.map((ticket, index) => ({
-    id: idOf(index),
-    ticket,
-    proposal: proposalFor(index),
-    current: review(index),
-    classification: classification(index),
-  }));
+  const items: KeyedItem[] = ticketRows;
 
   const replies = replyNotifications(items);
   const known = new Set(items.map((item) => item.id));

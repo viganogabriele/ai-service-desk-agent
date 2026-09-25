@@ -152,7 +152,7 @@ function Shell({
       >
         Skip to content
       </a>
-      <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background/88 px-page backdrop-blur-bar max-lg:gap-4 max-md:h-16 max-sm:gap-2">
+      <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background px-page max-lg:gap-4 max-md:h-16 max-sm:gap-2">
         <Link
           to="/tickets"
           className="inline-flex h-11 items-center gap-3.5 rounded-button font-display text-xl font-semibold whitespace-nowrap text-strong"
@@ -233,7 +233,7 @@ function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
       data-active={active ?? undefined}
     >
       <span
-        className="absolute inset-y-1 left-1 -z-1 w-thumb rounded-pill bg-thumb opacity-0 shadow-thumb shadow-primary/18 inset-ring inset-ring-primary/55 transition duration-280 ease-out will-change-transform group-data-active/switch:opacity-100 group-data-[active=board]/switch:translate-x-2/1 group-data-[active=table]/switch:translate-x-full"
+        className="absolute inset-y-1 left-1 -z-1 w-thumb rounded-pill bg-thumb opacity-0 shadow-thumb shadow-primary/18 inset-ring inset-ring-primary/55 transition-thumb duration-150 ease-out will-change-transform group-data-active/switch:opacity-100 group-data-[active=board]/switch:translate-x-2/1 group-data-[active=table]/switch:translate-x-full"
         aria-hidden="true"
       />
       {VIEWS.map(({ view, label, icon: Icon }) => (

@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import type { JiraClient } from "../clients/jira/jira-client";
+import { ticketExportVersion } from "../db/store";
 import { type Auth, writerFor } from "../services/auth";
 import { writeToJira } from "../services/jira-sync";
 import { ticketPatchBodySchema } from "../services/ticket-patch";
@@ -17,6 +18,17 @@ export function createTicketsRoute(
 	auth: Auth | null = null,
 ) {
 	return new Hono()
+		.use("/", async (c, next) => {
+			if (c.req.method !== "GET") return next();
+
+			const etag = await ticketExportVersion(sql);
+			c.header("ETag", etag);
+			c.header("Cache-Control", "private, no-cache");
+
+			if (c.req.header("If-None-Match") === etag) return c.body(null, 304);
+
+			await next();
+		})
 		.get("/", async (c) => c.json(await storedTicketExport(sql)))
 		.post(
 			"/",

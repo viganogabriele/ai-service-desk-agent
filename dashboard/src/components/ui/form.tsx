@@ -43,7 +43,7 @@ export function Checkbox({ className, ...props }: Omit<ComponentProps<"input">, 
     <input
       type="checkbox"
       className={cn(
-        "inline-grid size-4 flex-none cursor-pointer appearance-none place-content-center rounded-check border-hairline border-muted/70 bg-field transition duration-120 ease-out",
+        "inline-grid size-4 flex-none cursor-pointer appearance-none place-content-center rounded-check border-hairline border-muted/70 bg-field transition-colors duration-120 ease-out",
         "before:size-2.5 before:scale-0 before:bg-white before:transition-transform before:duration-120 before:ease-out before:mask-check",
         "hover:not-checked:not-indeterminate:border-secondary checked:border-primary checked:bg-primary checked:before:scale-100 indeterminate:border-primary indeterminate:bg-primary indeterminate:before:scale-100 indeterminate:before:mask-dash",
         "active:scale-90 disabled:cursor-not-allowed disabled:opacity-35",

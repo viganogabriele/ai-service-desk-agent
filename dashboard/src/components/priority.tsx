@@ -40,6 +40,7 @@ import type { Stage } from "../lib/queue";
 import { Initials, PriorityBadge, opensOnClick, personName } from "./tickets";
 import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
+import { TicketPagination } from "./pagination";
 import { Menu } from "./ui";
 import { cn } from "../lib/utils";
 import { Dot } from "./ui/badge";
@@ -155,9 +156,18 @@ function Lane({
           {title}
           <SectionCount>{count}</SectionCount>
         </SectionTitle>
+        {count > RECENT_LIMIT && (
+          <Link
+            to="/tickets"
+            search={{ view: "table" }}
+            className="ml-auto text-sm font-medium text-secondary underline underline-offset-3 hover:text-foreground"
+          >
+            Browse all tickets
+          </Link>
+        )}
         {!(atStart && atEnd) && (
           // Touch screens swipe the card strip, so its arrows are only for a mouse.
-          <span className="ml-auto inline-flex gap-2 touch:hidden max-sm:hidden">
+          <span className="inline-flex gap-2 touch:hidden max-sm:hidden">
             <Button
               size="icon"
               className="bg-surface"
@@ -206,7 +216,7 @@ function Lane({
  * classifying; Attention needed what to pick up next; Most recent the tickets that just became
  * available, newest first.
  */
-export function PriorityView({ rows }: { rows: TicketRow[] }) {
+export function PriorityView({ rows, pageRows }: { rows: TicketRow[]; pageRows: TicketRow[] }) {
   const { classifying } = useDashboard();
   const now = useNow();
 
@@ -216,7 +226,10 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
     (row) => row.classification === "queued" || row.classification === "classifying",
   );
 
-  const ready = rows.filter((row) => !upcoming.includes(row));
+  const ready = rows.filter(
+    (row) => row.classification !== "queued" && row.classification !== "classifying",
+  );
+
   const attention = ready.filter(needsAttention).sort(byAttention);
   const recent = ready.toSorted(byRecency).slice(0, RECENT_LIMIT);
 
@@ -235,7 +248,7 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             </p>
           }
         >
-          {upcoming.map((row) => (
+          {upcoming.slice(0, RECENT_LIMIT).map((row) => (
             <UpcomingCard key={row.id} row={row} />
           ))}
         </Lane>
@@ -247,7 +260,7 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
         first={attention[0]?.id}
         empty={<Empty>Nothing needs your attention right now.</Empty>}
       >
-        {attention.map((row) => (
+        {attention.slice(0, RECENT_LIMIT).map((row) => (
           <TicketCard key={row.id} row={row} lane="attention" now={now} />
         ))}
       </Lane>
@@ -269,7 +282,8 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             <SectionCount>{rows.length}</SectionCount>
           </SectionTitle>
         </SectionHead>
-        <TicketTable rows={rows} />
+        <TicketTable rows={pageRows} />
+        <TicketPagination total={rows.length} />
       </section>
     </div>
   );
@@ -376,7 +390,7 @@ function TicketCard({ row, lane, now }: { row: TicketRow; lane: LaneKind; now: n
   return (
     <article
       className={cn(
-        "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
+        "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition-card duration-150 hover:-translate-y-0.5 hover:border-border-hover",
         "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
         // A simulated ticket the AI just classified joins its rows.
         row.arrival === "classified" && "animate-arrive",

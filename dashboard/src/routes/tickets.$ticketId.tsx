@@ -465,7 +465,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                   <button
                     key={value}
                     type="button"
-                    className="group/choice grid gap-1.5 rounded-tile border bg-elevated p-3.5 text-left text-secondary transition duration-150 ease-soft hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-99 aria-pressed:border-primary aria-pressed:bg-primary-subtle aria-pressed:text-secondary"
+                    className="group/choice grid gap-1.5 rounded-tile border bg-elevated p-3.5 text-left text-secondary transition-control duration-150 ease-soft hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-99 aria-pressed:border-primary aria-pressed:bg-primary-subtle aria-pressed:text-secondary"
                     aria-pressed={step === value}
                     onClick={() => setStep(value)}
                   >

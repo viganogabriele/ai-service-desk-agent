@@ -179,7 +179,7 @@ export function Select<T extends string>({
         ref={trigger}
         type="button"
         className={cn(
-          "group/trigger flex h-10 w-full items-center justify-between gap-2 rounded-pill border bg-surface pr-3 pl-3.5 text-left text-base font-medium text-foreground transition duration-120 ease-out hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:border-ring aria-expanded:ring-3 aria-expanded:ring-primary-subtle pointer-coarse:h-10.5",
+          "group/trigger flex h-10 w-full items-center justify-between gap-2 rounded-pill border bg-surface pr-3 pl-3.5 text-left text-base font-medium text-foreground transition-colors duration-120 ease-out hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:border-ring aria-expanded:ring-3 aria-expanded:ring-primary-subtle pointer-coarse:h-10.5",
           "data-active:border-primary/45 data-active:text-primary-text data-active:hover:border-primary/70 data-active:[&_svg]:text-primary-text",
           focusRing,
         )}
