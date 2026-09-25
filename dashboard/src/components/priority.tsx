@@ -48,6 +48,9 @@ function ageInDays(created: string | null) {
 function score(row: TicketRow): Scored | null {
   const { status, triage } = row.current;
 
+  // Its urgency is unknown until the AI has classified it.
+  if (row.arrival === "classifying") return null;
+
   if (status !== "new" && status !== "in_progress") return null;
   const level = priority(triage.urgency, triage.impact);
   const critical = serviceInfo(triage.service)?.[2] === "Critical";
@@ -237,6 +240,8 @@ function TicketCard({ item }: { item: Scored }) {
     <article
       className={cn(
         "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
+        // A simulated ticket the AI just found urgent joins the row.
+        row.arrival === "classified" && "animate-arrive",
         "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
       )}
       // The whole card opens the ticket, but its badges keep their tooltips and the text stays selectable.

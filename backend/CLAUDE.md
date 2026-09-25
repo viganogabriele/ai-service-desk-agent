@@ -22,6 +22,10 @@ Follow `CORE_API.md` for every interaction with the Core; it is binding.
   state to Jira. Overrides by the `dashboard` actor are skipped: the dashboard
   already wrote them to Jira. Every write is logged in `writebacks`, once per
   event.
+- **Demo tickets:** `POST /demo/tickets` asks the Core's `POST /demo/tickets`
+  for a new challenge-style record, creates it in Jira (label `demo`, request
+  type in the description footer, select fields through the patch path), stores
+  it and starts a sync pass so the Core triages it like any other ticket.
 - **UI → Core:** `/core/*` proxies the Core API unchanged, except the
   ingestion endpoints (`POST /tickets`, `POST /batches`, `POST
   /tickets/{id}/closure`), which belong to this backend.

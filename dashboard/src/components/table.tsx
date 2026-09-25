@@ -2,7 +2,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Sparkles } from "lucide-react";
 import { serviceInfo } from "../domain";
 import {
+  ClassifyingPill,
   Initials,
+  Pending,
   PriorityBadge,
   SORT_LABELS,
   StatusPill,
@@ -33,6 +35,9 @@ const TD =
 const WRAP = "min-w-35 whitespace-normal";
 
 const NOTE = "mt-0.5 block text-sm text-muted";
+
+const SUMMARY =
+  "block max-w-130 truncate font-display text-md font-medium max-md:line-clamp-2 max-md:max-w-none max-md:leading-snug max-md:whitespace-normal";
 
 // Where each cell sits in a stacked row. Without checkboxes the rows drop the empty first column.
 const STACKED = {
@@ -152,21 +157,29 @@ export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?
 
 function TableRow({ row, selection }: { row: TicketRow; selection?: Selection }) {
   const navigate = useNavigate();
-  const { ticket, proposal, current, id } = row;
+  const { ticket, proposal, current, id, arrival } = row;
   const declared = ticket["Affected Business or IT Services"][0];
   const selected = selection?.selected.has(id) ?? false;
   const open = () => void navigate({ to: "/tickets/$ticketId", params: { ticketId: id } });
   const place = selection ? STACKED.withCheck : STACKED.plain;
   const td = cn(TD, selected && "md:bg-primary-subtle md:group-hover/row:bg-primary-subtle");
+  // A simulated ticket cannot be opened until the AI has classified it.
+  const classifying = arrival === "classifying";
+  // The AI's values replace the placeholders.
+  const decided = cn(td, arrival === "classified" && "animate-fade-in");
 
   return (
     <tr
       className={cn(
-        "group/row cursor-pointer max-md:grid max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:border-t max-md:border-divider max-md:px-card-pad max-md:py-3.5",
+        "max-md:grid max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:border-t max-md:border-divider max-md:px-card-pad max-md:py-3.5",
+        classifying ? "animate-arrive cursor-progress" : "group/row cursor-pointer",
+        arrival === "classified" && "animate-settle",
         place.row,
       )}
+      aria-disabled={classifying || undefined}
+      aria-busy={classifying || undefined}
       onClick={(event) => {
-        if (opensOnClick(event)) open();
+        if (!classifying && opensOnClick(event)) open();
       }}
     >
       {selection && (
@@ -180,20 +193,27 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
             <Checkbox
               aria-label={`Select ${id}`}
               checked={selected}
-              disabled={!isOpen(current.status)}
+              disabled={classifying || !isOpen(current.status)}
               onChange={() => selection.onToggle(id)}
             />
           </CheckHit>
         </td>
       )}
       <td className={cn(td, WRAP, "min-w-80", place.summary)}>
-        <Link
-          to="/tickets/$ticketId"
-          params={{ ticketId: id }}
-          className="block max-w-130 truncate font-display text-md font-medium text-foreground transition-colors duration-150 ease-soft group-hover/row:text-primary-text max-md:line-clamp-2 max-md:max-w-none max-md:leading-snug max-md:whitespace-normal"
-        >
-          {ticket.Summary}
-        </Link>
+        {classifying ? (
+          <span className={cn(SUMMARY, "text-secondary")}>{ticket.Summary}</span>
+        ) : (
+          <Link
+            to="/tickets/$ticketId"
+            params={{ ticketId: id }}
+            className={cn(
+              SUMMARY,
+              "text-foreground transition-colors duration-150 ease-soft group-hover/row:text-primary-text",
+            )}
+          >
+            {ticket.Summary}
+          </Link>
+        )}
         <small className={NOTE}>
           <span className="text-sm font-medium whitespace-nowrap text-muted tabular-nums">
             {id}
@@ -201,24 +221,42 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
           · {ticket["Request type"]} · {personName(ticket.Reporter)}
         </small>
       </td>
-      <td className={cn(td, place.priority, "max-md:justify-self-end")}>
-        <PriorityBadge triage={current.triage} />
+      <td className={cn(decided, place.priority, "max-md:justify-self-end")}>
+        {classifying ? (
+          <Pending className="h-5.5 w-20" />
+        ) : (
+          <PriorityBadge triage={current.triage} />
+        )}
       </td>
-      <td className={cn(td, WRAP, place.service)}>
-        <span className="text-foreground">{current.triage.service}</span>
-        <small className={NOTE}>
-          {proposal && proposal.proposal.service !== declared ? (
-            <span className="inline-flex items-center gap-1 text-primary-text">
-              <Sparkles size={11} strokeWidth={2} />
-              AI changed from {declared}
-            </span>
-          ) : (
-            serviceInfo(current.triage.service)?.[1]
-          )}
-        </small>
+      <td className={cn(decided, WRAP, place.service)}>
+        {classifying ? (
+          <>
+            <Pending className="h-3.5 w-36" />
+            <Pending className="mt-2 w-24" />
+          </>
+        ) : (
+          <>
+            <span className="text-foreground">{current.triage.service}</span>
+            <small className={NOTE}>
+              {declared && proposal && proposal.proposal.service !== declared ? (
+                <span className="inline-flex items-center gap-1 text-primary-text">
+                  <Sparkles size={11} strokeWidth={2} />
+                  AI changed from {declared}
+                </span>
+              ) : (
+                serviceInfo(current.triage.service)?.[1]
+              )}
+            </small>
+          </>
+        )}
       </td>
-      <td className={cn(td, place.assignee)}>
-        {current.triage.assignee ? (
+      <td className={cn(decided, place.assignee)}>
+        {classifying ? (
+          <span className="inline-flex items-center gap-2">
+            <Pending className="size-6 rounded-full" />
+            <Pending className="w-24" />
+          </span>
+        ) : current.triage.assignee ? (
           <span className="inline-flex min-w-0 items-center gap-2 text-foreground">
             <Initials email={current.triage.assignee} />
             <span className="truncate">{personName(current.triage.assignee)}</span>
@@ -227,8 +265,8 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
           <span className="text-muted">Unassigned</span>
         )}
       </td>
-      <td className={cn(td, place.status, "max-md:justify-self-end")}>
-        <StatusPill status={current.status} />
+      <td className={cn(decided, place.status, "max-md:justify-self-end")}>
+        {classifying ? <ClassifyingPill /> : <StatusPill status={current.status} />}
       </td>
       <td className={cn(td, "w-12 text-right max-md:hidden")}>
         <span

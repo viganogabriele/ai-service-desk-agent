@@ -76,11 +76,15 @@ export interface CoreClient {
 		ticketId: string,
 		closure: CoreClosure,
 	): Promise<{ outcome: string }>;
+	/** POST /demo/tickets: a new challenge-format ticket written by the Core, not stored. */
+	demoTicket(): Promise<Record<string, unknown>>;
 }
 
 const importResponse = z.object({ ticket_id: z.string() });
 
 const closureResponse = z.object({ outcome: z.string() });
+
+const demoResponse = z.object({ fields: z.record(z.string(), z.unknown()) });
 
 const eventSchema = z.object({
 	seq: z.number().int(),
@@ -164,6 +168,11 @@ export function createRealCoreClient(baseUrl: string): CoreClient {
 				{ body: { fields, resolution_note: resolutionNote, resolver, actor } },
 			);
 			return { outcome: closureResponse.parse(data).outcome };
+		},
+
+		async demoTicket() {
+			const data = await call("POST", "/demo/tickets");
+			return demoResponse.parse(data).fields;
 		},
 	};
 }

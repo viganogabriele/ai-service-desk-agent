@@ -12,6 +12,8 @@ export type FakeCore = CoreClient & {
 	closures: (CoreClosure & { ticketId: string })[];
 	/** Sets the effective state the Core would export for a ticket. */
 	setEffectiveState(ticketId: string, record: Record<string, unknown>): void;
+	/** What demoTicket returns next. */
+	demoRecord: Record<string, unknown>;
 	/** Appends an event to the Core's log and returns its seq. */
 	emit(event: Omit<CoreEvent, "seq" | "event_id" | "occurred_at">): number;
 };
@@ -28,6 +30,31 @@ export function createFakeCoreClient(): FakeCore {
 	return {
 		imports,
 		closures,
+		// The shape of a challenge record, as the Core writes it.
+		demoRecord: {
+			"Work type": "Incident",
+			"Request type": "Machine Created Alert",
+			Summary: "Overnight price load stopped for three funds",
+			Description:
+				"The overnight price load stopped at 02:10 with a timeout; three Luxembourg funds have no prices.",
+			"Affected Business or IT Services": ["Tax Reporting"],
+			"Business Entity": ["Luxembourg"],
+			"Business Critical for Entity": [],
+			"Service Team(s)": [],
+			Reporter: "sa_accounting@intcom.com",
+			Assignee: null,
+			Priority: "High",
+			Urgency: "High",
+			Impact: "Medium",
+			Severity: null,
+			"Created date": "2026-09-25 08:00",
+			Status: "open",
+			"Linked issues": [],
+			Resolution: null,
+			"Due date": null,
+			"Resolution date": null,
+			"All Comments": ["eva.keller@intcom.com: Still missing at 07:30."],
+		},
 
 		setEffectiveState(ticketId, record) {
 			effective.set(ticketId, record);
@@ -68,6 +95,10 @@ export function createFakeCoreClient(): FakeCore {
 			if (!record)
 				throw new CoreApiError(404, "GET", `/tickets/${ticketId}/export`, "");
 			return structuredClone(record);
+		},
+
+		async demoTicket() {
+			return structuredClone(this.demoRecord);
 		},
 
 		async closeTicket(ticketId, closure) {

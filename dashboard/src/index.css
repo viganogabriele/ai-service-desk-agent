@@ -258,6 +258,10 @@
   --animate-toast-in: toast-in 200ms var(--ease-out);
   --animate-tooltip-in: tooltip-in 120ms ease-out;
   --animate-tooltip-in-below: tooltip-in-below 120ms ease-out;
+  /* A simulated ticket drops into the queue, waits for the AI, then lights up once classified. */
+  --animate-arrive: arrive 420ms var(--ease-out);
+  --animate-pulse: pulse 1.4s ease-in-out infinite;
+  --animate-settle: settle 1600ms var(--ease-soft);
 
   @keyframes spin {
     to {
@@ -309,6 +313,22 @@
     from {
       opacity: 0;
       transform: translateY(-3px) scale(0.97);
+    }
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+  @keyframes settle {
+    from {
+      background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
     }
   }
 

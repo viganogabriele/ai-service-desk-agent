@@ -151,6 +151,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 5. **Re-triage on a new snapshot:**
    - Pinned fields keep their override values.
    - If the new run's value differs from a pinned value, set the `conflict_with_override` flag on that decision and emit `decision.conflict`.
+6. **Demo tickets:** `POST /demo/tickets` returns `{fields}`, a new open ticket in the challenge format that the model writes from a random live-KB scenario (never from the challenge file). The Core stores nothing; the sync layer files it in Jira, and it arrives through step 1 like any other ticket.
 
 ### B. Review and override
 - **Queue:** `GET /queue?lane=needs_review&sort=risk`, where risk = (1 − min confidence) × priority weight × criticality weight.
@@ -238,6 +239,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 | GET | `/metrics/{name}` | See §9 | 2 |
 | GET | `/audit` | Search decisions, overrides and KB/policy changes | 2 |
 | POST/GET | `/evaluations`, `/evaluations/{id}` | Shadow evaluation | 3 |
+| POST | `/demo/tickets` | Write a new challenge-style ticket for a demo; stores nothing | demo |
 | POST | `/policy/preview` | Estimated impact of a policy change | 3 |
 
 **Errors:** `404` unknown ID · `409` stale `base_run_id` or version conflict · `422` validation or consistency violation · `503` LLM backend unavailable (the run is marked failed and can be retried). Every error body has the shape `{"error": code, "message": ..., "details": {...}}`.

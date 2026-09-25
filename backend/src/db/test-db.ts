@@ -34,6 +34,12 @@ export async function testBackend(
 	const core: FakeCore | null =
 		options.withCore === false ? null : createFakeCoreClient();
 	const syncer = createSyncer(jira, core, sql);
-	const app = createApp({ jira, sql, syncer, core: { baseUrl: undefined } });
+	const app = createApp({
+		jira,
+		sql,
+		syncer,
+		core: { baseUrl: undefined },
+		coreClient: core,
+	});
 	return { sql, jira, core, syncer, app };
 }
