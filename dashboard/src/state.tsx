@@ -704,7 +704,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         Urgency: triage.urgency,
         Impact: triage.impact,
         Priority: priority(triage.urgency, triage.impact),
-        Status: current.status === "resolved" ? "done" : ticket.Status,
+        Status:
+          current.status === "resolved" || current.status === "waiting" ? "done" : ticket.Status,
         Resolution: resolution,
         "All Comments": comment.trim()
           ? [...ticket["All Comments"], signedComment(comment, user?.email ?? triage.assignee)]
