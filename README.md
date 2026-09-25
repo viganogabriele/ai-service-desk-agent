@@ -1,13 +1,23 @@
 <h1 align="center">
-  <img src="dashboard/src/assets/logo.png" alt="TicketBuddy logo" width="96" height="96" />
-  TicketBuddy
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="readme-assets/ticketbuddy-dark.png" />
+    <img src="readme-assets/ticketbuddy-light.png" alt="TicketBuddy" width="700" />
+  </picture>
 </h1>
 
 <p align="center">AI triage for a service desk</p>
 
+## Useful resources for experts
+- Presentation Video: https://polinet.cc/zhai2026-video
+- Live Dashboard: https://polinet.cc/ticketbuddy
+---
+
 TicketBuddy reads incoming Jira service-desk tickets and proposes how an experienced L2 agent would handle them. For each ticket it proposes the work type, the affected service, the owning team, the assignee, the urgency, the impact, the priority, the resolution status and a draft resolution note. A person reviews the proposal before anything uncertain reaches Jira.
 
 It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The challenge is sponsored by [SwissLife](https://github.com/Swiss-ai-Weeks/SwissLife-2026), pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
+
+> [!IMPORTANT]
+> Results for the blind eval tickets are in [jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json](jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json).
 
 ## How a ticket is classified
 
@@ -98,6 +108,7 @@ This is how the pipeline scored on a frozen set of 300 labelled tickets, using o
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `qwen2.5:7b` (local, Ollama) | 225/300 | 228/300 | 251/300 | 213/300 | 189/300 | 204/300 | 109/137 |
 | `gpt-6-luna` (OpenAI) | 289/300 | 298/300 | 296/300 | 225/300 | 207/300 | 219/300 | 130/137 |
+| `Apertus-v1.5-70B` (Swisscom) | 269/300 | 185/300 | 268/300 | 216/300 | 194/300 | 220/300 | 123/137 |
 
 Read these numbers with their limits in mind:
 - Urgency and impact labels involve judgment.
@@ -114,7 +125,5 @@ See [core/eval/](core/eval/README.md) for the method, per-ticket results and the
 
 ## Further reading
 
-- [instructions.md](instructions.md): the official challenge specification, including the priority matrix and the list of critical services.
 - [core/AGENTS.md](core/AGENTS.md): the verified data facts and the full pipeline rules.
 - [core/docs/CORE_API.md](core/docs/CORE_API.md): the contract between the Core, the backend and the dashboard.
-- [PRD.md](PRD.md): dashboard product requirements (in Italian).
