@@ -162,3 +162,23 @@ test("Core evidence and approvals survive a reload", async ({ page }) => {
     .toEqual(["a@b.com: Which environment is affected?"]);
   await expect(page.getByText("Closed · clarification").first()).toBeVisible();
 });
+
+test("an unreachable backend explains the failure and recovers on retry", async ({ page }) => {
+  const unreachable = JSON.stringify({ error: { code: "backend_unreachable", message: "offline" } });
+
+  await page.route("**/api/tickets", (route) =>
+    route.fulfill({ status: 502, contentType: "application/json", body: unreachable }),
+  );
+  await page.route("**/dashboard-data.json", (route) => route.fulfill({ status: 404, body: "" }));
+
+  await page.goto("/tickets");
+  await expect(
+    page.getByRole("heading", { name: "Can’t reach the TicketBuddy backend" }),
+  ).toBeVisible();
+  // The top bar stays, so the operator can still switch views and themes.
+  await expect(page.getByRole("navigation", { name: "Ticket views" })).toBeVisible();
+
+  await page.unroute("**/dashboard-data.json");
+  await page.getByRole("button", { name: "Retry now" }).click();
+  await expect(page.getByRole("heading", { name: /Attention needed/i })).toBeVisible();
+});

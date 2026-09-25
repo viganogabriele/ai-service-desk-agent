@@ -23,6 +23,7 @@ import type {
   SignedInUser,
   TicketPatch,
 } from "./lib/backend";
+import type { LoadFailure } from "./components/load-error";
 import {
   LEVELS,
   OUTCOMES,
@@ -167,14 +168,18 @@ interface Loaded {
   offline: boolean;
 }
 
+/** Neither the backend nor a bundled data file answered, so there is nothing to show. */
+class NothingToShow extends Error {}
+
 /**
  * Development fallback: the data bundle prepared from the challenge files, used when the backend
  * is not running. Its records carry no Jira key, so the proposal id (or the position) becomes one.
+ * Null when there is no bundle; the dev server answers a missing file with the app's HTML.
  */
-async function bundledData(signal: AbortSignal): Promise<Bundle> {
+async function bundledData(signal: AbortSignal): Promise<Bundle | null> {
   const response = await fetch("/dashboard-data.json", { signal });
 
-  if (!response.ok) throw new Error("The bundled data file is missing.");
+  if (!response.ok || !response.headers.get("content-type")?.includes("json")) return null;
   const bundle: Bundle = await response.json();
 
   return {
@@ -318,7 +323,22 @@ function failureText(failure: Error) {
   return unreachable(failure) ? `The backend at ${BACKEND_URL} is not reachable.` : failure.message;
 }
 
-export function DashboardProvider({ children }: { children: ReactNode }) {
+// A resolved URL for messages: the default `/api` means little on its own.
+const BACKEND_LOCATION = new URL(BACKEND_URL, window.location.href).href.replace(/\/+$/, "");
+
+/**
+ * Loads the tickets and provides them. Until the first load succeeds it renders `loading`, or
+ * `failed` when it could not; a later refresh that fails keeps the tickets already shown.
+ */
+export function DashboardProvider({
+  loading,
+  failed,
+  children,
+}: {
+  loading: ReactNode;
+  failed: (failure: LoadFailure) => ReactNode;
+  children: ReactNode;
+}) {
   const client = useQueryClient();
 
   const query = useQuery<Loaded>({
@@ -329,12 +349,26 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         return { bundle: liveBundle(await backend.tickets(signal)), offline: false };
       } catch (failure) {
         if (!(failure instanceof Error) || !unreachable(failure)) throw failure;
+        const bundle = await bundledData(signal);
 
-        return { bundle: await bundledData(signal), offline: true };
+        if (!bundle) throw new NothingToShow("Nothing answered");
+
+        return { bundle, offline: true };
       }
     },
     refetchInterval: (state) => (state.state.data?.offline ? false : 15_000),
+    // A backend that is down stays down for a while; the error page retries on its own clock.
+    retry: (count, failure) => !(failure instanceof NothingToShow) && count < 3,
   });
+
+  const { refetch } = query;
+  const retry = useCallback(() => void refetch(), [refetch]);
+
+  // A retry without data puts the query back to pending, so the failure is kept here: the error
+  // page stays up while it checks, instead of turning into the loading skeleton.
+  const [failure, setFailure] = useState<Error | null>(null);
+
+  if (query.error && query.error !== failure) setFailure(query.error);
 
   // Simulated tickets, newest first; those the AI just classified; those it did not classify in time.
   const [arrived, setArrived] = useState<{ id: string; since: number }[]>([]);
@@ -442,9 +476,18 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     return () => window.clearTimeout(timer);
   }, [oldest]);
 
-  if (query.isPending) return <div className="loading">Loading tickets…</div>;
+  if (!query.data) {
+    if (!failure) return loading;
 
-  if (query.isError) return <div className="loading">{failureText(query.error)}</div>;
+    return failed({
+      answered: !(failure instanceof NothingToShow || unreachable(failure)),
+      message: failure.message,
+      backendUrl: BACKEND_LOCATION,
+      failedAt: query.errorUpdatedAt,
+      retrying: query.isFetching,
+      retry,
+    });
+  }
 
   const { bundle, offline } = query.data;
 
