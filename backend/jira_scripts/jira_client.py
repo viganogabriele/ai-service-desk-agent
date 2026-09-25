@@ -7,7 +7,7 @@ import time
 import requests
 from dotenv import load_dotenv
 
-import config
+import backend.jira_scripts.config as config
 
 load_dotenv()
 

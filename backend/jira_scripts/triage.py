@@ -6,7 +6,7 @@ a dict back with the keys shown in baseline_triage(). Everything Jira-specific
 stays in loop.py, so this file only has to be smart.
 """
 
-from jira_client import rank
+from backend.jira_scripts.jira_client import rank
 
 # README matrix. Rows: urgency rank 0..4 (Critical..Lowest).
 # Columns: impact rank 0..4 (Major/Widespread .. No direct impact).

@@ -2,7 +2,7 @@
 
 TicketBuddy reads incoming Jira service-desk tickets and proposes how an experienced L2 agent would handle them. For each ticket it proposes the work type, the affected service, the owning team, the assignee, the urgency, the impact, the priority, the resolution status and a draft resolution note. A person reviews the proposal before anything uncertain reaches Jira.
 
-It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The company is a fictional pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
+It was built for the Swiss AI Weeks hackathon challenge. The company is a fictional pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
 
 ## How a ticket is classified
 
@@ -112,7 +112,5 @@ See [core/eval/](core/eval/README.md) for the method, per-ticket results and the
 
 ## Further reading
 
-- [instructions.md](instructions.md): the official challenge specification, including the priority matrix and the list of critical services.
 - [core/AGENTS.md](core/AGENTS.md): the verified data facts and the full pipeline rules.
 - [core/docs/CORE_API.md](core/docs/CORE_API.md): the contract between the Core, the backend and the dashboard.
-- [PRD.md](PRD.md): dashboard product requirements (in Italian).

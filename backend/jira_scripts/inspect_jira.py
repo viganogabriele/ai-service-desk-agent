@@ -6,8 +6,8 @@
 
 import sys
 
-import config
-from jira_client import Jira, find_work_type, option_label, rank
+import backend.jira_scripts.config as config
+from backend.jira_scripts.jira_client import Jira, find_work_type, option_label, rank
 
 WATCH = ["priority", *config.FIELDS.values()]
 NAMES = {v: k for k, v in config.FIELDS.items()} | {"priority": "priority"}

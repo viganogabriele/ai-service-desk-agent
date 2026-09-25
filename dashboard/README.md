@@ -1,6 +1,6 @@
 # AI Ticket Triage Dashboard
 
-Phase 1 of the [dashboard PRD](../PRD.md), built with Vite+ / React / TypeScript, TanStack Router and Query, and Tailwind CSS v4. The existing Python prototype remains at the repository root.
+Built with Vite+ / React / TypeScript, TanStack Router and Query, and Tailwind CSS v4.
 
 ```sh
 pnpm install --dir dashboard
@@ -30,9 +30,9 @@ Run `pnpm --dir dashboard test` for client and comment-format regression tests (
 
 `scripts/prepare_data.py` builds `public/dashboard-data.json` from files only. The 20,000 synthetic historical tickets are the challenge artifact; in the intended product they represent older Jira tickets.
 
-- **Historical tickets** (`jira_first_20000_requested_fields_synthetic.json`): every Overview figure, the weekly intake and its linear projection, and the similar-resolution index.
-- **Incoming tickets** (`jira_hackathon_blind_eval_challenge_*.json`): the ticket queue. Declared urgency and impact are validated at preparation time.
-- **AI suggestions**: `dashboard/data/proposals.json` in the PRD §3.1 contract if present, otherwise the triage PoC output `output/triaged.json`. Without either, tickets start from the reporter-declared values and no AI element is shown. The dashboard does not classify tickets itself.
+- **Historical tickets** (`backend/jira_scripts/data/jira_first_20000_requested_fields_synthetic.json`): every Overview figure, the weekly intake and its linear projection, and the similar-resolution index.
+- **Incoming tickets** (`backend/jira_scripts/data/challenge_blind.json`): the ticket queue. Declared urgency and impact are validated at preparation time.
+- **AI suggestions**: `dashboard/data/proposals.json` if present (`{"proposals": [...]}`, each item shaped like `Proposal` in `src/domain.ts` and checked by `validate()` in `scripts/prepare_data.py`), otherwise the saved triage PoC output `dashboard/fixtures/triaged.json`. Without either, tickets start from the reporter-declared values and no AI element is shown. The dashboard does not classify tickets itself.
 - **Live AI suggestions from the Core**: when the backend has `CORE_BASE_URL`, the dashboard reads the Core's effective state for every ticket through the backend's `/core` proxy, including each decision's source, confidence, signals, ticket quotes, historical patterns, flags, lane, risk and resolution draft provenance. Approving a suggested triage field records an acceptance in the Core immediately; the UI restores acceptances from Core history after reload. Assigning, resolving or requesting clarification writes to Jira first, then records changed fields as Core overrides and remaining fields as acceptances. The backend does not write those overrides back to Jira again. Without the Core the dashboard runs on Jira data alone. Moving an open ticket between Awaiting review and In progress runs the matching Jira transition through the backend.
 - **Per-field reasons**: a proposal in `proposals.json` may carry `explanations` (one `{ reason, confidence, evidence[] }` per triage field and for `resolution_comment`). Without it, the ticket page assembles each hover note from the proposal itself: the model's reason, what the reporter declared, the content clues the solver found and the assignee's historical support. Nothing is generated.
 - **Similar resolved tickets**: TF-IDF similarity between the incoming ticket and historical tickets resolved as done that carry a documented `Resolution:` comment. They appear in the resolve step only for the ticket's current service and above a 10% similarity threshold.
@@ -73,7 +73,7 @@ Shared pieces live in `src/components/ui/`: `Button` / `buttonVariants` (also fo
 
 Open **Model playground** (the flask in the header), or go to `/playground` after `pnpm dev`.
 The page works independently of the ticket queue and starts with the checked-in Qwen 4B development
-run. `scripts/prepare_playground.py` reads `output/dev_predictions.json`, `fixtures/dev_input.json`
+run. `scripts/prepare_playground.py` reads `fixtures/dev_predictions.json`, `fixtures/dev_input.json`
 and `fixtures/dev_reference.json` to generate its data. Those six cases have labels for **service
 and work type only**. The displayed timings are saved observations, with no recorded hardware or
 run date. They are not fresh inference or a comparison against the Core pipeline.

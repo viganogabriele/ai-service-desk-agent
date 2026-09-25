@@ -13,9 +13,9 @@ import json
 import os
 import time
 
-import config
-from jira_client import Jira, JiraError, adf_to_text, find_work_type, match_option, option_label
-from triage import priority_from, triage
+import backend.jira_scripts.config as config
+from backend.jira_scripts.jira_client import Jira, JiraError, adf_to_text, find_work_type, match_option, option_label
+from backend.jira_scripts.triage import priority_from, triage
 
 F = config.FIELDS
 READ_FIELDS = ["summary", "description", "issuetype", "labels", "priority", "status",

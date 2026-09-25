@@ -165,7 +165,7 @@ export const FIELD_LABELS: Record<(typeof TRIAGE_FIELDS)[number], string> = {
 export type TriageField = (typeof TRIAGE_FIELDS)[number];
 
 /**
- * Why the model chose one value. A §3.1 proposal file may carry one per field; without it the
+ * Why the model chose one value. A proposal file may carry one per field; without it the
  * ticket page derives a note from the proposal itself (reason, declared values, assignee support).
  */
 export interface Explanation {
