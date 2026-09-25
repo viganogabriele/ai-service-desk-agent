@@ -144,3 +144,55 @@ def test_openai_uses_high_standard_responses_and_validates(tmp_path, monkeypatch
     assert sent[0]["reasoning"] == {"effort": "high", "mode": "standard"}
     assert sent[0]["text"] == {"format": {"type": "json_object"}}
     assert sent[0]["store"] is False
+
+
+def test_qualified_models_route_independently_and_cache_by_provider(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from triage import config
+
+    calls = []
+    monkeypatch.setenv("OPENAI_API_KEY", "openai-test")
+    monkeypatch.setenv("APERTUS_API_KEY", "apertus-test")
+    monkeypatch.setattr(config, "LLM_PROVIDER", "ollama")
+
+    def post(url, **kwargs):
+        calls.append((url, kwargs))
+        if url == config.OPENAI_API_URL:
+            assert kwargs["headers"]["Authorization"] == "Bearer openai-test"
+            assert kwargs["json"]["model"] == "same-model"
+            payload = {"status": "completed", "output": [{"type": "message", "content": [
+                {"type": "output_text", "text": '{"level":"Low","n":1}'}]}]}
+        else:
+            assert url == config.SWISSCOM_API_URL
+            assert kwargs["headers"]["Authorization"] == "Bearer apertus-test"
+            assert kwargs["json"]["model"] == "same-model"
+            payload = {"choices": [{"message": {"content": '{"level":"Low","n":2}'}, "finish_reason": "stop"}]}
+        return httpx.Response(200, json=payload, request=httpx.Request("POST", url))
+
+    monkeypatch.setattr("triage.llm.httpx.post", post)
+    models = ["openai/same-model", "swisscom/same-model"]
+    def run(model):
+        return chat_structured(MSG, Out, model=model, cache_dir=tmp_path).n
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert list(pool.map(run, models)) == [1, 2]
+    assert [run(model) for model in models] == [1, 2]
+    assert len(calls) == 2
+    assert config.LLM_PROVIDER == "ollama"
+    assert len(list(tmp_path.glob("*.json"))) == 2
+    monkeypatch.setattr(config, "SWISSCOM_API_URL", "https://example.test/other/chat/completions")
+    assert run("swisscom/same-model") == 2
+    assert len(calls) == 3  # An endpoint change cannot replay another host's result.
+
+
+def test_qualified_ollama_ignores_cloud_default(tmp_path, monkeypatch):
+    from triage import config
+    from triage.llm import resolve_model
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "openai")
+    client = FakeClient(['{"level":"Low","n":1}'])
+    chat_structured(MSG, Out, model="ollama/qwen2.5:7b", client=client, cache_dir=tmp_path)
+    assert client.calls[0]["model"] == "qwen2.5:7b"
+    assert resolve_model("swisscom/swiss-ai/Apertus-v1.5-70B") == ("swisscom", "swiss-ai/Apertus-v1.5-70B")
+    with pytest.raises(ValueError):
+        resolve_model("openai/")

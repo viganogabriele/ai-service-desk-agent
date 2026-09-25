@@ -25,6 +25,24 @@ def get_client():
     return _client
 
 
+def resolve_model(model: str) -> tuple[str, str]:
+    """Qualified names select a provider per call; bare names keep the CLI default."""
+    prefix, separator, name = model.partition("/")
+    provider = prefix if separator and prefix in ("ollama", "swisscom", "openai") else config.LLM_PROVIDER
+    name = name if separator and prefix == provider else model
+    if provider not in ("ollama", "swisscom", "openai"):
+        raise ValueError(f"Unknown LLM provider: {provider}")
+    if not name.strip():
+        raise ValueError("A model name is required after the provider prefix")
+    return provider, name
+
+
+def require_provider_key(provider: str) -> None:
+    variable = {"openai": "OPENAI_API_KEY", "swisscom": "APERTUS_API_KEY"}.get(provider)
+    if variable and not os.getenv(variable, "").strip():
+        raise ValueError(f"Set {variable} in the Core server environment, then restart the Core.")
+
+
 def _options(temperature: float, seed: int) -> dict:
     return {"temperature": temperature, "seed": seed, "num_ctx": config.NUM_CTX}
 
@@ -127,10 +145,11 @@ def chat_structured(
     model = model or config.TRIAGE_MODEL
     schema = output_model.model_json_schema()
     options = _options(temperature, seed)
-    provider = config.LLM_PROVIDER
-    if provider not in ("ollama", "swisscom", "openai"):
-        raise ValueError(f"Unknown LLM provider: {provider}")
+    provider, model = resolve_model(model)
     key_model = model if provider == "ollama" else f"{provider}:{model}"
+    if provider != "ollama":
+        endpoint = config.OPENAI_API_URL if provider == "openai" else config.SWISSCOM_API_URL
+        key_model += f":{endpoint}"
     if provider == "openai":
         key_model += f":{config.OPENAI_REASONING_EFFORT}:{config.OPENAI_REASONING_MODE}"
     key = cache_key(key_model, messages, schema, options)  # the output cap is not part of the key

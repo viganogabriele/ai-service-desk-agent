@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute, useMatchRoute } from "@tanstack/react-router";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { ChartColumn, Gem, Rows3, SquareKanban, Undo2, X } from "lucide-react";
+import { ChartColumn, FlaskConical, Gem, Rows3, SquareKanban, Undo2, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardProvider, useDashboard } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
@@ -26,18 +26,25 @@ const VIEWS: { view: TicketFilters["view"]; label: string; icon: LucideIcon }[] 
 ];
 
 function Root() {
+  const matchRoute = useMatchRoute();
+  const playground = Boolean(matchRoute({ to: "/playground" }));
+
   return (
-    <DashboardProvider>
-      <TicketFiltersProvider>
-        <Tooltip.Provider delayDuration={450} skipDelayDuration={400}>
-          <Shell />
-        </Tooltip.Provider>
-      </TicketFiltersProvider>
-    </DashboardProvider>
+    <TicketFiltersProvider>
+      <Tooltip.Provider delayDuration={450} skipDelayDuration={400}>
+        {playground ? (
+          <Shell playground />
+        ) : (
+          <DashboardProvider>
+            <Shell />
+          </DashboardProvider>
+        )}
+      </Tooltip.Provider>
+    </TicketFiltersProvider>
   );
 }
 
-function Shell() {
+function Shell({ playground = false }: { playground?: boolean }) {
   const { filters } = useTicketFilters();
   const matchRoute = useMatchRoute();
   const onTickets = Boolean(matchRoute({ to: "/tickets", fuzzy: true }));
@@ -45,7 +52,7 @@ function Shell() {
 
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background/88 px-page backdrop-blur-bar max-lg:gap-4 max-md:h-16">
+      <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background/88 px-page backdrop-blur-bar max-lg:gap-4 max-md:h-16 max-sm:gap-2">
         <Link
           to="/tickets"
           className="inline-flex h-11 items-center gap-3.5 rounded-button font-display text-xl font-semibold whitespace-nowrap text-strong"
@@ -68,6 +75,18 @@ function Shell() {
           >
             <ChartColumn size={18} strokeWidth={1.75} />
           </Link>
+          <Link
+            to="/playground"
+            className={cn(
+              buttonVariants({ size: "icon" }),
+              TOPBAR_ICON,
+              "data-[status=active]:bg-elevated data-[status=active]:text-primary-text",
+            )}
+            aria-label="Model playground"
+            data-tip="Model playground"
+          >
+            <FlaskConical size={18} strokeWidth={1.75} />
+          </Link>
           <ThemeToggle className={TOPBAR_ICON} />
           <span
             className="ml-1 grid size-11 place-items-center rounded-full bg-elevated font-display text-md font-medium tracking-initials text-strong max-md:size-9"
@@ -87,7 +106,7 @@ function Shell() {
       >
         <Outlet />
       </main>
-      <Toast />
+      {!playground && <Toast />}
       <TooltipLayer />
     </div>
   );
@@ -116,7 +135,7 @@ function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
           to="/tickets"
           search={{ view }}
           activeProps={{}}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-pill px-5 font-display text-md font-semibold whitespace-nowrap text-nav transition-colors duration-150 hover:text-secondary aria-[current=page]:text-primary-text max-md:px-4 [&_svg]:transition-transform [&_svg]:duration-200 [&_svg]:ease-out hover:not-aria-[current=page]:[&_svg]:-translate-y-px"
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-pill px-5 font-display text-md font-semibold whitespace-nowrap text-nav transition-colors duration-150 hover:text-secondary aria-[current=page]:text-primary-text max-md:px-4 max-sm:px-2 [&_svg]:transition-transform [&_svg]:duration-200 [&_svg]:ease-out hover:not-aria-[current=page]:[&_svg]:-translate-y-px"
           aria-current={view === active ? "page" : undefined}
           aria-label={label}
           onClick={() => setFilters({ view, status: view === "table" ? filters.status : "all" })}
