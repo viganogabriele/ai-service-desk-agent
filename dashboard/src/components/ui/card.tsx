@@ -4,7 +4,7 @@ import { cn } from "../../lib/utils";
 export function Card({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
-      className={cn("min-w-0 rounded-card border bg-surface p-4 sm:p-5", className)}
+      className={cn("min-w-0 rounded-card border bg-surface p-card-pad shadow-card", className)}
       {...props}
     />
   );
@@ -12,7 +12,7 @@ export function Card({ className, ...props }: ComponentProps<"section">) {
 
 export function CardHeader({ className, ...props }: ComponentProps<"div">) {
   return (
-    <div className={cn("mb-5 flex items-start justify-between gap-4", className)} {...props} />
+    <div className={cn("mb-4.5 flex items-start justify-between gap-4", className)} {...props} />
   );
 }
 
@@ -20,7 +20,7 @@ export function CardTitle({ className, ...props }: ComponentProps<"h2">) {
   return (
     <h2
       className={cn(
-        "flex items-center gap-2 text-md leading-5 font-semibold tracking-subtle",
+        "flex items-center gap-2 font-display text-md leading-5 font-semibold",
         className,
       )}
       {...props}
@@ -29,14 +29,30 @@ export function CardTitle({ className, ...props }: ComponentProps<"h2">) {
 }
 
 export function CardDescription({ className, ...props }: ComponentProps<"p">) {
-  return <p className={cn("mt-0.5 text-sm text-muted", className)} {...props} />;
+  return <p className={cn("mt-0.75 text-sm text-muted", className)} {...props} />;
 }
 
 /** Small uppercase heading that separates blocks inside a card. */
 export function CardSection({ className, ...props }: ComponentProps<"h3">) {
   return (
     <h3
-      className={cn("mt-6 mb-3 text-xs font-medium tracking-caps text-muted uppercase", className)}
+      className={cn(
+        "mt-6 mb-3 text-xs font-semibold tracking-caps text-muted uppercase",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/** A dashed box standing in for content that is not there. */
+export function Empty({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "rounded-card border border-dashed border-border-hover px-5 py-12 text-center text-muted",
+        className,
+      )}
       {...props}
     />
   );

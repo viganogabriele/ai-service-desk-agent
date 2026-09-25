@@ -14,6 +14,7 @@ import {
   Undo2,
   UserRound,
 } from "lucide-react";
+import { cva } from "class-variance-authority";
 import { useDashboard } from "../state";
 import type { Verifiable } from "../state";
 import {
@@ -30,8 +31,21 @@ import {
   startingTriage,
 } from "../domain";
 import type { Explanation, IncomingTicket, Proposal, Triage, TriageField } from "../domain";
+import { cn } from "../lib/utils";
+import {
+  optionClass,
+  optionEmptyClass,
+  optionGroupClass,
+  optionHintClass,
+  optionSearchClass,
+  optionSearchInputClass,
+  popoverClass,
+} from "./select";
 import { Initials, personName } from "./tickets";
 import { Fold } from "./ui";
+import { Button } from "./ui/button";
+import { CardTitle } from "./ui/card";
+import { Field, Textarea } from "./ui/form";
 
 /**
  * Who owns a tag's value: the model, the model confirmed by the operator, the operator, the
@@ -69,8 +83,42 @@ export function tagKind(
   return verified.includes(field) ? "verified" : "ai";
 }
 
-export function KindIcon({ kind, size = 12 }: { kind: TagKind; size?: number }) {
-  const props = { size, strokeWidth: 2, className: "kind-icon" };
+/* Tag chips: who owns the value. Blue = model, green check = confirmed, solid = you,
+   dashed = derived by a rule, plain = what the reporter declared. */
+const tagChip = cva(
+  "group/chip inline-flex h-8 max-w-full items-center gap-1.75 rounded-control border px-2.5 text-left text-base font-medium text-foreground transition duration-150 data-[state=open]:border-ring data-[state=open]:ring-3 data-[state=open]:ring-primary-subtle pointer-coarse:h-10",
+  {
+    variants: {
+      kind: {
+        ai: "border-primary/40 bg-primary/10 hover:border-primary-text/60 active:scale-97",
+        verified: "border-success/40 bg-success/8 hover:border-success/60 active:scale-97",
+        human: "border-border-hover bg-elevated hover:border-foreground/60 active:scale-97",
+        declared: "border-border bg-field hover:border-muted/60 active:scale-97",
+        derived:
+          "cursor-help border-dashed border-border bg-transparent text-secondary hover:border-muted/60",
+      },
+    },
+  },
+);
+
+const KIND_COLORS: Record<TagKind, string> = {
+  ai: "text-primary-text",
+  verified: "text-success",
+  human: "text-foreground",
+  declared: "text-muted",
+  derived: "text-muted",
+};
+
+export function KindIcon({
+  kind,
+  size = 12,
+  className,
+}: {
+  kind: TagKind;
+  size?: number;
+  className?: string;
+}) {
+  const props = { size, strokeWidth: 2, className };
 
   if (kind === "verified") return <Check {...props} />;
 
@@ -152,10 +200,32 @@ export function explain(
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
-export function ReasonHead({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+/* Floating layers: the reason tooltip and the value picker. */
+const floatingClass = cn(
+  "z-20 w-75 max-w-pop text-base leading-normal text-secondary data-[state=closed]:animate-pop-out",
+  popoverClass,
+);
+
+const reasonPopClass = cn(
+  floatingClass,
+  "origin-(--radix-tooltip-content-transform-origin) px-3.5 py-3 data-[state=delayed-open]:animate-pop-in",
+);
+
+const arrowClass = "fill-tooltip";
+
+export function ReasonHead({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+}) {
   return (
-    <div className="reason-head">
+    <div className="mb-2 flex items-center gap-2 text-foreground">
       {icon}
+      <b className="min-w-0 flex-1 truncate font-semibold">{title}</b>
       {children}
     </div>
   );
@@ -175,13 +245,16 @@ export function Reason({
 }) {
   return (
     <>
-      <ReasonHead icon={<Sparkles size={14} strokeWidth={1.75} className="kind-icon" />}>
-        <b>{title}</b>
+      <ReasonHead
+        icon={<Sparkles size={14} strokeWidth={1.75} className="text-primary-text" />}
+        title={title}
+      >
         {explanation.confidence !== null && (
           <span
-            className={
-              explanation.confidence < 0.5 ? "reason-confidence low num" : "reason-confidence num"
-            }
+            className={cn(
+              "font-semibold text-foreground tabular-nums",
+              explanation.confidence < 0.5 && "text-warning",
+            )}
           >
             {percent(explanation.confidence)}
           </span>
@@ -189,13 +262,18 @@ export function Reason({
       </ReasonHead>
       <p>{explanation.reason}</p>
       {explanation.evidence.length > 0 && (
-        <ul className="reason-evidence">
+        <ul className="mt-2.5 grid list-none gap-1">
           {explanation.evidence.map((line) => (
-            <li key={line}>{line}</li>
+            <li
+              key={line}
+              className="relative pl-3 before:absolute before:top-2 before:left-0 before:size-1 before:rounded-full before:bg-muted"
+            >
+              {line}
+            </li>
           ))}
         </ul>
       )}
-      <footer>
+      <footer className="mt-2.5 flex justify-between gap-3 border-t border-divider pt-2 text-sm text-muted">
         <span>{modelId}</span>
         <span>{footer}</span>
       </footer>
@@ -219,14 +297,14 @@ export function ReasonTooltip({
       <Tooltip.Trigger asChild>{trigger}</Tooltip.Trigger>
       <Tooltip.Portal>
         <Tooltip.Content
-          className="reason-pop"
+          className={reasonPopClass}
           side={side}
           align={align}
           sideOffset={10}
           collisionPadding={12}
         >
           {children}
-          <Tooltip.Arrow className="pop-arrow" width={12} height={6} />
+          <Tooltip.Arrow className={arrowClass} width={12} height={6} />
         </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
@@ -259,27 +337,31 @@ function OptionList({
   return (
     <>
       {searchable && (
-        <label className="select-search">
+        <label className={optionSearchClass}>
           <Search size={14} strokeWidth={1.75} />
           <span className="sr-only">Filter options</span>
           <input
             autoFocus
+            className={optionSearchInputClass}
             value={needle}
             placeholder="Search…"
             onChange={(event) => setNeedle(event.target.value)}
           />
         </label>
       )}
-      <ul className="edit-list" role="listbox" aria-label={label}>
+      <ul className="max-h-66 list-none overflow-y-auto p-1" role="listbox" aria-label={label}>
         {shown.map((option, index) => (
           <li key={option.value} role="presentation">
             {option.group && option.group !== shown[index - 1]?.group && (
-              <span className="select-group">{option.group}</span>
+              <span className={optionGroupClass}>{option.group}</span>
             )}
             <div
               role="option"
               aria-selected={option.value === value}
-              className="select-option"
+              className={cn(
+                optionClass,
+                "hover:bg-active focus-visible:bg-active focus-visible:outline-none",
+              )}
               tabIndex={0}
               onClick={() => onPick(option.value)}
               onKeyDown={(event) => {
@@ -290,9 +372,11 @@ function OptionList({
               }}
             >
               {option.icon}
-              <span>
+              <span className="flex min-w-0 flex-1 flex-col items-start">
                 {option.label}
-                {option.hint && <small>{option.hint}</small>}
+                {option.hint && (
+                  <small className={cn(optionHintClass, "whitespace-normal")}>{option.hint}</small>
+                )}
               </span>
               {option.value === ai && (
                 <Sparkles size={12} strokeWidth={2} aria-label="AI suggestion" />
@@ -301,7 +385,7 @@ function OptionList({
             </div>
           </li>
         ))}
-        {shown.length === 0 && <li className="select-empty">No matches</li>}
+        {shown.length === 0 && <li className={optionEmptyClass}>No matches</li>}
       </ul>
     </>
   );
@@ -335,12 +419,16 @@ function ProposedTag({
   const chip = (
     <Popover.Trigger asChild>
       <button
-        className={`tag-chip ${kind}`}
+        className={tagChip({ kind })}
         aria-label={`${label}: ${display(field, value)}, ${KIND_LABELS[kind]}`}
       >
-        <KindIcon kind={kind} />
-        <span className="tag-value">{display(field, value)}</span>
-        <ChevronDown size={12} strokeWidth={2} className="tag-caret" />
+        <KindIcon kind={kind} className={KIND_COLORS[kind]} />
+        <span className="truncate">{display(field, value)}</span>
+        <ChevronDown
+          size={12}
+          strokeWidth={2}
+          className="ml-auto text-muted opacity-0 transition-opacity duration-150 group-hover/chip:opacity-100 group-data-[state=open]/chip:opacity-100"
+        />
       </button>
     </Popover.Trigger>
   );
@@ -352,7 +440,7 @@ function ProposedTag({
           <Tooltip.Trigger asChild>{chip}</Tooltip.Trigger>
           <Tooltip.Portal>
             <Tooltip.Content
-              className="reason-pop"
+              className={reasonPopClass}
               side="left"
               sideOffset={10}
               collisionPadding={12}
@@ -373,7 +461,7 @@ function ProposedTag({
                       : "Click to confirm or change"
                 }
               />
-              <Tooltip.Arrow className="pop-arrow" width={12} height={6} />
+              <Tooltip.Arrow className={arrowClass} width={12} height={6} />
             </Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
@@ -382,15 +470,18 @@ function ProposedTag({
       )}
       <Popover.Portal>
         <Popover.Content
-          className="edit-pop"
+          className={cn(
+            floatingClass,
+            "flex origin-(--radix-popover-content-transform-origin) flex-col data-[state=open]:animate-pop-in",
+          )}
           side="left"
           align="start"
           sideOffset={10}
           collisionPadding={12}
         >
-          <div className="edit-head">
+          <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 font-semibold text-foreground">
             <b>{label}</b>
-            <span className="muted">{KIND_LABELS[kind]}</span>
+            <span className="font-normal text-muted">{KIND_LABELS[kind]}</span>
           </div>
           <OptionList
             label={label}
@@ -403,10 +494,11 @@ function ProposedTag({
             }}
           />
           {kind !== "declared" && (
-            <div className="edit-foot">
+            <div className="flex justify-end border-t border-divider p-1.5">
               {kind === "human" ? (
-                <button
-                  className="button ghost"
+                <Button
+                  variant="ghost"
+                  className="h-8 pointer-coarse:h-8"
                   onClick={() => {
                     onChange(ai ?? "");
                     setOpen(false);
@@ -414,10 +506,11 @@ function ProposedTag({
                 >
                   <Undo2 size={14} strokeWidth={1.75} />
                   Restore AI suggestion
-                </button>
+                </Button>
               ) : (
-                <button
-                  className={kind === "verified" ? "button ghost" : "button primary"}
+                <Button
+                  variant={kind === "verified" ? "ghost" : "primary"}
+                  className="h-8 pointer-coarse:h-8"
                   onClick={() => {
                     onVerify(kind !== "verified");
                     setOpen(false);
@@ -425,11 +518,11 @@ function ProposedTag({
                 >
                   <Check size={14} strokeWidth={2} />
                   {kind === "verified" ? "Undo confirmation" : "Confirm suggestion"}
-                </button>
+                </Button>
               )}
             </div>
           )}
-          <Popover.Arrow className="pop-arrow" width={12} height={6} />
+          <Popover.Arrow className={arrowClass} width={12} height={6} />
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -440,9 +533,9 @@ function DerivedTag({ value, children }: { value: string; children: ReactNode })
   return (
     <ReasonTooltip
       trigger={
-        <button className="tag-chip derived" aria-label={`${value}, derived`}>
-          <KindIcon kind="derived" />
-          <span className="tag-value">{value}</span>
+        <button className={tagChip({ kind: "derived" })} aria-label={`${value}, derived`}>
+          <KindIcon kind="derived" className={KIND_COLORS.derived} />
+          <span className="truncate">{value}</span>
         </button>
       }
     >
@@ -453,10 +546,10 @@ function DerivedTag({ value, children }: { value: string; children: ReactNode })
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="class-row">
-      <span className="class-label">
+    <div className="grid min-h-11.5 grid-cols-class-row items-center gap-2 border-t border-divider px-1.5 py-1 first:border-t-0">
+      <span className="grid text-sm font-medium text-secondary">
         {label}
-        {hint && <small>{hint}</small>}
+        {hint && <small className="text-xs font-normal text-muted">{hint}</small>}
       </span>
       {children}
     </div>
@@ -576,14 +669,22 @@ export function ClassificationSidebar({ index }: { index: number }) {
   const done = proposal !== null && remaining.length === 0;
 
   return (
-    <aside className="classify" aria-label="Classification">
-      <div className="step-head">
-        <span className={done ? "step-number done" : "step-number"}>
+    <aside
+      className="sticky top-23 flex max-h-rail flex-col gap-4 overflow-y-auto rounded-card border bg-surface shadow-card max-lg:static max-lg:max-h-none"
+      aria-label="Classification"
+    >
+      <div className="flex items-center gap-3.5 border-b border-divider px-card-pad py-4.5">
+        <span
+          className={cn(
+            "grid size-7 flex-none place-items-center rounded-full bg-primary-subtle font-display text-sm font-semibold text-primary-text",
+            done && "bg-success/15 text-success",
+          )}
+        >
           {done ? <Check size={14} strokeWidth={2.5} /> : "1"}
         </span>
         <div>
-          <h2>Classification</h2>
-          <p>
+          <CardTitle className="text-lg">Classification</CardTitle>
+          <p className="mt-0.5 text-sm text-muted">
             {!proposal
               ? "No AI suggestion. Values are what the reporter declared."
               : done
@@ -594,19 +695,22 @@ export function ClassificationSidebar({ index }: { index: number }) {
           </p>
         </div>
         {proposal && (
-          <span className="push num muted">
+          <span className="ml-auto text-muted tabular-nums">
             {settled}/{TRIAGE_FIELDS.length}
           </span>
         )}
       </div>
-      <div className="classify-body">
+      <div className="grid gap-4 px-5 pb-5">
         {proposal && (
-          <div className="classify-meter" role="presentation">
-            <span style={{ width: `${(settled / TRIAGE_FIELDS.length) * 100}%` }} />
+          <div className="flex h-1 overflow-hidden rounded-pill bg-hover" role="presentation">
+            <span
+              className="rounded-pill bg-primary transition-all duration-200"
+              style={{ width: `${(settled / TRIAGE_FIELDS.length) * 100}%` }}
+            />
           </div>
         )}
 
-        <div className="class-rows">
+        <div className="-mx-1.5 grid">
           <Row label="Work type">
             {tag("work_type", [
               { value: "Incident", label: "Incident" },
@@ -618,9 +722,10 @@ export function ClassificationSidebar({ index }: { index: number }) {
           </Row>
           <Row label="Team" hint="from service">
             <DerivedTag value={team}>
-              <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
-                <b>Follows the service</b>
-              </ReasonHead>
+              <ReasonHead
+                icon={<Sigma size={14} strokeWidth={1.75} className="text-muted" />}
+                title="Follows the service"
+              />
               <p>
                 Each service belongs to exactly one team, so {triage.service} routes to {team}.
               </p>
@@ -631,25 +736,26 @@ export function ClassificationSidebar({ index }: { index: number }) {
           <Row label="Impact">{tag("impact", levelOptions(IMPACT_LABELS))}</Row>
           <Row label="Priority" hint="from matrix">
             <DerivedTag value={level}>
-              <ReasonHead icon={<Sigma size={14} strokeWidth={1.75} className="kind-icon muted" />}>
-                <b>Set by the service desk matrix</b>
-              </ReasonHead>
+              <ReasonHead
+                icon={<Sigma size={14} strokeWidth={1.75} className="text-muted" />}
+                title="Set by the service desk matrix"
+              />
               <p>
                 Urgency {triage.urgency} × impact {triage.impact} give {level}
                 {level !== ticket.Priority && ` · reporter declared ${ticket.Priority}`}. Change
                 urgency or impact to move it.
               </p>
-              <div className="matrix-grid mini" aria-hidden="true">
+              <div className="mt-2.5 grid grid-cols-5 gap-1" aria-hidden="true">
                 {PRIORITY_MATRIX.flatMap((row, urgencyIndex) =>
                   row.map((cell, impactIndex) => (
                     <div
                       key={`${urgencyIndex}-${impactIndex}`}
-                      className={
+                      className={cn(
+                        "grid h-6 place-items-center rounded-cell border border-transparent bg-surface text-xs font-medium text-muted",
                         triage.urgency === LEVELS[urgencyIndex] &&
-                        triage.impact === LEVELS[impactIndex]
-                          ? "selected"
-                          : ""
-                      }
+                          triage.impact === LEVELS[impactIndex] &&
+                          "border-ring bg-primary-subtle text-primary-text",
+                      )}
                     >
                       {cell}
                     </div>
@@ -661,36 +767,37 @@ export function ClassificationSidebar({ index }: { index: number }) {
         </div>
 
         {remaining.length > 0 && (
-          <button className="button confirm-all" onClick={() => verify(index, remaining, true)}>
+          <Button className="w-full" onClick={() => verify(index, remaining, true)}>
             <CheckCheck size={16} strokeWidth={1.75} />
             Confirm the {remaining.length} remaining suggestion{remaining.length > 1 ? "s" : ""}
-          </button>
+          </Button>
         )}
 
         {proposal && (
           <Fold
+            layout="sidebar"
             icon={<Sparkles size={16} strokeWidth={1.75} />}
             title="Why the model suggests this"
           >
-            <div className="classify-reason">
-              <blockquote className="ai-reason">
+            <div className="grid gap-2.5">
+              <blockquote className="border-l-2 border-primary px-3.5 py-2.5 text-base leading-comment text-secondary">
                 {proposal.rationale || "The model gave no reason."}
               </blockquote>
               {flags.map((flag) => (
-                <p className="flag" key={flag}>
+                <p className="text-sm text-warning" key={flag}>
                   {flag}
                 </p>
               ))}
-              <p className="muted">Suggested by {proposal.model_id}</p>
+              <p className="text-muted">Suggested by {proposal.model_id}</p>
             </div>
           </Fold>
         )}
 
         {stronger.configured && current.status !== "resolved" && (
-          <div className="classify-stronger">
+          <div>
             {!strongerOpen && (
-              <button
-                className="button"
+              <Button
+                className="w-full"
                 disabled={!stronger.online}
                 data-tip={
                   stronger.online ? undefined : "The stronger model is currently unavailable"
@@ -699,41 +806,41 @@ export function ClassificationSidebar({ index }: { index: number }) {
               >
                 <Sparkles size={16} strokeWidth={1.75} />
                 Ask a stronger model
-              </button>
+              </Button>
             )}
             {strongerOpen && (
-              <div className="inline-panel">
-                <label className="textarea-label">
+              <div className="rounded-tile border bg-shell p-3.5">
+                <Field>
                   What should the model take into account?
-                  <textarea
+                  <Textarea
                     rows={3}
                     value={hint}
                     disabled={pending}
                     placeholder="For example: the reporter means NAV calculation, not fund pricing."
                     onChange={(event) => setHint(event.target.value)}
                   />
-                </label>
+                </Field>
                 {error && (
-                  <p className="error-line" role="alert">
+                  <p className="mt-2.5 text-sm text-danger" role="alert">
                     {error}
                   </p>
                 )}
-                <div className="panel-actions">
-                  <button className="button ghost" onClick={() => setStrongerOpen(false)}>
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button variant="ghost" onClick={() => setStrongerOpen(false)}>
                     Cancel
-                  </button>
-                  <button
-                    className="button primary"
+                  </Button>
+                  <Button
+                    variant="primary"
                     disabled={pending || !hint.trim()}
                     onClick={() => void askStronger()}
                   >
                     {pending ? (
-                      <LoaderCircle size={16} strokeWidth={1.75} className="spin" />
+                      <LoaderCircle size={16} strokeWidth={1.75} className="animate-spin" />
                     ) : (
                       <Sparkles size={16} strokeWidth={1.75} />
                     )}
                     {pending ? "Asking…" : "Get new suggestion"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

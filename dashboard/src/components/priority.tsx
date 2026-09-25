@@ -15,6 +15,12 @@ import { Initials, PriorityBadge, StatusPill, levelOf, personName } from "./tick
 import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
 import { Menu } from "./ui";
+import { cn } from "../lib/utils";
+import { Dot } from "./ui/badge";
+import { Button, buttonVariants } from "./ui/button";
+import { Empty } from "./ui/card";
+import { SectionCount, SectionHead, SectionText, SectionTitle } from "./ui/section";
+import { Tile, TileLabel, TileValue, Tiles } from "./ui/tile";
 
 // A ticket needs action now when it is high priority, or medium priority on a critical service.
 const isUrgent = (level: Level | null, critical: boolean) =>
@@ -128,42 +134,48 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
   const urgent = rows.flatMap((row) => score(row) ?? []).sort(byRank);
   const { attach, atStart, atEnd, page } = useStrip(urgent.length);
 
-  if (rows.length === 0) return <div className="empty">No tickets match these filters.</div>;
+  if (rows.length === 0) return <Empty>No tickets match these filters.</Empty>;
 
   return (
-    <div className="priority-view">
-      <section className="priority-lane" aria-labelledby="lane-action">
-        <div className="section-head">
-          <h2 id="lane-action">
+    <div className="grid gap-section">
+      <section className="min-w-0" aria-labelledby="lane-action">
+        <SectionHead>
+          <SectionTitle id="lane-action">
             Action Required
-            <span className="count">{urgent.length}</span>
-          </h2>
-          <p>High priority, or medium priority on a critical service, not yet routed</p>
+            <SectionCount>{urgent.length}</SectionCount>
+          </SectionTitle>
+          <SectionText>
+            High priority, or medium priority on a critical service, not yet routed
+          </SectionText>
           {!(atStart && atEnd) && (
-            <span className="strip-nav push">
-              <button
-                className="icon-button"
+            // Touch screens swipe the card strip, so its arrows are only for a mouse.
+            <span className="ml-auto inline-flex gap-2 touch:hidden max-sm:hidden">
+              <Button
+                size="icon"
+                className="bg-surface"
                 aria-label="Previous cards"
                 disabled={atStart}
                 onClick={() => page(-1)}
               >
                 <ChevronLeft size={16} strokeWidth={2} />
-              </button>
-              <button
-                className="icon-button"
+              </Button>
+              <Button
+                size="icon"
+                className="bg-surface"
                 aria-label="Next cards"
                 disabled={atEnd}
                 onClick={() => page(1)}
               >
                 <ChevronRight size={16} strokeWidth={2} />
-              </button>
+              </Button>
             </span>
           )}
-        </div>
+        </SectionHead>
         {urgent.length > 0 ? (
+          // One row of cards, the Figma width, scrolling sideways when there are more than fit.
           <div
             ref={attach}
-            className="ticket-row"
+            className="-mx-page -mt-1.5 -mb-5 flex scroll-px-page snap-x snap-mandatory gap-card-gap overflow-x-auto overflow-y-hidden overscroll-x-contain px-page pt-1.5 pb-8 strip-fade scrollbar-visible"
             data-more-before={atStart ? undefined : ""}
             data-more-after={atEnd ? undefined : ""}
             role="group"
@@ -175,17 +187,17 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             ))}
           </div>
         ) : (
-          <div className="empty">Nothing needs immediate action.</div>
+          <Empty>Nothing needs immediate action.</Empty>
         )}
       </section>
-      <section className="priority-lane" aria-labelledby="lane-all">
-        <div className="section-head">
-          <h2 id="lane-all">
+      <section className="min-w-0" aria-labelledby="lane-all">
+        <SectionHead>
+          <SectionTitle id="lane-all">
             All tickets
-            <span className="count">{rows.length}</span>
-          </h2>
-          <p>Ordered by priority, open tickets first</p>
-        </div>
+            <SectionCount>{rows.length}</SectionCount>
+          </SectionTitle>
+          <SectionText>Ordered by priority, open tickets first</SectionText>
+        </SectionHead>
         <TicketTable rows={rows} />
       </section>
     </div>
@@ -199,61 +211,81 @@ function TicketCard({ item }: { item: Scored }) {
   const { triage } = current;
   const info = serviceInfo(triage.service);
   const team = info?.[1] ?? "the service team";
+  const level = levelOf(triage);
 
   return (
-    <article className="ticket-card" data-level={levelOf(triage)?.toLowerCase()}>
-      <div className="ticket-card-head">
+    <article
+      className={cn(
+        "group/card relative flex min-w-0 flex-none basis-strip-card snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
+        "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
+        // The border picks up the priority badge colour, so a card reads at a glance like its badge.
+        (level === "Highest" || level === "High") && "border-danger/28 hover:border-danger/50",
+        level === "Medium" && "border-warning/28 hover:border-warning/50",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2.5">
         <PriorityBadge triage={triage} />
         <StatusPill status={current.status} />
       </div>
-      <Link to="/tickets/$ticketId" params={{ ticketId: id }} className="ticket-card-title">
+      <Link
+        to="/tickets/$ticketId"
+        params={{ ticketId: id }}
+        data-card-title
+        className="line-clamp-2 font-display text-lg leading-snug font-medium text-pretty text-strong transition-colors duration-150 ease-soft group-hover/card:text-primary-text after:absolute after:inset-0 after:rounded-card focus-visible:outline-none"
+      >
         {ticket.Summary}
       </Link>
-      <div className="tiles">
-        <div className="tile">
-          <span className="tile-label">
+      <Tiles className="grid-cols-2">
+        <Tile>
+          <TileLabel>
             <Layers size={12} strokeWidth={2} />
             Service
-          </span>
-          <span className="tile-value">
-            {info?.[2] === "Critical" && (
-              <i className="dot red" data-tip="Business-critical service" />
-            )}
+          </TileLabel>
+          <TileValue>
+            {info?.[2] === "Critical" && <Dot tone="danger" data-tip="Business-critical service" />}
             <span>{triage.service || "Unknown"}</span>
-          </span>
-        </div>
-        <div className="tile">
-          <span className="tile-label">
+          </TileValue>
+        </Tile>
+        <Tile>
+          <TileLabel>
             <UserRound size={12} strokeWidth={2} />
             Requested by
-          </span>
-          <span className="tile-value">
-            <Initials email={ticket.Reporter} />
+          </TileLabel>
+          <TileValue>
+            <Initials email={ticket.Reporter} small />
             <span>{personName(ticket.Reporter) || "Unknown"}</span>
-          </span>
-        </div>
-      </div>
+          </TileValue>
+        </Tile>
+      </Tiles>
       {(note || age !== null) && (
-        <div className="ticket-card-note">
+        <div className="flex min-w-0 items-center gap-2 text-sm text-secondary [&_svg]:text-primary-text">
           {note && (
             <>
               {note.ai && <Sparkles size={13} strokeWidth={2} />}
-              <span className="note-text">{note.text}</span>
+              <span className="truncate">{note.text}</span>
             </>
           )}
           {age !== null && (
-            <span className="age num" data-tip={`Opened ${ticket["Created date"]}`}>
+            <span
+              className="ml-auto flex-none whitespace-nowrap text-muted tabular-nums"
+              data-tip={`Opened ${ticket["Created date"]}`}
+            >
               {age === 0 ? "Opened today" : `Open for ${age} day${age === 1 ? "" : "s"}`}
             </span>
           )}
         </div>
       )}
-      <div className="ticket-card-foot">
-        <Link to="/tickets/$ticketId" params={{ ticketId: id }} className="button primary">
+      <div className="relative z-1 mt-auto flex items-center justify-between gap-2.5">
+        <Link
+          to="/tickets/$ticketId"
+          params={{ ticketId: id }}
+          className={cn(buttonVariants({ variant: "primary" }), "pr-4 pl-3 font-display text-sm")}
+        >
           <ChevronsRight size={16} strokeWidth={2.25} />
           Review classification
         </Link>
         <Menu
+          className="border-transparent"
           label={`More actions for ${id}`}
           items={[
             {

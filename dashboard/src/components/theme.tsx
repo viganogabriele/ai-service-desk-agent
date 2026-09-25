@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
+import { Button } from "./ui/button";
 
 export type Theme = "light" | "dark";
 
@@ -34,15 +35,16 @@ function applyTheme(theme: Theme) {
   );
 }
 
-export function ThemeToggle({ className = "" }: { className?: string }) {
+export function ThemeToggle({ className }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, currentTheme);
   const next: Theme = theme === "dark" ? "light" : "dark";
   // The icon only turns in after a click, not when the page first paints.
   const [turned, setTurned] = useState(false);
 
   return (
-    <button
-      className={`icon-button ${className}`}
+    <Button
+      size="icon"
+      className={className}
       aria-label={`Switch to ${next} theme`}
       data-tip={`Switch to ${next} theme`}
       onClick={() => {
@@ -52,10 +54,20 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       }}
     >
       {theme === "dark" ? (
-        <Sun key="sun" size={16} strokeWidth={1.75} className={turned ? "turn-in" : undefined} />
+        <Sun
+          key="sun"
+          size={16}
+          strokeWidth={1.75}
+          className={turned ? "animate-turn-in" : undefined}
+        />
       ) : (
-        <Moon key="moon" size={16} strokeWidth={1.75} className={turned ? "turn-in" : undefined} />
+        <Moon
+          key="moon"
+          size={16}
+          strokeWidth={1.75}
+          className={turned ? "animate-turn-in" : undefined}
+        />
       )}
-    </button>
+    </Button>
   );
 }

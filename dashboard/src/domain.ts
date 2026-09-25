@@ -1,3 +1,5 @@
+import type { Tone } from "./components/ui/badge";
+
 export const SERVICES = [
   ["Trading Platform", "Investment Operations", "Critical"],
   ["Trade Matching", "Investment Operations", "Critical"],
@@ -68,12 +70,12 @@ export const STATUS_HELP: Record<Status, string> = {
   resolved: "Closed with a resolution note",
 };
 
-export const STATUS_DOTS: Record<Status, string> = {
-  new: "",
-  in_progress: "bright",
-  assigned: "cyan",
-  waiting: "amber",
-  resolved: "green",
+export const STATUS_DOTS: Record<Status, Tone> = {
+  new: "muted",
+  in_progress: "foreground",
+  assigned: "info",
+  waiting: "warning",
+  resolved: "success",
 };
 
 export const OPEN_STATUSES: readonly Status[] = ["new", "in_progress", "assigned"];

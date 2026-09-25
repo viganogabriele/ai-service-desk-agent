@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "../lib/utils";
 
 // Hovering waits before the first tooltip; moving on to the next target within the window is instant.
 const OPEN_DELAY = 450;
@@ -125,9 +126,11 @@ export function TooltipLayer() {
       ref={node}
       id={id}
       role="tooltip"
-      className="tooltip"
-      data-below={position.below || undefined}
-      data-instant={tip.instant || undefined}
+      className={cn(
+        "pointer-events-none fixed z-40 max-w-70 rounded-control border border-tooltip-border bg-tooltip px-2.5 py-1.5 text-sm leading-snug font-medium text-tooltip-foreground shadow-popover",
+        position.below ? "origin-top animate-tooltip-in-below" : "origin-bottom animate-tooltip-in",
+        tip.instant && "animate-none",
+      )}
       style={{ left: position.left, top: position.top }}
     >
       {tip.text}

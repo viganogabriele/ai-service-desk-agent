@@ -3,12 +3,47 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { serviceInfo } from "../domain";
 import { Initials, PriorityBadge, StatusPill, isOpen, personName } from "./tickets";
 import type { TicketRow } from "./tickets";
+import { cn } from "../lib/utils";
+import { buttonVariants } from "./ui/button";
+import { Card, Empty } from "./ui/card";
+import { CheckHit, Checkbox } from "./ui/form";
 
 export interface Selection {
   selected: Set<string>;
   onToggle: (id: string) => void;
   onToggleAll: () => void;
 }
+
+const TH =
+  "h-11 px-3 text-left text-xs font-semibold tracking-caps whitespace-nowrap text-muted uppercase first:pl-card-pad last:pr-card-pad";
+
+// Below 860px each row becomes a stacked card; `md:` keeps the table-only treatment off it.
+const TD =
+  "h-16 border-t border-divider px-3 py-2.5 align-middle text-base whitespace-nowrap text-secondary transition-colors duration-120 ease-soft md:group-hover/row:bg-row md:first:pl-card-pad md:last:pr-card-pad max-md:block max-md:h-auto max-md:w-auto max-md:min-w-0 max-md:border-0 max-md:p-0";
+
+const WRAP = "min-w-35 whitespace-normal";
+
+const NOTE = "mt-0.5 block text-sm text-muted";
+
+// Where each cell sits in a stacked row. Without checkboxes the rows drop the empty first column.
+const STACKED = {
+  withCheck: {
+    row: "max-md:grid-cols-queue-row",
+    summary: "max-md:col-span-2 max-md:col-start-2 max-md:row-start-1",
+    service: "max-md:col-start-2 max-md:row-start-2",
+    priority: "max-md:col-start-3 max-md:row-start-2",
+    assignee: "max-md:col-start-2 max-md:row-start-3",
+    status: "max-md:col-start-3 max-md:row-start-3",
+  },
+  plain: {
+    row: "max-md:grid-cols-queue-row-plain",
+    summary: "max-md:col-span-2 max-md:row-start-1",
+    service: "max-md:col-start-1 max-md:row-start-2",
+    priority: "max-md:col-start-2 max-md:row-start-2",
+    assignee: "max-md:col-start-1 max-md:row-start-3",
+    status: "max-md:col-start-2 max-md:row-start-3",
+  },
+};
 
 /** Queue table. Rows arrive already ordered; pass `selection` to add checkboxes for bulk actions. */
 export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?: Selection }) {
@@ -17,16 +52,15 @@ export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?
   const someSelected = ids.some((id) => selection?.selected.has(id));
 
   return (
-    <section className="card queue-card">
-      <div className="table-wrap">
-        <table>
-          <thead>
+    <Card className="overflow-hidden p-0">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-230 border-collapse max-md:min-w-0">
+          <thead className="max-md:hidden">
             <tr>
               {selection && (
-                <th className="check">
-                  <label className="check-hit">
-                    <input
-                      type="checkbox"
+                <th className={cn(TH, "w-10 pr-0")}>
+                  <CheckHit>
+                    <Checkbox
                       aria-label="Select all shown tickets"
                       checked={allSelected}
                       ref={(input) => {
@@ -34,26 +68,28 @@ export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?
                       }}
                       onChange={selection.onToggleAll}
                     />
-                  </label>
+                  </CheckHit>
                 </th>
               )}
-              <th>Ticket</th>
-              <th data-tip="Calculated from urgency and impact">Priority</th>
-              <th>Service</th>
-              <th>Assignee</th>
-              <th>Status</th>
-              <th className="row-action" />
+              <th className={TH}>Ticket</th>
+              <th className={TH} data-tip="Calculated from urgency and impact">
+                Priority
+              </th>
+              <th className={TH}>Service</th>
+              <th className={TH}>Assignee</th>
+              <th className={TH}>Status</th>
+              <th className={cn(TH, "w-12")} />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="max-md:block">
             {rows.map((row) => (
               <TableRow key={row.id} row={row} selection={selection} />
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <div className="empty">No tickets match these filters.</div>}
+        {rows.length === 0 && <Empty>No tickets match these filters.</Empty>}
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -63,44 +99,59 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
   const declared = ticket["Affected Business or IT Services"][0];
   const selected = selection?.selected.has(id) ?? false;
   const open = () => void navigate({ to: "/tickets/$ticketId", params: { ticketId: id } });
+  const place = selection ? STACKED.withCheck : STACKED.plain;
+  const td = cn(TD, selected && "md:bg-primary-subtle md:group-hover/row:bg-primary-subtle");
 
   return (
-    <tr className={selected ? "selected clickable" : "clickable"} onClick={open}>
+    <tr
+      className={cn(
+        "group/row cursor-pointer max-md:grid max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:border-t max-md:border-divider max-md:px-card-pad max-md:py-3.5",
+        place.row,
+      )}
+      onClick={open}
+    >
       {selection && (
-        <td className="check" onClick={(event) => event.stopPropagation()}>
-          <label className="check-hit">
-            <input
-              type="checkbox"
+        <td
+          className={cn(
+            td,
+            "w-10 pr-0 max-md:col-start-1 max-md:row-start-1 max-md:self-start max-md:pt-0.5",
+          )}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <CheckHit>
+            <Checkbox
               aria-label={`Select ${id}`}
               checked={selected}
               disabled={!isOpen(current.status)}
               onChange={() => selection.onToggle(id)}
             />
-          </label>
+          </CheckHit>
         </td>
       )}
-      <td className="wrap summary-cell">
+      <td className={cn(td, WRAP, "min-w-80", place.summary)}>
         <Link
           to="/tickets/$ticketId"
           params={{ ticketId: id }}
-          className="summary-link"
+          className="block max-w-130 truncate font-display text-md font-medium text-foreground transition-colors duration-150 ease-soft group-hover/row:text-primary-text max-md:line-clamp-2 max-md:max-w-none max-md:leading-snug max-md:whitespace-normal"
           onClick={(event) => event.stopPropagation()}
         >
           {ticket.Summary}
         </Link>
-        <small>
-          <span className="ticket-id">{id}</span> · {ticket["Request type"]} ·{" "}
-          {personName(ticket.Reporter)}
+        <small className={NOTE}>
+          <span className="text-sm font-medium whitespace-nowrap text-muted tabular-nums">
+            {id}
+          </span>{" "}
+          · {ticket["Request type"]} · {personName(ticket.Reporter)}
         </small>
       </td>
-      <td className="priority-cell">
+      <td className={cn(td, place.priority, "max-md:justify-self-end")}>
         <PriorityBadge triage={current.triage} />
       </td>
-      <td className="wrap service-cell">
-        <span className="value">{current.triage.service}</span>
-        <small>
+      <td className={cn(td, WRAP, place.service)}>
+        <span className="text-foreground">{current.triage.service}</span>
+        <small className={NOTE}>
           {proposal && proposal.proposal.service !== declared ? (
-            <span className="ai-note">
+            <span className="inline-flex items-center gap-1 text-primary-text">
               <Sparkles size={11} strokeWidth={2} />
               AI changed from {declared}
             </span>
@@ -109,21 +160,27 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
           )}
         </small>
       </td>
-      <td className="assignee-cell">
+      <td className={cn(td, place.assignee)}>
         {current.triage.assignee ? (
-          <span className="person">
+          <span className="inline-flex min-w-0 items-center gap-2 text-foreground">
             <Initials email={current.triage.assignee} />
-            <span>{personName(current.triage.assignee)}</span>
+            <span className="truncate">{personName(current.triage.assignee)}</span>
           </span>
         ) : (
-          <span className="muted">Unassigned</span>
+          <span className="text-muted">Unassigned</span>
         )}
       </td>
-      <td className="status-cell">
+      <td className={cn(td, place.status, "max-md:justify-self-end")}>
         <StatusPill status={current.status} />
       </td>
-      <td className="row-action">
-        <span className="icon-button" aria-hidden="true">
+      <td className={cn(td, "w-12 text-right max-md:hidden")}>
+        <span
+          className={cn(
+            buttonVariants({ size: "icon" }),
+            "-translate-x-1.5 border-transparent bg-transparent opacity-0 group-hover/row:translate-x-0 group-hover/row:text-primary-text group-hover/row:opacity-100",
+          )}
+          aria-hidden="true"
+        >
           <ArrowRight size={16} strokeWidth={1.75} />
         </span>
       </td>

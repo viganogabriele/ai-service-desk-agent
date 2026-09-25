@@ -40,6 +40,11 @@ import {
 } from "../components/classification";
 import type { TagKind } from "../components/classification";
 import { CommentEditor, Dialog, Fold, OutcomePicker } from "../components/ui";
+import { Button, buttonVariants, linkButtonClass } from "../components/ui/button";
+import { Card, CardSection, CardTitle, Empty } from "../components/ui/card";
+import { Kbd } from "../components/ui/form";
+import { Tile, TileLabel, Tiles, TileValue } from "../components/ui/tile";
+import { cn } from "../lib/utils";
 
 export const Route = createFileRoute("/tickets/$ticketId")({ component: TicketWorkspace });
 
@@ -66,6 +71,10 @@ const REFERENCE_SIMILARITY = 0.1;
 // Descriptions longer than this open folded to a few lines.
 const LONG_DESCRIPTION = 420;
 
+const descriptionClass = "text-md leading-relaxed whitespace-pre-line text-pretty text-secondary";
+
+const stepActionsClass = "flex items-center justify-end gap-3 border-t border-divider pt-4";
+
 const formatDate = (value: string | null) =>
   value === null
     ? ""
@@ -84,13 +93,16 @@ function TicketWorkspace() {
 
   if (index < 0)
     return (
-      <div className="empty">
-        Ticket not found. <Link to="/tickets">Back to tickets</Link>
-      </div>
+      <Empty>
+        Ticket not found.{" "}
+        <Link to="/tickets" className="text-foreground underline underline-offset-3">
+          Back to tickets
+        </Link>
+      </Empty>
     );
 
   return (
-    <div className="workspace">
+    <div className="mx-auto grid max-w-360 grid-cols-workspace items-start gap-7 max-xl:grid-cols-workspace-compact max-lg:grid-cols-1">
       <QueueNav ticketId={ticketId} index={index} />
       <TicketDetail key={ticketId} ticketId={ticketId} index={index} />
       <ClassificationSidebar key={`classify-${ticketId}`} index={index} />
@@ -111,7 +123,9 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
     const onKey = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLElement &&
-        event.target.closest("input, textarea, [role=listbox], .select, .modal")
+        event.target.closest(
+          "input, textarea, [role=listbox], [aria-haspopup=listbox], [aria-modal=true]",
+        )
       )
         return;
 
@@ -127,23 +141,29 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
   }, [navigate, nextId, previousId]);
 
   return (
-    <nav className="workspace-nav" aria-label="Queue">
-      <Link to="/tickets" className="button ghost pill">
+    <nav className="col-span-full mt-2 mb-1 flex items-center gap-3" aria-label="Queue">
+      <Link
+        to="/tickets"
+        className={cn(buttonVariants({ variant: "ghost" }), "h-6 gap-1.75 px-2.5 text-sm")}
+      >
         <ArrowLeft size={16} strokeWidth={1.75} />
         All tickets
       </Link>
-      <span className="position num">
+      <span className="text-sm text-muted tabular-nums">
         {position + 1} of {order.length}
       </span>
-      <span className="push" />
-      <span className="kbd-hint" data-tip="Keyboard: K previous, J next">
-        <kbd>K</kbd>
-        <kbd>J</kbd>
+      <span className="ml-auto" />
+      <span
+        className="inline-flex gap-0.75 max-md:hidden touch:hidden"
+        data-tip="Keyboard: K previous, J next"
+      >
+        <Kbd>K</Kbd>
+        <Kbd>J</Kbd>
       </span>
       <Link
         to="/tickets/$ticketId"
         params={{ ticketId: previousId ?? ticketId }}
-        className="icon-button"
+        className={cn(buttonVariants({ size: "icon" }), "bg-surface")}
         aria-label="Previous ticket"
         disabled={!previousId}
       >
@@ -152,7 +172,7 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
       <Link
         to="/tickets/$ticketId"
         params={{ ticketId: nextId ?? ticketId }}
-        className="icon-button"
+        className={cn(buttonVariants({ size: "icon" }), "bg-surface")}
         aria-label="Next ticket"
         disabled={!nextId}
       >
@@ -164,17 +184,17 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
 
 function Comments({ comments }: { comments: string[] }) {
   return (
-    <div className="comments">
+    <div className="grid">
       {comments.map((comment, place) => {
         const [author, ...rest] = comment.split(":");
 
         return (
-          <div key={place}>
-            <b>
-              <Initials email={author} />
+          <div key={place} className="border-t border-divider py-3 first:border-t-0 first:pt-0">
+            <b className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <Initials email={author} small />
               {personName(author)}
             </b>
-            <p>{rest.join(":").trim()}</p>
+            <p className="mt-1.5 leading-comment text-secondary">{rest.join(":").trim()}</p>
           </div>
         );
       })}
@@ -235,68 +255,70 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
   ];
 
   return (
-    <div className="detail">
-      <header className="detail-heading">
-        <div className="marks">
+    <div className="grid min-w-0 gap-5">
+      <header className="grid gap-3 pt-1 pb-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <PriorityBadge triage={triage} />
           {info?.[2] === "Critical" && <CriticalBadge />}
           <StatusPill status={current.status} />
-          <span className="ticket-id">
+          <span className="text-base font-medium whitespace-nowrap text-muted tabular-nums">
             {ticketId} · {ticket["Request type"] ?? ticket["Work type"]}
           </span>
         </div>
-        <h1>{ticket.Summary}</h1>
-        <div className="tiles">
-          <div className="tile">
-            <span className="tile-label">
+        <h1 className="font-display text-4xl leading-heading font-semibold tracking-snug text-pretty max-sm:text-2xl">
+          {ticket.Summary}
+        </h1>
+        <Tiles className="grid-cols-tiles-wide">
+          <Tile>
+            <TileLabel>
               <UserRound size={12} strokeWidth={2} />
               Requested by
-            </span>
-            <span className="tile-value" data-tip={ticket.Reporter ?? undefined}>
-              <Initials email={ticket.Reporter} />
+            </TileLabel>
+            <TileValue data-tip={ticket.Reporter ?? undefined}>
+              <Initials email={ticket.Reporter} small />
               <span>{personName(ticket.Reporter) || "Unknown"}</span>
-            </span>
-          </div>
-          <div className="tile">
-            <span className="tile-label">
+            </TileValue>
+          </Tile>
+          <Tile>
+            <TileLabel>
               <CalendarClock size={12} strokeWidth={2} />
               Opened
-            </span>
-            <span className="tile-value">
+            </TileLabel>
+            <TileValue>
               <span>{formatDate(ticket["Created date"]) || "Unknown"}</span>
-            </span>
-          </div>
-          <div className="tile">
-            <span className="tile-label">
+            </TileValue>
+          </Tile>
+          <Tile>
+            <TileLabel>
               <Building2 size={12} strokeWidth={2} />
               Entity
-            </span>
-            <span className="tile-value">
+            </TileLabel>
+            <TileValue>
               <span>{ticket["Business Entity"].join(", ") || "None"}</span>
-            </span>
-          </div>
+            </TileValue>
+          </Tile>
           {ticket["Due date"] && (
-            <div className="tile">
-              <span className="tile-label">
+            <Tile>
+              <TileLabel>
                 <CalendarClock size={12} strokeWidth={2} />
                 Due
-              </span>
-              <span className="tile-value">
+              </TileLabel>
+              <TileValue>
                 <span>{formatDate(ticket["Due date"])}</span>
-              </span>
-            </div>
+              </TileValue>
+            </Tile>
           )}
-        </div>
+        </Tiles>
       </header>
 
-      <section className="card step-card" aria-label="Request">
-        <div className="step-body">
-          <p className={longDescription && !expanded ? "description clamped" : "description"}>
+      <Card className="p-0" aria-label="Request">
+        <div className="grid gap-4.5 p-card-pad">
+          <p className={cn(descriptionClass, longDescription && !expanded && "line-clamp-6")}>
             {ticket.Description}
           </p>
           {longDescription && (
             <div>
-              <button className="link-button" onClick={() => setExpanded(!expanded)}>
+              <button className={linkButtonClass} onClick={() => setExpanded(!expanded)}>
                 {expanded ? "Show less" : "Read the full request"}
               </button>
             </div>
@@ -310,11 +332,11 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
           {ticket["All Comments"].length ? (
             <Comments comments={ticket["All Comments"]} />
           ) : (
-            <p className="muted">No comments yet.</p>
+            <p className="text-muted">No comments yet.</p>
           )}
         </Fold>
         <Fold icon={<Info size={16} strokeWidth={1.75} />} title="Jira details">
-          <dl className="details">
+          <dl className="grid gap-2.5 [&>div]:grid [&>div]:grid-cols-details [&>div]:gap-3 max-sm:[&>div]:grid-cols-1 max-sm:[&>div]:gap-0.5 [&_dd]:wrap-anywhere [&_dt]:text-muted">
             <div>
               <dt>Reporter</dt>
               <dd>{ticket.Reporter}</dd>
@@ -336,21 +358,28 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
             </div>
           </dl>
         </Fold>
-      </section>
+      </Card>
 
-      <section className="card step-card" aria-label="Next step">
-        <div className="step-head">
-          <span className={decided ? "step-number done" : "step-number"}>
+      <Card className="p-0" aria-label="Next step">
+        <div className="flex items-center gap-3.5 border-b border-divider px-card-pad py-4.5">
+          <span
+            className={cn(
+              "grid size-7 flex-none place-items-center rounded-full bg-primary-subtle font-display text-sm font-semibold text-primary-text",
+              decided && "bg-success/15 text-success",
+            )}
+          >
             {decided ? <Check size={14} strokeWidth={2.5} /> : "2"}
           </span>
           <div>
-            <h2>Decide the next step</h2>
-            <p>Comments are posted to Jira as {personName(triage.assignee) || "the assignee"}.</p>
+            <CardTitle className="text-lg">Decide the next step</CardTitle>
+            <p className="mt-0.5 text-sm text-muted">
+              Comments are posted to Jira as {personName(triage.assignee) || "the assignee"}.
+            </p>
           </div>
         </div>
-        <div className="step-body">
+        <div className="grid gap-4.5 p-card-pad">
           {decided && (
-            <div className="status-banner">
+            <div className="flex items-center gap-2.5 rounded-tile border border-success/30 bg-success/7 py-2.5 pr-2.5 pl-3.5 text-foreground [&_svg]:text-success">
               <CircleCheck size={16} strokeWidth={1.75} />
               <span>
                 {current.status === "resolved"
@@ -359,32 +388,40 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     ? `Waiting for ${personName(ticket.Reporter)} to answer.`
                     : `Assigned to ${team}${triage.assignee ? ` · ${personName(triage.assignee)}` : ""}.`}
               </span>
-              <button className="button ghost" onClick={() => move(index, "in_progress")}>
+              <Button
+                variant="ghost"
+                className="ml-auto"
+                onClick={() => move(index, "in_progress")}
+              >
                 <RotateCcw size={14} strokeWidth={1.75} />
                 Reopen
-              </button>
+              </Button>
             </div>
           )}
 
           {!closed && (
             <>
-              <div className="choices" role="radiogroup" aria-label="Next step">
+              <div
+                className="grid grid-cols-3 gap-2.5 max-md:grid-cols-1"
+                role="radiogroup"
+                aria-label="Next step"
+              >
                 {choices.map(({ value, title, help, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
                     role="radio"
-                    className="choice"
+                    className="group/choice grid gap-1.5 rounded-tile border bg-elevated p-3.5 text-left text-secondary transition duration-150 ease-soft hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-99 aria-checked:border-primary aria-checked:bg-primary-subtle aria-checked:text-secondary"
                     aria-checked={step === value}
                     onClick={() => setStep(value)}
                   >
-                    <b>
+                    <b className="flex items-center gap-2 font-display text-base font-semibold text-foreground group-aria-checked/choice:text-primary-text">
                       <Icon size={16} strokeWidth={1.75} />
                       {title}
                     </b>
-                    <small>{help}</small>
+                    <small className="text-sm leading-choice">{help}</small>
                     {value === "ask" && proposal?.proposal.resolution === "clarification" && (
-                      <span className="hint">
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-primary-text">
                         <Sparkles size={11} strokeWidth={2} />
                         AI recommends this
                       </span>
@@ -405,11 +442,17 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     placeholder="What was done, and how the reporter can confirm it is fixed."
                     value={current.reply}
                     onChange={(reply) => update(index, { reply })}
-                    className={draft === "ai" ? "draft" : ""}
+                    draft={draft === "ai"}
                   />
                   {draft && proposal && (
-                    <div className={`draft-bar ${draft}`}>
-                      <span className="draft-flag">
+                    <div className="-mt-1.5 flex flex-wrap items-center gap-3">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 text-sm font-medium text-secondary",
+                          draft === "ai" && "text-accent",
+                          draft === "verified" && "text-success",
+                        )}
+                      >
                         <KindIcon kind={draft} />
                         {DRAFT_FLAGS[draft]}
                       </span>
@@ -417,7 +460,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                         side="top"
                         align="start"
                         trigger={
-                          <button className="link-button draft-why">
+                          <button className={linkButtonClass}>
                             <Info size={14} strokeWidth={1.75} />
                             Why this draft
                           </button>
@@ -441,82 +484,84 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                           footer="Edit the note or approve it as is"
                         />
                       </ReasonTooltip>
-                      <span className="push">
+                      <span className="ml-auto">
                         {draft === "ai" && (
-                          <button className="button" onClick={() => verify(index, ["reply"], true)}>
+                          <Button onClick={() => verify(index, ["reply"], true)}>
                             <Check size={16} strokeWidth={2} />
                             Approve draft
-                          </button>
+                          </Button>
                         )}
                         {draft === "verified" && (
-                          <button
-                            className="button ghost"
-                            onClick={() => verify(index, ["reply"], false)}
-                          >
+                          <Button variant="ghost" onClick={() => verify(index, ["reply"], false)}>
                             Undo approval
-                          </button>
+                          </Button>
                         )}
                         {draft === "human" && (
-                          <button
-                            className="button ghost"
-                            onClick={() => update(index, { reply: aiDraft })}
-                          >
+                          <Button variant="ghost" onClick={() => update(index, { reply: aiDraft })}>
                             <Undo2 size={16} strokeWidth={1.75} />
                             Restore AI draft
-                          </button>
+                          </Button>
                         )}
                       </span>
                     </div>
                   )}
                   {references.length > 0 && (
-                    <div className="references">
-                      <Fold
-                        icon={<BookOpen size={16} strokeWidth={1.75} />}
-                        title="Fixes from similar resolved tickets"
-                        count={Math.min(references.length, 3)}
-                      >
-                        <div className="references">
-                          {references.slice(0, 3).map((item) => (
-                            <article key={item.historical_index}>
-                              <p>{item.resolution_text}</p>
-                              <footer>
-                                <span className="muted">
-                                  Used on {item.times_used} resolved {triage.service} ticket
-                                  {item.times_used === 1 ? "" : "s"}
-                                </span>
-                                <button
-                                  className="link-button"
-                                  onClick={() =>
-                                    setHistorical(
-                                      data.historical_examples[String(item.historical_index)],
-                                    )
-                                  }
-                                >
-                                  View ticket
-                                </button>
-                                <button
-                                  className="button"
-                                  onClick={() => update(index, { reply: item.resolution_text })}
-                                >
-                                  Use as note
-                                </button>
-                              </footer>
-                            </article>
-                          ))}
-                        </div>
-                      </Fold>
-                    </div>
+                    <Fold
+                      layout="framed"
+                      icon={<BookOpen size={16} strokeWidth={1.75} />}
+                      title="Fixes from similar resolved tickets"
+                      count={Math.min(references.length, 3)}
+                    >
+                      <div className="grid gap-2">
+                        {references.slice(0, 3).map((item) => (
+                          <article
+                            key={item.historical_index}
+                            className="rounded-tile border bg-elevated px-3.5 py-3"
+                          >
+                            <p className="leading-comment text-foreground">
+                              {item.resolution_text}
+                            </p>
+                            <footer className="mt-2.5 flex flex-wrap items-center gap-3 text-sm">
+                              <span className="text-muted">
+                                Used on {item.times_used} resolved {triage.service} ticket
+                                {item.times_used === 1 ? "" : "s"}
+                              </span>
+                              <button
+                                className={linkButtonClass}
+                                onClick={() =>
+                                  setHistorical(
+                                    data.historical_examples[String(item.historical_index)],
+                                  )
+                                }
+                              >
+                                View ticket
+                              </button>
+                              <Button
+                                size="sm"
+                                className="ml-auto"
+                                onClick={() => update(index, { reply: item.resolution_text })}
+                              >
+                                Use as note
+                              </Button>
+                            </footer>
+                          </article>
+                        ))}
+                      </div>
+                    </Fold>
                   )}
-                  <div className="step-actions">
-                    {!triage.assignee && <span className="muted">Choose an assignee first.</span>}
-                    <button
-                      className="button primary large"
+                  <div className={stepActionsClass}>
+                    {!triage.assignee && (
+                      <span className="mr-auto text-sm text-muted">Choose an assignee first.</span>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="large"
                       disabled={!triage.assignee || !current.reply.trim()}
                       onClick={() => resolve(index)}
                     >
                       <CircleCheck size={16} strokeWidth={2} />
                       Resolve ticket
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
@@ -531,23 +576,26 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     value={current.question}
                     onChange={(question) => update(index, { question })}
                   />
-                  <div className="step-actions">
-                    {!triage.assignee && <span className="muted">Choose an assignee first.</span>}
-                    <button
-                      className="button primary large"
+                  <div className={stepActionsClass}>
+                    {!triage.assignee && (
+                      <span className="mr-auto text-sm text-muted">Choose an assignee first.</span>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="large"
                       disabled={!triage.assignee || !current.question.trim()}
                       onClick={() => askReporter(index)}
                     >
                       <Send size={16} strokeWidth={2} />
                       Send question
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
 
               {step === "assign" && (
                 <>
-                  <p className="description">
+                  <p className={descriptionClass}>
                     Routes the ticket to <b>{team}</b>
                     {triage.assignee ? (
                       <>
@@ -559,22 +607,23 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     )}
                     . The ticket stays open for the team to work on.
                   </p>
-                  <div className="step-actions">
-                    <button
-                      className="button primary large"
+                  <div className={stepActionsClass}>
+                    <Button
+                      variant="primary"
+                      size="large"
                       disabled={current.status === "assigned"}
                       onClick={() => assign(index)}
                     >
                       <Users size={16} strokeWidth={2} />
                       Assign ticket
-                    </button>
+                    </Button>
                   </div>
                 </>
               )}
             </>
           )}
         </div>
-      </section>
+      </Card>
 
       {historical && (
         <Dialog
@@ -582,14 +631,14 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
           description={`${historical["Affected Business or IT Services"].join(", ")} · resolved ${historical["Resolution date"] ? formatDate(historical["Resolution date"]) : ""}`}
           onClose={() => setHistorical(null)}
           footer={
-            <button className="button" onClick={() => setHistorical(null)}>
+            <Button onClick={() => setHistorical(null)}>
               <X size={16} strokeWidth={1.75} />
               Close
-            </button>
+            </Button>
           }
         >
-          <p className="description">{historical.Description}</p>
-          <h3>Comments</h3>
+          <p className={descriptionClass}>{historical.Description}</p>
+          <CardSection>Comments</CardSection>
           <Comments comments={historical["All Comments"]} />
         </Dialog>
       )}

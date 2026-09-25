@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Flag, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
+import { cn } from "../lib/utils";
 import type { Review } from "../state";
 import {
   LEVELS,
@@ -14,8 +15,11 @@ import {
   priority,
   serviceInfo,
 } from "../domain";
-import type { IncomingTicket, Proposal, Status, Triage } from "../domain";
+import type { IncomingTicket, Level, Proposal, Status, Triage } from "../domain";
 import { Select } from "./select";
+import { Badge, Dot, avatarVariants } from "./ui/badge";
+import type { BadgeTone } from "./ui/badge";
+import { Kbd } from "./ui/form";
 
 export interface TicketFilters {
   query: string;
@@ -144,8 +148,11 @@ export function useTicketRows() {
 
 export function StatusPill({ status }: { status: Status }) {
   return (
-    <span className="status" data-tip={STATUS_HELP[status]}>
-      <i className={`dot ${STATUS_DOTS[status]}`} />
+    <span
+      className="inline-flex items-center gap-1.75 text-sm font-medium whitespace-nowrap text-muted"
+      data-tip={STATUS_HELP[status]}
+    >
+      <Dot tone={STATUS_DOTS[status]} className="size-1.75" />
       {STATUS_LABELS[status]}
     </span>
   );
@@ -161,37 +168,47 @@ const priorityRank = (triage: Triage) => {
   return level ? LEVELS.indexOf(level) : LEVELS.length;
 };
 
+const LEVEL_TONES: Record<Level, BadgeTone> = {
+  Highest: "highest",
+  High: "high",
+  Medium: "medium",
+  Low: "low",
+  Lowest: "lowest",
+};
+
 /** Priority is never free input: it is the matrix value of urgency × impact. */
 export function PriorityBadge({ triage }: { triage: Triage }) {
   const level = levelOf(triage);
   const basis = `Urgency ${triage.urgency ?? "unknown"} × Impact ${triage.impact ?? "unknown"}`;
 
   return (
-    <span
-      className={`badge ${level ? level.toLowerCase() : "none"}`}
+    <Badge
+      tone={level ? LEVEL_TONES[level] : "none"}
       data-tip={level ? `${level} priority · ${basis}` : "No priority in Jira"}
     >
       <Flag size={12} strokeWidth={2.25} />
       {level ?? "No priority"}
-    </span>
+    </Badge>
   );
 }
 
 export function CriticalBadge() {
   return (
-    <span className="badge critical" data-tip="Business-critical service">
-      <i className="dot" />
+    <Badge tone="critical" data-tip="Business-critical service">
+      <Dot tone="danger" />
       Critical service
-    </span>
+    </Badge>
   );
 }
 
-export function Initials({ email }: { email: string | null }) {
-  if (!email) return <span className="avatar empty" aria-hidden="true" />;
+export function Initials({ email, small = false }: { email: string | null; small?: boolean }) {
+  const size = small ? "sm" : "default";
+
+  if (!email) return <span className={avatarVariants({ size, empty: true })} aria-hidden="true" />;
   const [first = "", last = ""] = email.split("@")[0].split(".");
 
   return (
-    <span className="avatar" aria-hidden="true">
+    <span className={avatarVariants({ size })} aria-hidden="true">
       {(first[0] ?? "").toUpperCase()}
       {(last[0] ?? "").toUpperCase()}
     </span>
@@ -205,7 +222,13 @@ export const personName = (email: string | null) =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
 
-export function SearchField({ compact = false }: { compact?: boolean }) {
+export function SearchField({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
   const { filters, setFilters } = useTicketFilters();
   const input = useRef<HTMLInputElement>(null);
 
@@ -216,7 +239,9 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
 
       if (
         event.target instanceof HTMLElement &&
-        event.target.closest("input, textarea, [contenteditable], [role=listbox], .modal")
+        event.target.closest(
+          "input, textarea, [contenteditable], [role=listbox], [aria-modal=true]",
+        )
       )
         return;
 
@@ -230,12 +255,19 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
   }, []);
 
   return (
-    <label className={compact ? "search compact" : "search"}>
+    <label
+      className={cn(
+        "group/search flex h-10 w-85 max-w-full items-center gap-2.5 rounded-pill border bg-surface px-3.5 text-sm text-muted transition duration-120 ease-out focus-within:border-ring focus-within:ring-3 focus-within:ring-primary-subtle pointer-coarse:h-10.5",
+        compact && "w-full",
+        className,
+      )}
+    >
       <Search size={15} strokeWidth={1.75} />
       <span className="sr-only">Search tickets</span>
       <input
         ref={input}
         type="search"
+        className="min-w-0 flex-1 appearance-none bg-transparent font-normal text-foreground outline-none pointer-coarse:text-lg"
         placeholder="Search tickets, reporters, services…"
         value={filters.query}
         onChange={(event) => setFilters({ query: event.target.value })}
@@ -249,20 +281,26 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
       {filters.query ? (
         <button
           type="button"
-          className="search-clear"
+          className="-mr-1 grid size-5 flex-none place-items-center rounded-full bg-active text-secondary hover:bg-border-hover hover:text-foreground"
           aria-label="Clear search"
           onClick={() => setFilters({ query: "" })}
         >
           <X size={14} strokeWidth={2} />
         </button>
       ) : (
-        <kbd className="search-kbd" aria-hidden="true">
+        <Kbd
+          className="-mr-1 flex-none transition-opacity duration-150 ease-soft group-focus-within/search:opacity-0 touch:hidden max-sm:hidden"
+          aria-hidden="true"
+        >
           /
-        </kbd>
+        </Kbd>
       )}
     </label>
   );
 }
+
+// Filters share a row with the search field, and split a phone-width row evenly.
+const FILTER_CLASS = "min-w-37.5 max-sm:min-w-0 max-sm:flex-1";
 
 export function StatusFilter() {
   const { filters, setFilters } = useTicketFilters();
@@ -272,6 +310,7 @@ export function StatusFilter() {
     <Select
       label="Status"
       hideLabel
+      className={FILTER_CLASS}
       value={filters.status}
       onChange={(status) => setFilters({ status })}
       options={[
@@ -301,6 +340,7 @@ export function FilterSelects() {
       <Select
         label="Service"
         hideLabel
+        className={FILTER_CLASS}
         value={filters.service}
         onChange={(service) => setFilters({ service })}
         options={[
@@ -311,6 +351,7 @@ export function FilterSelects() {
       <Select
         label="Service rating"
         hideLabel
+        className={FILTER_CLASS}
         value={filters.rating}
         onChange={(rating) => setFilters({ rating })}
         options={[
@@ -323,6 +364,7 @@ export function FilterSelects() {
         <Select
           label="AI changes"
           hideLabel
+          className={FILTER_CLASS}
           value={filters.change}
           onChange={(change) => setFilters({ change })}
           options={[

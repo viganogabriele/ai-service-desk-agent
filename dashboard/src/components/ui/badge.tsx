@@ -21,15 +21,19 @@ export const dotVariants = cva("inline-block size-1.5 flex-none rounded-full", {
 
 export type Tone = NonNullable<VariantProps<typeof dotVariants>["tone"]>;
 
-export function Dot({ className, tone }: { className?: string; tone?: Tone }) {
-  return <i className={cn(dotVariants({ tone }), className)} />;
+export function Dot({
+  className,
+  tone,
+  ...props
+}: ComponentProps<"i"> & VariantProps<typeof dotVariants>) {
+  return <i className={cn(dotVariants({ tone }), className)} {...props} />;
 }
 
 export function Pill({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
       className={cn(
-        "inline-flex h-5.5 items-center gap-1.5 rounded-full border px-2 text-sm font-medium whitespace-nowrap text-secondary",
+        "inline-flex h-6 items-center gap-1.75 rounded-pill border px-2.5 text-sm font-medium whitespace-nowrap text-secondary",
         className,
       )}
       {...props}
@@ -37,41 +41,51 @@ export function Pill({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
-const mockVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full border border-warning/22 font-medium tracking-caps whitespace-nowrap text-warning uppercase",
+/**
+ * Priority mark. Red for the two urgent levels, yellow for medium, green for the two low ones.
+ * Only Highest is filled, so a solid badge always means "drop everything".
+ */
+export const badgeVariants = cva(
+  "inline-flex h-5.5 items-center gap-1.5 rounded-pill pr-2.25 pl-1.75 font-display text-xs font-semibold tracking-caps whitespace-nowrap uppercase [&_svg]:size-3",
   {
     variants: {
-      size: {
-        default: "h-6 bg-warning/10 px-2.5 text-xs",
-        mini: "h-4.5 px-1.5 align-middle text-2xs",
+      tone: {
+        highest: "bg-danger text-danger-foreground",
+        high: "bg-danger/9 text-danger inset-ring inset-ring-danger/45",
+        medium: "bg-warning/9 text-warning inset-ring inset-ring-warning/45",
+        low: "bg-success/9 text-success inset-ring inset-ring-success/45",
+        lowest: "bg-success/9 text-success opacity-70 inset-ring inset-ring-success/45",
+        none: "bg-muted/9 text-muted inset-ring inset-ring-muted/45",
+        critical: "gap-1.75 pl-2.25 text-secondary inset-ring inset-ring-secondary/45",
       },
     },
-    defaultVariants: { size: "default" },
+    defaultVariants: { tone: "none" },
   },
 );
 
-/** Marks figures that come from mock fixtures rather than a solver run. */
-export function MockBadge({
+export type BadgeTone = NonNullable<VariantProps<typeof badgeVariants>["tone"]>;
+
+export function Badge({
   className,
-  size,
+  tone,
   ...props
-}: ComponentProps<"span"> & VariantProps<typeof mockVariants>) {
-  return <span className={cn(mockVariants({ size }), className)} {...props} />;
+}: ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+  return <span className={cn(badgeVariants({ tone }), className)} {...props} />;
 }
 
-export function Tag({
-  className,
-  tone = "default",
-  ...props
-}: ComponentProps<"em"> & { tone?: "default" | "warning" }) {
-  return (
-    <em
-      className={cn(
-        "rounded-full border px-1.5 py-px text-2xs font-medium tracking-wide text-muted uppercase not-italic",
-        tone === "warning" && "border-warning/30 text-warning",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
+export const avatarVariants = cva(
+  "inline-grid flex-none place-items-center rounded-full bg-active text-2xs font-semibold tracking-initials text-secondary",
+  {
+    variants: {
+      size: {
+        default: "size-6",
+        sm: "size-5",
+      },
+      empty: {
+        true: "border border-dashed border-border-hover bg-transparent",
+        false: "",
+      },
+    },
+    defaultVariants: { size: "default", empty: false },
+  },
+);
