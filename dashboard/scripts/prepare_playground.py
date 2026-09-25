@@ -3,9 +3,9 @@ import json
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
-predictions = json.loads((root / 'output/dev_predictions.json').read_text())['records']
-labels = json.loads((root / 'fixtures/dev_reference.json').read_text())['records']
-inputs = json.loads((root / 'fixtures/dev_input.json').read_text())['records']
+predictions = json.loads((root / 'dashboard/data/baseline/dev_predictions.json').read_text())['records']
+labels = json.loads((root / 'dashboard/data/baseline/dev_reference.json').read_text())['records']
+inputs = json.loads((root / 'dashboard/data/baseline/dev_input.json').read_text())['records']
 assert len(predictions) == len(labels) == len(inputs)
 assert all(p['Summary'] == ticket['Summary'] for p, ticket in zip(predictions, inputs))
 assert len({p['_triage']['model'] for p in predictions}) == 1

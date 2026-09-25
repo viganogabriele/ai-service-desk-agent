@@ -3,7 +3,7 @@
 ## 0. Scopo e perimetro
 
 Costruire la **dashboard** per il triage assistito dei ticket Jira Service Management della
-challenge Swiss AI Weeks (vedi `README.md`). Un solver AI, fuori dal perimetro di questo documento,
+challenge Swiss AI Weeks (vedi `core/README.md`). Un solver AI, fuori dal perimetro di questo documento,
 propone la classificazione dei ticket. La dashboard la mostra all'operatore L2, che la verifica,
 la modifica, la accetta o la escala. La dashboard mostra anche KPI storici e metriche del solver.
 
@@ -23,8 +23,8 @@ sempre etichettate come **MOCK** in UI.
 
 | File | Contenuto |
 |---|---|
-| `jira_first_20000_requested_fields_synthetic.json` | Array di 20.000 ticket storici |
-| `jira_hackathon_blind_eval_challenge_*.json` | Oggetto con metadati e `records`: 20 ticket incoming |
+| `core/jira_first_20000_requested_fields_synthetic.json` | Array di 20.000 ticket storici |
+| `core/jira_hackathon_blind_eval_challenge_*.json` | Oggetto con metadati e `records`: 20 ticket incoming |
 | `README.md` | Matrice Urgency × Impact → Priority, lista servizi Critical / Non-Critical |
 
 **Campi dei ticket storici:** `Work type`, `Summary`, `Description`,

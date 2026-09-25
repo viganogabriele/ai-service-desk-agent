@@ -2,7 +2,7 @@
 
 AI proposals are read from solver output only; nothing is generated here:
 1. `dashboard/data/proposals.json` in the PRD §3.1 contract, if present;
-2. otherwise the triage PoC output `output/triaged.json`, if it matches the incoming tickets;
+2. otherwise the saved triage PoC output `dashboard/data/baseline/triaged.json`, if it matches the incoming tickets;
 3. otherwise no proposals, and the UI shows the reporter-declared values.
 """
 
@@ -16,11 +16,11 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD = Path(__file__).resolve().parents[1]
-HISTORY = ROOT / "jira_first_20000_requested_fields_synthetic.json"
-CHALLENGE = next(ROOT.glob("jira_hackathon_blind_eval_challenge_*.json"))
+HISTORY = ROOT / "core/jira_first_20000_requested_fields_synthetic.json"
+CHALLENGE = next((ROOT / "core").glob("jira_hackathon_blind_eval_challenge_*.json"))
 OUTPUT = DASHBOARD / "public/dashboard-data.json"
 PROPOSAL_FILE = DASHBOARD / "data/proposals.json"
-SOLVER_OUTPUT = ROOT / "output/triaged.json"
+SOLVER_OUTPUT = DASHBOARD / "data/baseline/triaged.json"
 LEVELS = ["Highest", "High", "Medium", "Low", "Lowest"]
 RESOLUTIONS = ["done", "cancelled", "clarification", "cannot reproduce"]
 # Minimum TF-IDF cosine similarity for a historical resolution to be offered as a reference.
@@ -80,7 +80,7 @@ complete_weeks = sorted(
 
 # Proposals -------------------------------------------------------------------------------------
 def from_solver_output(records):
-    """Map triage PoC records (`python -m triage_poc triage`) onto the §3.1 proposal contract."""
+    """Map records from the earlier triage prototype onto the §3.1 proposal contract."""
     proposals = []
     for index, (row, source) in enumerate(zip(records, challenge)):
         if row["Summary"] != source["Summary"]:
@@ -138,7 +138,7 @@ elif SOLVER_OUTPUT.exists():
     if len(records) != len(challenge):
         raise ValueError(f"{SOLVER_OUTPUT} has {len(records)} records for {len(challenge)} tickets")
     proposals = [validate(item) for item in from_solver_output(records)]
-    proposal_source = {"kind": "solver_output", "path": "output/triaged.json"}
+    proposal_source = {"kind": "solver_output", "path": "dashboard/data/baseline/triaged.json"}
 else:
     proposals = [None] * len(challenge)
     proposal_source = {"kind": "none", "path": None}
