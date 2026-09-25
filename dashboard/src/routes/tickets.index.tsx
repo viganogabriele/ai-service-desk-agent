@@ -137,7 +137,11 @@ function TicketList() {
       {visible.length === 0 && isFiltered(filters) ? (
         <Empty className="grid justify-items-center gap-4">
           No tickets match these filters.
-          <Button onClick={() => setFilters({ ...DEFAULT_FILTERS, view: filters.view })}>
+          <Button
+            onClick={() =>
+              setFilters({ ...DEFAULT_FILTERS, view: filters.view, sort: filters.sort })
+            }
+          >
             <X size={16} strokeWidth={1.75} />
             Clear filters
           </Button>

@@ -28,7 +28,24 @@ export interface TicketFilters {
   rating: "all" | "Critical" | "Non-Critical";
   change: "all" | "service" | "work";
   view: "table" | "board" | "priority";
+  // A table column the operator clicked; null keeps the queue order.
+  sort: TicketSort | null;
 }
+
+export type SortKey = "ticket" | "priority" | "service" | "assignee" | "status";
+
+export interface TicketSort {
+  key: SortKey;
+  descending: boolean;
+}
+
+export const SORT_LABELS: Record<SortKey, string> = {
+  ticket: "Ticket",
+  priority: "Priority",
+  service: "Service",
+  assignee: "Assignee",
+  status: "Status",
+};
 
 export const DEFAULT_FILTERS: TicketFilters = {
   query: "",
@@ -37,6 +54,7 @@ export const DEFAULT_FILTERS: TicketFilters = {
   rating: "all",
   change: "all",
   view: "priority",
+  sort: null,
 };
 
 interface FiltersContextValue {
@@ -103,10 +121,43 @@ export function opensOnClick(event: MouseEvent<HTMLElement>) {
   return !event.target.closest("a, button, input, label") && !window.getSelection()?.toString();
 }
 
+// Priority and status sort by their position in the scale, so digits compare as numbers.
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+const SORT_VALUES: Record<SortKey, (row: TicketRow) => string | null> = {
+  ticket: (row) => row.id,
+  priority: (row) => {
+    const level = levelOf(row.current.triage);
+
+    return level ? String(LEVELS.indexOf(level)) : null;
+  },
+  service: (row) => row.current.triage.service || null,
+  assignee: (row) => (row.current.triage.assignee ? personName(row.current.triage.assignee) : null),
+  status: (row) => String(STATUSES.indexOf(row.current.status)),
+};
+
+/** Tickets without a value (no priority, no assignee) stay at the bottom in both directions. */
+function bySort(a: TicketRow, b: TicketRow, sort: TicketSort) {
+  const first = SORT_VALUES[sort.key](a);
+  const second = SORT_VALUES[sort.key](b);
+
+  if (first === null || second === null) return Number(first === null) - Number(second === null);
+
+  return collator.compare(first, second) * (sort.descending ? -1 : 1);
+}
+
+// Open tickets first, then by priority, then in the order they arrived.
+const byQueue = (a: TicketRow, b: TicketRow) =>
+  Number(!isOpen(a.current.status)) - Number(!isOpen(b.current.status)) ||
+  priorityRank(a.current.triage) - priorityRank(b.current.triage) ||
+  a.index - b.index;
+
 export function useTicketRows() {
   const { data, review, proposalFor, idOf } = useDashboard();
   const { filters } = useTicketFilters();
   const needle = filters.query.trim().toLowerCase();
+  // The board has no column headers to show a sort, so it keeps the queue order.
+  const sort = filters.view === "board" ? null : filters.sort;
 
   const rows: TicketRow[] = data.challenge.map((ticket, index) => ({
     index,
@@ -159,12 +210,7 @@ export function useTicketRows() {
 
       return true;
     })
-    .sort(
-      (a, b) =>
-        Number(!isOpen(a.current.status)) - Number(!isOpen(b.current.status)) ||
-        priorityRank(a.current.triage) - priorityRank(b.current.triage) ||
-        a.index - b.index,
-    );
+    .sort((a, b) => (sort ? bySort(a, b, sort) : 0) || byQueue(a, b));
 
   return { rows, visible };
 }

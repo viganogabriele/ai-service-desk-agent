@@ -11,7 +11,16 @@ import {
 import { useDashboard } from "../state";
 import { LEVELS, STATUS_LABELS, priority, serviceInfo } from "../domain";
 import type { Level } from "../domain";
-import { Initials, PriorityBadge, StatusPill, levelOf, opensOnClick, personName } from "./tickets";
+import {
+  Initials,
+  PriorityBadge,
+  SORT_LABELS,
+  StatusPill,
+  levelOf,
+  opensOnClick,
+  personName,
+  useTicketFilters,
+} from "./tickets";
 import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
 import { Menu } from "./ui";
@@ -128,9 +137,10 @@ function useStrip(count: number) {
 
 /**
  * Two ways in: a row of cards for the tickets that need action now, then the whole queue as a
- * table ordered by priority.
+ * table ordered by priority unless a column header sorts it.
  */
 export function PriorityView({ rows }: { rows: TicketRow[] }) {
+  const { sort } = useTicketFilters().filters;
   const urgent = rows.flatMap((row) => score(row) ?? []).sort(byRank);
   const { attach, atStart, atEnd, page } = useStrip(urgent.length);
 
@@ -196,7 +206,11 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             All tickets
             <SectionCount>{rows.length}</SectionCount>
           </SectionTitle>
-          <SectionText>Ordered by priority, open tickets first</SectionText>
+          <SectionText>
+            {sort
+              ? `Sorted by ${SORT_LABELS[sort.key].toLowerCase()}${sort.descending ? ", reversed" : ""}`
+              : "Ordered by priority, open tickets first"}
+          </SectionText>
         </SectionHead>
         <TicketTable rows={rows} />
       </section>

@@ -1,8 +1,17 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, ChevronsUpDown, Sparkles } from "lucide-react";
 import { serviceInfo } from "../domain";
-import { Initials, PriorityBadge, StatusPill, isOpen, opensOnClick, personName } from "./tickets";
-import type { TicketRow } from "./tickets";
+import {
+  Initials,
+  PriorityBadge,
+  SORT_LABELS,
+  StatusPill,
+  isOpen,
+  opensOnClick,
+  personName,
+  useTicketFilters,
+} from "./tickets";
+import type { SortKey, TicketRow } from "./tickets";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
 import { Card, Empty } from "./ui/card";
@@ -45,7 +54,57 @@ const STACKED = {
   },
 };
 
-/** Queue table. Rows arrive already ordered; pass `selection` to add checkboxes for bulk actions. */
+/**
+ * A column header that sorts the queue: the first click sorts in the column's natural order
+ * (A to Z, highest priority first, workflow order), the second reverses it, the third goes back to
+ * the queue order.
+ */
+function SortHeader({ column, tip }: { column: SortKey; tip?: string }) {
+  const { filters, setFilters } = useTicketFilters();
+  const active = filters.sort?.key === column ? filters.sort : null;
+  const Icon = active ? (active.descending ? ArrowDown : ArrowUp) : ChevronsUpDown;
+
+  return (
+    <th
+      className={TH}
+      aria-sort={active ? (active.descending ? "descending" : "ascending") : undefined}
+    >
+      <button
+        type="button"
+        className={cn(
+          "group/sort -mx-1.5 inline-flex h-7 items-center gap-1 rounded-cell px-1.5 font-semibold tracking-caps uppercase transition-colors duration-120 ease-soft hover:bg-hover hover:text-foreground",
+          active && "text-foreground",
+        )}
+        data-tip={tip}
+        onClick={() =>
+          setFilters({
+            sort: !active
+              ? { key: column, descending: false }
+              : !active.descending
+                ? { key: column, descending: true }
+                : null,
+          })
+        }
+      >
+        {SORT_LABELS[column]}
+        <Icon
+          size={12}
+          strokeWidth={2.25}
+          aria-hidden="true"
+          className={cn(
+            !active &&
+              "opacity-0 transition-opacity duration-120 ease-soft group-hover/sort:opacity-100 group-focus-visible/sort:opacity-100 touch:opacity-100",
+          )}
+        />
+      </button>
+    </th>
+  );
+}
+
+/**
+ * Queue table. Rows arrive already ordered, and the headers change that order through the shared
+ * filters; pass `selection` to add checkboxes for bulk actions.
+ */
 export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?: Selection }) {
   const ids = rows.map((row) => row.id);
   const allSelected = ids.length > 0 && ids.every((id) => selection?.selected.has(id));
@@ -71,13 +130,11 @@ export function TicketTable({ rows, selection }: { rows: TicketRow[]; selection?
                   </CheckHit>
                 </th>
               )}
-              <th className={TH}>Ticket</th>
-              <th className={TH} data-tip="Calculated from urgency and impact">
-                Priority
-              </th>
-              <th className={TH}>Service</th>
-              <th className={TH}>Assignee</th>
-              <th className={TH}>Status</th>
+              <SortHeader column="ticket" />
+              <SortHeader column="priority" tip="Calculated from urgency and impact" />
+              <SortHeader column="service" />
+              <SortHeader column="assignee" />
+              <SortHeader column="status" />
               <th className={cn(TH, "w-12")} />
             </tr>
           </thead>
