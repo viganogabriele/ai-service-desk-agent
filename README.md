@@ -1,4 +1,16 @@
-# TicketBuddy: AI triage for a service desk
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="readme-assets/ticketbuddy-dark.png" />
+    <img src="readme-assets/ticketbuddy-light.png" alt="TicketBuddy" width="700" />
+  </picture>
+</h1>
+
+<p align="center">AI triage for a service desk</p>
+
+## Useful resources for experts
+- Presentation Video: https://polinet.cc/zhai2026-video
+- Live Dashboard: https://polinet.cc/ticketbuddy
+---
 
 ## Useful resources for experts
 - Presentation Video: https://polinet.cc/zhai2026-video
