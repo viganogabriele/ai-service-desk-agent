@@ -1,9 +1,9 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
-import { Flag, Search, X } from "lucide-react";
+import { Flag, LoaderCircle, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
 import { cn } from "../lib/utils";
-import type { Review } from "../state";
+import type { Arrival, Review } from "../state";
 import {
   LEVELS,
   OPEN_STATUSES,
@@ -93,6 +93,7 @@ export interface TicketRow extends QueueItem {
   index: number;
   id: string;
   current: Review;
+  arrival: Arrival | null;
 }
 
 export const isOpen = (status: Status) => OPEN_STATUSES.includes(status);
@@ -152,7 +153,7 @@ const byQueue = (a: TicketRow, b: TicketRow) =>
   a.index - b.index;
 
 export function useTicketRows() {
-  const { data, review, proposalFor, idOf, classification } = useDashboard();
+  const { data, review, proposalFor, idOf, classification, arrival } = useDashboard();
   const { filters } = useTicketFilters();
   const needle = filters.query.trim().toLowerCase();
   // The board has no column headers to show a sort, so it keeps the queue order.
@@ -165,7 +166,12 @@ export function useTicketRows() {
     proposal: proposalFor(index),
     current: review(index),
     classification: classification(index),
+    arrival: arrival(idOf(index)),
   }));
+
+  // Simulated tickets stay on top until someone works on them, newest (highest Jira key) first.
+  const pinned = (row: TicketRow) =>
+    row.arrival && row.current.status === "new" ? Number(row.id.split("-").at(-1)) || 1 : 0;
 
   const visible = rows
     .filter((row) => {
@@ -210,7 +216,8 @@ export function useTicketRows() {
 
       return true;
     })
-    .sort((a, b) => (sort ? bySort(a, b, sort) : 0) || byQueue(a, b));
+    // Simulated tickets stay on top whatever the sort.
+    .sort((a, b) => pinned(b) - pinned(a) || (sort ? bySort(a, b, sort) : 0) || byQueue(a, b));
 
   return { rows, visible };
 }
@@ -223,6 +230,26 @@ export function StatusPill({ status }: { status: Status }) {
     >
       <Dot tone={STATUS_DOTS[status]} className="size-1.75" />
       {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+/** Stands in for a value the AI has not decided yet. */
+export function Pending({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn("block h-3 animate-pulse rounded-pill bg-active", className)}
+      aria-hidden="true"
+    />
+  );
+}
+
+/** Takes the status's place while the AI classifies a simulated ticket. */
+export function ClassifyingPill() {
+  return (
+    <span className="inline-flex items-center gap-1.75 text-sm font-medium whitespace-nowrap text-primary-text">
+      <LoaderCircle size={13} strokeWidth={2} className="animate-spin" />
+      AI classifying
     </span>
   );
 }

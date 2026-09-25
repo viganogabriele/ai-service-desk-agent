@@ -32,6 +32,7 @@ export class JiraApiError extends Error {
 export interface JiraClient {
 	searchIssues(jql: string, fields: readonly string[]): Promise<JiraIssue[]>;
 	getIssue(key: string, fields: readonly string[]): Promise<JiraIssue>;
+	createIssue(fields: Record<string, unknown>): Promise<{ key: string }>;
 	getEditMeta(key: string): Promise<Record<string, JiraFieldMeta>>;
 	updateIssue(key: string, input: JiraIssueUpdate): Promise<void>;
 	addComment(key: string, text: string, internal?: boolean): Promise<void>;
@@ -123,6 +124,13 @@ export function createRealJiraClient(config: JiraClientConfig): JiraClient {
 					params: { fields: fields.join(",") },
 				},
 			)) as JiraIssue;
+		},
+
+		async createIssue(fields) {
+			const data = (await call("POST", "/rest/api/3/issue", {
+				body: { fields },
+			})) as { key: string };
+			return { key: data.key };
 		},
 
 		async getEditMeta(key) {

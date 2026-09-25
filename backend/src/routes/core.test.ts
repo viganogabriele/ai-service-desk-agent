@@ -32,6 +32,7 @@ async function setup(
 		jira,
 		sql,
 		syncer: createSyncer(jira, null, sql),
+		coreClient: null,
 		core: {
 			baseUrl,
 			fetch: (request) => {

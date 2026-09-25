@@ -153,6 +153,16 @@ export function createFakeJiraClient(
 		issue.fields.updated = new Date().toISOString().replace("Z", "+0000");
 	}
 
+	function workType(value: unknown) {
+		return WORK_TYPES.find(
+			(t) =>
+				typeof value === "object" &&
+				value !== null &&
+				"id" in value &&
+				t.id === value.id,
+		);
+	}
+
 	function resolve(fieldId: string, value: unknown): unknown {
 		const list = OPTION_LISTS[fieldId];
 		if (!list) return value;
@@ -176,6 +186,30 @@ export function createFakeJiraClient(
 			return structuredClone(get(key, `/rest/api/3/issue/${key}`));
 		},
 
+		async createIssue(fields) {
+			const numbers = [...issues.keys()].map((k) => Number(k.split("-")[1]));
+			const key = `SUP-${Math.max(0, ...numbers) + 1}`;
+			const now = new Date().toISOString().replace("Z", "+0000");
+			// A new issue has only what it was created with.
+			const issue = fakeIssue(key, {
+				created: now,
+				updated: now,
+				[JIRA_FIELDS.affectedService]: null,
+				[JIRA_FIELDS.serviceTeam]: null,
+				[JIRA_FIELDS.businessEntity]: [],
+				[JIRA_FIELDS.originalReporter]: null,
+				[JIRA_FIELDS.urgency]: null,
+				[JIRA_FIELDS.impact]: null,
+			});
+			for (const [fieldId, value] of Object.entries(fields)) {
+				if (fieldId === "project") continue;
+				issue.fields[fieldId] =
+					fieldId === "issuetype" ? workType(value) : resolve(fieldId, value);
+			}
+			issues.set(key, issue);
+			return { key };
+		},
+
 		async getEditMeta(key) {
 			get(key, `/rest/api/3/issue/${key}/editmeta`);
 			const meta: Record<string, JiraFieldMeta> = {};
@@ -189,13 +223,7 @@ export function createFakeJiraClient(
 			const issue = get(key, `/rest/api/3/issue/${key}`);
 			for (const [fieldId, value] of Object.entries(input.fields ?? {})) {
 				if (fieldId === "issuetype") {
-					issue.fields.issuetype = WORK_TYPES.find(
-						(t) =>
-							typeof value === "object" &&
-							value !== null &&
-							"id" in value &&
-							t.id === value.id,
-					);
+					issue.fields.issuetype = workType(value);
 					continue;
 				}
 				issue.fields[fieldId] = resolve(fieldId, value);

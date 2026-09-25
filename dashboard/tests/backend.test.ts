@@ -4,6 +4,7 @@ import {
   HttpError,
   UNREACHABLE,
   createBackendClient,
+  coreProposal,
   parseComment,
   signedComment,
 } from "../src/lib/backend.ts";
@@ -24,6 +25,82 @@ test("cross-origin auth, writes and logout include the session cookie", async ()
   const write = requests[1];
   assert.equal(new Headers(write.init.headers).get("X-Atlassian-Account-Id"), "a1");
   assert.equal(write.url, "http://localhost:8787/tickets");
+});
+
+test("Core proposals preserve decision evidence, risk and approvals from the latest run", () => {
+  const decision = (value: string) => ({
+    effective_value: value,
+    source: "ai_judgment" as const,
+    confidence: 0.73,
+    confidence_signals: { retrieval_similarity: 0.81 },
+    reason: "Matched the reported service.",
+    rule_trace: null,
+    evidence: {
+      ticket_spans: [{ field: "Description", start: 0, end: 7, text: "Trading" }],
+      patterns: [
+        { pattern_id: "P1", similarity: 0.88, service: "Trading Platform", resolver: "a@b.com" },
+      ],
+      service_card: "Trading Platform",
+    },
+    alternatives: [],
+    flags: ["service_changed"],
+    pinned: false,
+  });
+  const view = {
+    ticket_id: "c-1",
+    external_key: "SUP-1",
+    effective_state: {
+      work_type: decision("Incident"),
+      service: decision("Trading Platform"),
+      team: decision("Investment Operations"),
+      assignee: decision("a@b.com"),
+      urgency: decision("High"),
+      impact: decision("High"),
+      priority: decision("High"),
+      resolution: decision("done"),
+    },
+    latest_run: { run_id: "run-2", versions: { model: "test-model" }, audit_sampled: false },
+    resolution_comment: {
+      text: "a@b.com: Resolution: Service restored.",
+      stale: true,
+      segments: [{ text: "Resolution: Service restored.", origin: "generated" as const }],
+      exemplar_pattern_ids: ["P1"],
+      unsupported_specifics: ["Service restored"],
+    },
+    lane: "needs_review" as const,
+    lane_reasons: ["service_changed"],
+    history: [
+      { type: "acceptance", run_id: "run-1", fields: ["service"] },
+      { type: "acceptance", run_id: "run-2", fields: ["work_type", "urgency"] },
+    ],
+  };
+  const proposal = coreProposal(view, 1.42);
+  assert.ok(proposal);
+  assert.deepEqual(proposal.core?.acceptedFields, ["work_type", "urgency"]);
+  assert.equal(proposal.core?.risk, 1.42);
+  assert.equal(proposal.core?.comment?.stale, true);
+  assert.deepEqual(proposal.core?.comment?.unsupportedSpecifics, ["Service restored"]);
+  assert.equal(proposal.explanations?.service?.source, "ai_judgment");
+  assert.deepEqual(proposal.explanations?.service?.ticketSpans, [
+    { field: "Description", start: 0, end: 7, text: "Trading" },
+  ]);
+  assert.equal(proposal.explanations?.priority?.confidence, 0.73);
+});
+
+test("approving a Core suggestion records the field against its run", async () => {
+  const requests: { url: string; init: RequestInit }[] = [];
+  const backend = createBackendClient("/api", async (url, init) => {
+    requests.push({ url: String(url), init: init ?? {} });
+    return Response.json({ acceptance_id: "a-1" });
+  });
+  const core = { ticket_id: "c-1", run_id: "run-2" } as Parameters<typeof backend.coreAccept>[0];
+  await backend.coreAccept(core, ["service"], "dashboard:maria.rossi@intcom.com");
+  assert.equal(requests[0].url, "/api/core/tickets/c-1/accept");
+  assert.deepEqual(JSON.parse(String(requests[0].init.body)), {
+    run_id: "run-2",
+    actor: "dashboard:maria.rossi@intcom.com",
+    fields: ["service"],
+  });
 });
 
 test("anonymous writes explicitly expect the shared account", async () => {

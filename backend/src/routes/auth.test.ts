@@ -43,6 +43,7 @@ async function setup(
 		sql: backend.sql,
 		syncer: backend.syncer,
 		core: { baseUrl: undefined },
+		coreClient: null,
 		auth,
 	});
 	return { app, calls, jira, auth };

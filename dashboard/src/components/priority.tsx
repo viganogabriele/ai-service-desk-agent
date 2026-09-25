@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useDashboard } from "../state";
-import { FIELD_LABELS, TRIAGE_FIELDS, serviceInfo, triageLevel } from "../domain";
+import { FIELD_LABELS, STATUS_LABELS, TRIAGE_FIELDS, serviceInfo, triageLevel } from "../domain";
 import {
   RECENT_LIMIT,
   ageInDays,
@@ -183,7 +183,7 @@ function Lane({
         <div
           ref={attach}
           className={cn(
-            "-mx-page -mt-1.5 -mb-5 flex scroll-px-page snap-x snap-mandatory gap-card-gap overflow-x-auto overflow-y-hidden overscroll-x-contain px-page pt-1.5 pb-8 strip-fade scrollbar-visible",
+            "-mx-page -mt-1.5 -mb-5 flex scroll-px-page snap-x snap-mandatory gap-card-gap overflow-x-auto overflow-y-hidden overscroll-x-contain px-page pt-1.5 pb-8 strip-fade scrollbar-visible contain-paint",
             thin && "-mb-3 gap-3 pb-5",
           )}
           data-more-before={atStart ? undefined : ""}
@@ -338,7 +338,7 @@ const STAGES: Record<Stage, { label: string; icon: LucideIcon; action: string; c
     chip: "border text-secondary [&_svg]:text-info",
   },
   waiting: {
-    label: "Waiting for reporter",
+    label: STATUS_LABELS.waiting,
     icon: Hourglass,
     action: "Open ticket",
     chip: "border text-secondary [&_svg]:text-warning",
@@ -378,6 +378,8 @@ function TicketCard({ row, lane, now }: { row: TicketRow; lane: LaneKind; now: n
       className={cn(
         "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
         "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
+        // A simulated ticket the AI just classified joins its rows.
+        row.arrival === "classified" && "animate-arrive",
         // The border picks up the priority badge colour, so a card reads at a glance like its badge.
         actionable &&
           (level === "Highest" || level === "High") &&
@@ -418,7 +420,7 @@ function TicketCard({ row, lane, now }: { row: TicketRow; lane: LaneKind; now: n
         </Link>
         <CardMeta row={row} lane={lane} now={now} />
       </div>
-      <Tiles className="grid-cols-2">
+      <Tiles className="grid-cols-2 max-sm:grid-cols-1">
         <Tile>
           <TileLabel>
             <Layers size={12} strokeWidth={2} />
@@ -597,7 +599,7 @@ function StageDetail({ row, stage, team }: { row: TicketRow; stage: Stage; team:
 
   if (unsure) return <Note ai>AI is unsure about the {FIELD_LABELS[unsure].toLowerCase()}</Note>;
 
-  if (proposal.lane === "human_only") return <Note ai>AI left this one to you</Note>;
+  if (proposal.core?.lane === "human_only") return <Note ai>AI left this one to you</Note>;
 
   return current.triage.assignee ? null : <Note>No assignee yet</Note>;
 }

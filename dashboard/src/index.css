@@ -173,8 +173,8 @@
   --spacing-safe-b: max(12px, env(safe-area-inset-bottom));
   --spacing-sheet-b: max(16px, env(safe-area-inset-bottom));
 
-  --grid-template-columns-workspace: minmax(0, 1fr) 360px;
-  --grid-template-columns-workspace-compact: minmax(0, 1fr) 330px;
+  --grid-template-columns-workspace: minmax(0, 1fr) 390px;
+  --grid-template-columns-workspace-compact: minmax(0, 1fr) 370px;
   --grid-template-columns-tiles: repeat(auto-fit, minmax(150px, 1fr));
   --grid-template-columns-tiles-wide: repeat(auto-fit, minmax(170px, 1fr));
   --grid-template-columns-board: repeat(5, minmax(250px, 1fr));
@@ -261,6 +261,10 @@
   --animate-toast-in: toast-in 200ms var(--ease-out);
   --animate-tooltip-in: tooltip-in 120ms ease-out;
   --animate-tooltip-in-below: tooltip-in-below 120ms ease-out;
+  /* A simulated ticket drops into the queue, waits for the AI, then lights up once classified. */
+  --animate-arrive: arrive 420ms var(--ease-out);
+  --animate-pulse: pulse 1.4s ease-in-out infinite;
+  --animate-settle: settle 1600ms var(--ease-soft);
 
   @keyframes spin {
     to {
@@ -312,6 +316,22 @@
     from {
       opacity: 0;
       transform: translateY(-3px) scale(0.97);
+    }
+  }
+  @keyframes arrive {
+    from {
+      opacity: 0;
+      transform: translateY(-12px);
+    }
+  }
+  @keyframes pulse {
+    50% {
+      opacity: 0.45;
+    }
+  }
+  @keyframes settle {
+    from {
+      background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
     }
   }
 
@@ -433,8 +453,8 @@
     flex: none;
   }
   :focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
+    outline: 2px solid var(--color-primary-text);
+    outline-offset: 3px;
   }
   ::selection {
     background: var(--color-selection);

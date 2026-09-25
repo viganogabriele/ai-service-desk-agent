@@ -18,6 +18,7 @@ import type {
   Ticket,
   Triage,
   TriageField,
+  DecisionField,
 } from "../domain.ts";
 
 export interface TicketExport {
@@ -82,12 +83,15 @@ export const UNREACHABLE = "backend_unreachable";
 /** One field of a Core run (CORE_API §4). */
 interface CoreDecision {
   effective_value: string | null;
+  source: NonNullable<Explanation["source"]>;
   confidence: number;
+  confidence_signals: Record<string, number>;
   reason: string;
   rule_trace: string | null;
   evidence: {
-    ticket_spans: { field: string; text: string }[];
+    ticket_spans: { field: string; start: number; end: number; text: string }[];
     patterns: { pattern_id: string; similarity: number; service: string; resolver: string }[];
+    service_card: string | null;
   };
   alternatives: { value: string; score: number }[];
   flags: string[];
@@ -101,18 +105,27 @@ interface CoreTicketView {
   effective_state: Record<string, CoreDecision> | null;
   latest_run: {
     run_id: string;
-    versions: { model: string };
+    versions: { model: string; prompt?: string; kb?: string; policy?: string };
+    audit_sampled: boolean;
     completed_at: string | null;
   } | null;
-  resolution_comment: { text: string; stale: boolean } | null;
-  lane: string | null;
+  resolution_comment: {
+    text: string;
+    stale: boolean;
+    segments: { text: string; origin: "ticket" | "exemplar" | "generated" }[];
+    exemplar_pattern_ids: string[];
+    unsupported_specifics: string[];
+  } | null;
+  lane: "auto_applied" | "needs_review" | "human_only" | null;
   lane_reasons: string[];
+  history?: { type: string; run_id?: string; fields?: string[] }[];
 }
 
 interface CoreTicketSummary {
   ticket_id: string;
   external_key: string;
   lane: string | null;
+  risk?: number;
   // The latest run of any kind; null before the first one is queued.
   run_status: "queued" | "running" | "completed" | "failed" | null;
 }
@@ -219,6 +232,9 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
     signInUrl: `${base}/auth/login`,
     signOut: () => request<unknown>("/auth/logout", { method: "POST" }),
     sync: () => request<unknown>("/sync", { method: "POST" }),
+    /** Files a ticket the Core writes in Jira; the Core then classifies it like any other. */
+    demoTicket: () =>
+      request<{ key: string; warnings: string[] }>("/demo/tickets", { method: "POST" }),
     patch: (patches: TicketPatch[], user: SignedInUser | null) =>
       request<PatchResponse>("/tickets", {
         method: "POST",
@@ -251,10 +267,12 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
           ),
       );
 
+      const byId = new Map(summaries.map((summary) => [summary.ticket_id, summary]));
+
       return {
         proposals: new Map(
           views.flatMap((view) => {
-            const proposal = coreProposal(view);
+            const proposal = coreProposal(view, byId.get(view.ticket_id)?.risk ?? null);
 
             return proposal ? [[view.external_key, proposal] as const] : [];
           }),
@@ -290,17 +308,26 @@ function explanation(decision: CoreDecision): Explanation {
     ...(decision.flags.length ? [`Flags: ${decision.flags.join(", ")}`] : []),
   ];
 
-  return decision.pinned
-    ? { reason: "Set by an operator.", confidence: null, evidence: [] }
-    : { reason: decision.reason, confidence: decision.confidence, evidence };
+  return {
+    reason: decision.pinned ? `Operator override. ${decision.reason}` : decision.reason,
+    confidence: decision.pinned ? null : decision.confidence,
+    evidence,
+    source: decision.source,
+    signals: decision.confidence_signals,
+    ticketSpans: decision.evidence.ticket_spans,
+    patterns: decision.evidence.patterns,
+    serviceCard: decision.evidence.service_card,
+    flags: decision.flags,
+    pinned: decision.pinned,
+  };
 }
 
 /** The Core's effective state (AI decisions plus human overrides) as a dashboard proposal. */
-export function coreProposal(view: CoreTicketView): Proposal | null {
+export function coreProposal(view: CoreTicketView, risk: number | null = null): Proposal | null {
   const state = view.effective_state;
   const run = view.latest_run;
 
-  if (!state || !run) return null;
+  if (!state || !run || !view.lane) return null;
   const value = (field: string) => state[field]?.effective_value ?? null;
   const workType = value("work_type");
   const service = value("service");
@@ -320,7 +347,15 @@ export function coreProposal(view: CoreTicketView): Proposal | null {
 
   const explanations: Proposal["explanations"] = {};
 
-  for (const field of TRIAGE_FIELDS) {
+  const acceptedFields = new Set(
+    (view.history ?? [])
+      .filter((entry) => entry.type === "acceptance" && entry.run_id === run.run_id)
+      .flatMap((entry) => entry.fields ?? []),
+  );
+
+  const decisionFields: DecisionField[] = [...TRIAGE_FIELDS, "team", "priority", "resolution"];
+
+  for (const field of decisionFields) {
     const decision = state[field];
 
     if (decision) explanations[field] = explanation(decision);
@@ -330,7 +365,6 @@ export function coreProposal(view: CoreTicketView): Proposal | null {
     ticket_id: view.external_key,
     model_id: run.versions.model,
     classified_at: run.completed_at,
-    lane: view.lane,
     proposal: {
       work_type: workType,
       service,
@@ -350,7 +384,24 @@ export function coreProposal(view: CoreTicketView): Proposal | null {
       ]),
     ],
     explanations,
-    core: { ticket_id: view.ticket_id, run_id: run.run_id },
+    core: {
+      ticket_id: view.ticket_id,
+      run_id: run.run_id,
+      lane: view.lane,
+      lane_reasons: view.lane_reasons,
+      risk,
+      audit_sampled: run.audit_sampled,
+      acceptedFields: TRIAGE_FIELDS.filter((field) => acceptedFields.has(field)),
+      versions: run.versions,
+      comment: view.resolution_comment
+        ? {
+            segments: view.resolution_comment.segments,
+            exemplarPatternIds: view.resolution_comment.exemplar_pattern_ids,
+            unsupportedSpecifics: view.resolution_comment.unsupported_specifics,
+            stale: view.resolution_comment.stale,
+          }
+        : null,
+    },
   };
 }
 

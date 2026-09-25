@@ -112,7 +112,7 @@ export function needsAttention(item: QueueItem) {
 
   if (stage !== "review" && stage !== "unclassified") return false;
 
-  if (item.classification === "failed" || item.proposal?.lane === "human_only") return true;
+  if (item.classification === "failed" || item.proposal?.core?.lane === "human_only") return true;
   const level = triageLevel(item.current.triage);
 
   return level === "Highest" || level === "High" || (level === "Medium" && isCritical(item));

@@ -42,6 +42,7 @@ const app = createApp({
 	sql,
 	syncer,
 	core: { baseUrl: env.CORE_BASE_URL },
+	coreClient: core,
 	auth,
 });
 

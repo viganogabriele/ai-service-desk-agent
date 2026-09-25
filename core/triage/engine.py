@@ -70,6 +70,16 @@ class Engine:
 
         return generate_comment(fields, decisions, self.retriever.retrieve(fields), self.catalog)
 
+    def demo_ticket(self) -> dict:
+        """A new incoming ticket in the challenge format, written by the model from the live KB."""
+        import random
+        from functools import partial
+
+        from triage.generate import demo_ticket
+        from triage.llm import chat_structured
+
+        return demo_ticket(self.catalog, self.cards, random.Random(), chat=partial(chat_structured, model=self.model))
+
     def generate_cards(self, catalog: dict) -> dict:
         """Draft service cards for a freshly mined catalog (one LLM call per service)."""
         from triage.catalog import build_service_cards
