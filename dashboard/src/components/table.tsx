@@ -173,7 +173,6 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
       className={cn(
         "max-md:grid max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:border-t max-md:border-divider max-md:px-card-pad max-md:py-3.5",
         classifying ? "animate-arrive cursor-progress" : "group/row cursor-pointer",
-        arrival === "classified" && "animate-settle",
         place.row,
       )}
       aria-disabled={classifying || undefined}

@@ -47,7 +47,15 @@ export function createApp({
 		log.info(`--> ${request} ${c.res.status} ${Date.now() - started}ms`);
 	});
 	app.use(secureHeaders());
-	app.use("*", cors({ origin: env.DASHBOARD_ORIGIN, credentials: true }));
+	app.use(
+		"*",
+		cors({
+			origin: env.DASHBOARD_ORIGIN,
+			credentials: true,
+			allowHeaders: ["content-type", "x-atlassian-account-id", "if-none-match"],
+			exposeHeaders: ["ETag"],
+		}),
+	);
 
 	const route = app
 		.route("/health", createHealthRoute(sql, Boolean(core.baseUrl)))

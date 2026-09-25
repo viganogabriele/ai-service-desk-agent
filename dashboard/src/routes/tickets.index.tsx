@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { LoaderCircle, Plus, UserPlus, X } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Editable } from "../state";
@@ -22,6 +22,7 @@ import {
 } from "../components/tickets";
 import type { TicketRow } from "../components/tickets";
 import { PriorityView } from "../components/priority";
+import { TICKETS_PER_PAGE, TicketPagination } from "../components/pagination";
 import { TicketTable } from "../components/table";
 import { CommentEditor, Dialog, Menu, OutcomePicker, SubmitHint } from "../components/ui";
 import { Dot } from "../components/ui/badge";
@@ -52,6 +53,8 @@ function TicketList() {
   const { filters, setFilters } = useTicketFilters();
   const { view } = Route.useSearch();
   const { rows, visible } = useTicketRows();
+  const page = Math.min(filters.page, Math.max(1, Math.ceil(visible.length / TICKETS_PER_PAGE)));
+  const pageRows = visible.slice((page - 1) * TICKETS_PER_PAGE, page * TICKETS_PER_PAGE);
 
   useEffect(() => {
     if (view && view !== filters.view) setFilters({ view });
@@ -60,7 +63,7 @@ function TicketList() {
   const [pending, setPending] = useState<PendingMove | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const open = rows.filter((row) => isOpen(row.current.status)).length;
-  const visibleIds = visible.map((row) => row.id);
+  const visibleIds = pageRows.map((row) => row.id);
   const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const chosen = rows.filter((row) => selected.has(row.id) && isOpen(row.current.status));
 
@@ -89,7 +92,7 @@ function TicketList() {
       <div className="mb-8 flex flex-wrap items-center gap-2">
         <SearchField className="max-sm:w-full" />
         <div className="flex flex-wrap gap-2 max-sm:w-full">
-          {filters.view === "table" && <StatusFilter />}
+          {filters.view === "table" && <StatusFilter rows={rows} />}
           <FilterSelects />
         </div>
         <span className="ml-auto" />
@@ -173,7 +176,7 @@ function TicketList() {
             <SectionText className="tabular-nums">{open} open</SectionText>
           </SectionHead>
           <TicketTable
-            rows={visible}
+            rows={pageRows}
             selection={{
               selected,
               onToggle: toggle,
@@ -181,6 +184,7 @@ function TicketList() {
                 setSelected(allSelected ? new Set() : new Set([...selected, ...visibleIds])),
             }}
           />
+          <TicketPagination total={visible.length} />
         </>
       ) : filters.view === "board" ? (
         <>
@@ -193,10 +197,11 @@ function TicketList() {
               Drop into Closed · clarification to post a question and close the Jira ticket.
             </SectionText>
           </SectionHead>
-          <Board rows={visible} onMove={moveTo} />
+          <Board rows={pageRows} totalRows={visible} onMove={moveTo} />
+          <TicketPagination total={visible.length} />
         </>
       ) : (
-        <PriorityView rows={visible} />
+        <PriorityView rows={visible} pageRows={pageRows} />
       )}
       {pending && <MoveDialog pending={pending} onClose={() => setPending(null)} />}
       {confirmReset && (
@@ -232,13 +237,23 @@ function TicketList() {
 
 function Board({
   rows,
+  totalRows,
   onMove,
 }: {
   rows: TicketRow[];
+  totalRows: TicketRow[];
   onMove: (row: TicketRow, target: Status) => void;
 }) {
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<Status | null>(null);
+
+  const counts = useMemo(() => {
+    const byStatus = { new: 0, in_progress: 0, assigned: 0, waiting: 0, resolved: 0 };
+
+    for (const row of totalRows) byStatus[row.current.status] += 1;
+
+    return byStatus;
+  }, [totalRows]);
 
   return (
     <div className="grid grid-cols-board gap-card-gap overflow-x-auto pb-2 max-md:-mx-page max-md:scroll-px-page max-md:snap-x max-md:snap-mandatory max-md:grid-cols-board-swipe max-md:px-page">
@@ -286,7 +301,7 @@ function Board({
                 {STATUS_LABELS[status]}
               </span>
               <span className="inline-grid h-5 min-w-6 place-items-center rounded-pill bg-active px-1.75 font-sans text-sm font-semibold text-secondary tabular-nums">
-                {cards.length}
+                {counts[status]}
               </span>
             </header>
             {cards.map((row) => (
@@ -302,7 +317,9 @@ function Board({
               />
             ))}
             {cards.length === 0 && (
-              <p className="px-1 py-5 text-center text-sm text-muted">Drop a ticket here</p>
+              <p className="px-1 py-5 text-center text-sm text-muted">
+                {counts[status] > 0 ? "No tickets on this page" : "Drop a ticket here"}
+              </p>
             )}
           </section>
         );
@@ -329,6 +346,7 @@ function BoardCard({
   if (arrival === "classifying")
     return (
       <div
+        data-board-card
         className="grid animate-arrive cursor-progress gap-2.5 rounded-tile border bg-surface p-3.5"
         aria-disabled="true"
         aria-busy="true"
@@ -351,12 +369,12 @@ function BoardCard({
 
   return (
     <Link
+      data-board-card
       to="/tickets/$ticketId"
       params={{ ticketId: id }}
       className={cn(
-        "group/card grid gap-2.5 rounded-tile border bg-surface p-3.5 transition duration-200 ease-soft hover:-translate-y-px hover:border-border-hover hover:shadow-float",
+        "group/card grid gap-2.5 rounded-tile border bg-surface p-3.5 transition-card duration-150 ease-soft hover:-translate-y-px hover:border-border-hover",
         closed ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
-        arrival === "classified" && "animate-settle",
         dragging &&
           "scale-98 border-dashed opacity-45 shadow-none hover:translate-y-0 hover:shadow-none",
       )}

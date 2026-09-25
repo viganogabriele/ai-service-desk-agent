@@ -176,7 +176,7 @@ export function CommentEditor({
       {label}
       <span
         className={cn(
-          "block rounded-tile border bg-field transition duration-120 ease-out focus-within:border-ring focus-within:ring-3 focus-within:ring-primary-subtle",
+          "block rounded-tile border bg-field transition-colors duration-120 ease-out focus-within:border-ring focus-within:ring-3 focus-within:ring-primary-subtle",
           draft &&
             "border-accent/40 bg-draft focus-within:border-accent focus-within:ring-accent-subtle",
         )}
@@ -228,7 +228,7 @@ export function OutcomePicker({
             role="radio"
             aria-checked={value === outcome}
             aria-pressed={value === outcome}
-            className="inline-flex h-7.5 flex-1 items-center justify-center gap-1.5 rounded-control px-3.5 text-sm font-medium whitespace-nowrap text-nav transition duration-150 ease-soft hover:bg-hover hover:text-secondary aria-pressed:bg-elevated aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-border-hover"
+            className="inline-flex h-7.5 flex-1 items-center justify-center gap-1.5 rounded-control px-3.5 text-sm font-medium whitespace-nowrap text-nav transition-colors duration-150 ease-soft hover:bg-hover hover:text-secondary aria-pressed:bg-elevated aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-border-hover"
             onClick={() => onChange(outcome)}
           >
             {OUTCOME_LABELS[outcome]}
@@ -277,15 +277,7 @@ export function Fold({
   const classes = FOLD_LAYOUTS[layout];
 
   return (
-    <details
-      className={cn(
-        "group/fold interpolate-keywords",
-        // Browsers that can animate to auto height unfold the content; the rest just open.
-        "details-content:h-0 details-content:overflow-hidden details-content:opacity-0 details-content:transition-all details-content:transition-discrete details-content:duration-240 details-content:ease-out open:details-content:h-auto open:details-content:opacity-100",
-        classes.details,
-      )}
-      open={defaultOpen}
-    >
+    <details className={cn("group/fold", classes.details)} open={defaultOpen}>
       <summary
         className={cn(
           "flex cursor-pointer list-none items-center gap-2.5 text-base font-medium text-secondary transition-colors duration-150 ease-soft select-none hover:text-foreground [&::-webkit-details-marker]:hidden",

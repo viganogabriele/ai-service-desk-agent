@@ -6,7 +6,7 @@ import { cn } from "../../lib/utils";
 /** Also applied to router `Link`s and to spans that should look like buttons. */
 export const buttonVariants = cva(
   [
-    "inline-flex h-9 items-center justify-center gap-2 rounded-button border border-border bg-elevated text-base font-medium whitespace-nowrap text-foreground transition duration-150 ease-soft",
+    "inline-flex h-9 items-center justify-center gap-2 rounded-button border border-border bg-elevated text-base font-medium whitespace-nowrap text-foreground transition-control duration-150 ease-soft",
     "hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-97",
     "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:pointer-events-none aria-disabled:opacity-40",
     // Arrows lean the way they point while the pointer is on their button.

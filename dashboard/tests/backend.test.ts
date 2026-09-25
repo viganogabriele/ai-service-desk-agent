@@ -27,6 +27,28 @@ test("cross-origin auth, writes and logout include the session cookie", async ()
   assert.equal(write.url, "http://localhost:8787/tickets");
 });
 
+test("ticket refresh reuses the cached export on a 304", async () => {
+  const headers: (string | null)[] = [];
+  const backend = createBackendClient("/api", async (_url, init) => {
+    headers.push(new Headers(init?.headers).get("If-None-Match"));
+
+    return headers.length === 1
+      ? Response.json(
+          { records: [], actualIssueCount: 0, jql: "", fetchedAtUtc: "" },
+          {
+            headers: { ETag: '"v1"' },
+          },
+        )
+      : new Response(null, { status: 304, headers: { ETag: '"v1"' } });
+  });
+
+  const first = await backend.tickets();
+  const second = await backend.tickets(undefined, first.etag ?? undefined);
+  assert.deepEqual(headers, [null, '"v1"']);
+  assert.equal(first.exported?.actualIssueCount, 0);
+  assert.deepEqual(second, { exported: null, etag: '"v1"' });
+});
+
 test("Core proposals preserve decision evidence, risk and approvals from the latest run", () => {
   const decision = (value: string) => ({
     effective_value: value,
@@ -89,6 +111,7 @@ test("Core proposals preserve decision evidence, risk and approvals from the lat
 
 test("the Core state is read in one expanded request, not one per ticket", async () => {
   const requests: string[] = [];
+  let risk = 0.3;
   const decision = (value: string) => ({
     effective_value: value,
     source: "rule" as const,
@@ -126,17 +149,25 @@ test("the Core state is read in one expanded request, not one per ticket", async
   };
   const backend = createBackendClient("/api", async (url) => {
     requests.push(String(url));
+    const expanded = String(url).includes("expand=view");
+
     return Response.json({
       tickets: [
         {
           ticket_id: "c-1",
           external_key: "SUP-1",
           lane: "needs_review",
-          risk: 0.3,
+          risk,
           run_status: "completed",
-          view,
+          ...(expanded ? { view } : {}),
         },
-        { ticket_id: "c-2", external_key: "SUP-2", lane: null, run_status: "queued", view: null },
+        {
+          ticket_id: "c-2",
+          external_key: "SUP-2",
+          lane: null,
+          run_status: "queued",
+          ...(expanded ? { view: null } : {}),
+        },
       ],
     });
   });
@@ -152,6 +183,13 @@ test("the Core state is read in one expanded request, not one per ticket", async
       ["SUP-2", "queued"],
     ],
   );
+  assert.equal(await backend.coreState(undefined, state), state);
+  assert.deepEqual(requests, ["/api/core/tickets?expand=view", "/api/core/tickets"]);
+
+  risk = 0.4;
+  const changed = await backend.coreState(undefined, state);
+  assert.equal(changed?.proposals.get("SUP-1")?.core?.risk, 0.4);
+  assert.deepEqual(requests.slice(-2), ["/api/core/tickets", "/api/core/tickets?expand=view"]);
 });
 
 test("approving a Core suggestion records the field against its run", async () => {

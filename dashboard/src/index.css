@@ -277,7 +277,6 @@
   /* A simulated ticket drops into the queue, waits for the AI, then lights up once classified. */
   --animate-arrive: arrive 420ms var(--ease-out);
   --animate-pulse: pulse 1.4s ease-in-out infinite;
-  --animate-settle: settle 1600ms var(--ease-soft);
 
   @keyframes spin {
     to {
@@ -362,11 +361,6 @@
   @keyframes pulse {
     50% {
       opacity: 0.45;
-    }
-  }
-  @keyframes settle {
-    from {
-      background-color: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
     }
   }
 
@@ -546,6 +540,18 @@
 
 @utility scrollbar-none {
   scrollbar-width: none;
+}
+
+@utility transition-control {
+  transition-property: color, background-color, border-color, scale;
+}
+
+@utility transition-card {
+  transition-property: translate, border-color, opacity, scale;
+}
+
+@utility transition-thumb {
+  transition-property: opacity, translate;
 }
 
 /* Overlay scrollbars stay hidden until you already know you can scroll, which on machines that
