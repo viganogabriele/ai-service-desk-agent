@@ -32,19 +32,10 @@ def _pct(n: int, d: int) -> str:
     return f"{n}/{d} ({100 * n / d:.0f}%)" if d else "-"
 
 
-THRESHOLD_SWEEP = (0.55, 0.60, 0.62, 0.65, 0.68, 0.70, 0.72, 0.75, 0.80)
-
-
-def assignee_by_rule(service: str, top: dict | None, threshold: float, catalog: dict) -> str:
-    """AGENTS step 4 recomputed offline for a threshold sweep."""
-    if top and top["service"] == service and top["similarity"] >= threshold:
-        return top["resolver"]
-    return catalog["fallback_assignee"][service]["assignee"]
-
-
-def score(runs, labelled, catalog: dict | None = None) -> dict:
+def score(runs, labelled) -> dict:
     """Per-field accuracy, service accuracy per ticket kind and per title style, confidence
-    separation, top-pattern resolver hits, and the assignee rule (with a threshold sweep)."""
+    separation, top-pattern resolver hits, and the assignee split by whether the service was right
+    (the assignee follows the service, so the split separates routing errors from service errors)."""
     rows = []
     for run, (tid, _, label) in zip(runs, labelled):
         if run.status != "completed":
@@ -80,14 +71,9 @@ def score(runs, labelled, catalog: dict | None = None) -> dict:
         res["by_kind"][f"{name}-title"] = (sum(r["pred"]["service"] == r["label"]["service"] for r in rs), len(rs))
     with_assignee = [r for r in ok if r["label"].get("assignee")]
     res["assignee"] = (sum(r["assignee"] == r["label"]["assignee"] for r in with_assignee), len(with_assignee))
-    res["sweep"] = {}
-    if catalog:
-        for thr in THRESHOLD_SWEEP:
-            hits = sum(assignee_by_rule(r["pred"]["service"],
-                                        {"service": r["top_service"], "similarity": r["top_sim"], "resolver": r["top_resolver"]}
-                                        if r["top_pattern"] else None, thr, catalog) == r["label"]["assignee"]
-                       for r in with_assignee)
-            res["sweep"][thr] = (hits, len(with_assignee))
+    for name, right in (("service_right", True), ("service_wrong", False)):
+        rs = [r for r in with_assignee if (r["pred"]["service"] == r["label"]["service"]) == right]
+        res[f"assignee_{name}"] = (sum(r["assignee"] == r["label"]["assignee"] for r in rs), len(rs))
     right = [r["service_conf"] for r in ok if r["pred"]["service"] == r["label"]["service"]]
     wrong = [r["service_conf"] for r in ok if r["pred"]["service"] != r["label"]["service"]]
     res["conf"] = {"right": right, "wrong": wrong}
@@ -126,9 +112,8 @@ def format_report(res: dict, elapsed: float) -> str:
         n_hi = len(hi[0]) + len(hi[1])
         lines.append(f"  conf >= {thr}: covers {_pct(n_hi, len(c['right']) + len(c['wrong']))}, "
                      f"accuracy {_pct(len(hi[0]), n_hi)}")
-    lines.append(f"Assignee (rule, threshold {config.ASSIGNEE_SIM_THRESHOLD}): {_pct(*res['assignee'])}")
-    if res["sweep"]:
-        lines.append("  threshold sweep: " + "  ".join(f"{t:.2f} {_pct(*v)}" for t, v in res["sweep"].items()))
+    lines.append(f"Assignee: {_pct(*res['assignee'])} (service right {_pct(*res['assignee_service_right'])}, "
+                 f"service wrong {_pct(*res['assignee_service_wrong'])})")
     t = res["top_pattern"]
     lines.append(f"Top pattern on pattern tickets: pattern {_pct(t['pattern_hit'], t['n'])}, "
                  f"resolver {_pct(t['resolver_hit'], t['n'])}")
@@ -151,6 +136,6 @@ def evaluate_file(path: str, n_samples: int = config.SELF_CONSISTENCY_N, evidenc
     versions, created, t0 = triage_versions(), utc_now(), time.time()
     runs = run_batch([(tid, ticket) for tid, ticket, _ in labelled], run_id, retriever, cards, catalog, versions,
                      n_samples=n_samples, evidence=evidence, comment=False)
-    res = score(runs, labelled, catalog)
+    res = score(runs, labelled)
     report = format_report(res, time.time() - t0)
     return DecisionsFile(run_id=run_id, created_at=created, source_file=str(path), versions=versions, runs=runs), res, report

@@ -234,39 +234,49 @@ def assignee_alternatives(service: str, chosen: str, catalog: dict, pattern_scor
 
 
 def assignee_decision(service: DecisionRecord, retrieved: dict, catalog: dict, original: dict) -> DecisionRecord:
-    """AGENTS step 4: the top retrieved pattern's resolver if that pattern belongs to the
-    chosen service and is at least ASSIGNEE_SIM_THRESHOLD similar; otherwise the fallback."""
+    """AGENTS step 4: the assignee follows the chosen service. In training every resolution
+    pattern of a service is written by the same person regardless of the ticket's wording,
+    so a service with one resolver always routes to that resolver. A service with several
+    (Securities Settlement) picks the resolver whose patterns there are most similar on
+    average (a max would favour whoever has more patterns). A service with none gets the
+    fallback."""
     svc = service.value
-    patterns = retrieved["patterns"]
-    top = patterns[0] if patterns else None
     fallback = catalog["fallback_assignee"][svc]["assignee"]
-    evidence = Evidence(patterns=_pattern_evidence(retrieved), service_card=svc)
-    if top and top["service"] == svc and top["score"] >= config.ASSIGNEE_SIM_THRESHOLD:
-        resolver_of = {p["id"]: p["resolver"] for p in catalog["patterns"]}
-        others = [s for pid, s in retrieved["pattern_scores"].items() if resolver_of[pid] != top["resolver"]]
-        signals = pattern_assignee_signals(top["score"], max(others) if others else None)
+    scores = retrieved["pattern_scores"]
+    same = sorted((p for p in catalog["patterns"] if p["service"] == svc), key=lambda p: -scores.get(p["id"], 0.0))
+    if same:
+        by_resolver: dict[str, list[float]] = {}
+        for p in same:
+            by_resolver.setdefault(p["resolver"], []).append(scores.get(p["id"], 0.0))
+        mean = {r: sum(s) / len(s) for r, s in by_resolver.items()}
+        resolver = max(sorted(mean), key=mean.get)
+        evidence = Evidence(patterns=[PatternEvidence(pattern_id=p["id"], similarity=round(scores.get(p["id"], 0.0), 4),
+                                                      service=svc, resolver=p["resolver"]) for p in same],
+                            service_card=svc)
+        rivals = [s for r, s in mean.items() if r != resolver]
+        if rivals:
+            signals = pattern_assignee_signals(mean[resolver], max(rivals))
+            ids = ", ".join(p["id"] for p in same if p["resolver"] == resolver)
+            reason = (f"{svc} has several resolvers; the past resolutions written by {resolver} ({ids}) are the "
+                      f"closest on average (similarity {mean[resolver]:.2f}).")
+        else:
+            signals = {"unique_resolver": 1.0}
+            ids = ", ".join(p["id"] for p in same)
+            reason = f"Every past resolution for {svc} ({ids}) was written by {resolver}."
         return DecisionRecord(
-            field="assignee", value=top["resolver"], original_value=original["assignee"],
-            effective_value=top["resolver"], source="pattern_match",
-            confidence=assignee_confidence("pattern_match", signals, service.confidence),
+            field="assignee", value=resolver, original_value=original["assignee"], effective_value=resolver,
+            source="pattern_match", confidence=assignee_confidence("pattern_match", signals, service.confidence),
             confidence_signals={**signals, "service": service.confidence},
-            reason=(f"The closest past resolution ({top['id']}, similarity {top['score']:.2f}) belongs to {svc} "
-                    f"and was always resolved by {top['resolver']}."),
-            evidence=evidence,
-            alternatives=assignee_alternatives(svc, top["resolver"], catalog, retrieved["pattern_scores"]),
+            reason=reason, evidence=evidence,
+            alternatives=assignee_alternatives(svc, resolver, catalog, scores),
         )
-    if not catalog["resolvers_by_service"].get(svc):
-        why = f"{svc} has no documented resolver"
-    elif top and top["service"] != svc:
-        why = f"the closest past resolution ({top['id']}) belongs to {top['service']}, not {svc}"
-    else:
-        why = f"no past resolution for {svc} is similar enough ({top['score']:.2f} < {config.ASSIGNEE_SIM_THRESHOLD})"
     return DecisionRecord(
         field="assignee", value=fallback, original_value=original["assignee"], effective_value=fallback,
         source="fallback", confidence=assignee_confidence("fallback", {}, service.confidence),
         confidence_signals={"service": service.confidence},
-        reason=f"Fallback: {why}; {fallback} is the most frequent training assignee for the service.",
-        evidence=evidence,
-        alternatives=assignee_alternatives(svc, fallback, catalog, retrieved["pattern_scores"]),
+        reason=(f"Fallback: {svc} has no documented resolver; {fallback} is the most frequent training "
+                "assignee for the service."),
+        evidence=Evidence(patterns=_pattern_evidence(retrieved), service_card=svc),
+        alternatives=assignee_alternatives(svc, fallback, catalog, scores),
         flags=["fallback_assignee"],
     )

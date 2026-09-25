@@ -39,8 +39,9 @@ def test_pattern_match_assignee(catalog):
     pid = _pid(catalog, "Trade Matching")
     d = assignee_decision(_svc("Trade Matching"), _retrieved(catalog, pid, 0.85), catalog, ORIG)
     assert d.source == "pattern_match" and d.value == "quinn.anderson@intcom.com"
-    assert d.flags == [] and d.confidence_signals["retrieval_similarity"] == 0.85
-    assert d.confidence <= 0.9  # capped by the service confidence
+    assert d.flags == [] and d.confidence_signals["unique_resolver"] == 1.0
+    assert d.confidence == 0.9  # a single-resolver service is as sure as the service itself
+    assert {p.service for p in d.evidence.patterns} == {"Trade Matching"}
 
 
 def test_securities_settlement_resolver_follows_the_pattern(catalog):
@@ -50,15 +51,43 @@ def test_securities_settlement_resolver_follows_the_pattern(catalog):
         assert d.value == resolver
 
 
-def test_fallback_when_below_threshold_or_other_service(catalog):
+def test_assignee_follows_the_service_not_the_top_pattern(catalog):
+    # Weak similarity, or a closer pattern from another service, no longer drops a
+    # service with a documented resolver to the (random) fallback.
     pid = _pid(catalog, "Trade Matching")
-    weak = assignee_decision(_svc("Trade Matching"), _retrieved(catalog, pid, config.ASSIGNEE_SIM_THRESHOLD - 0.01),
+    weak = assignee_decision(_svc("Trade Matching"), _retrieved(catalog, pid, config.ASSIGNEE_SIM_THRESHOLD - 0.2),
                              catalog, ORIG)
     other = assignee_decision(_svc("Order Management"), _retrieved(catalog, pid, 0.95), catalog, ORIG)
-    for d, service in ((weak, "Trade Matching"), (other, "Order Management")):
-        assert d.source == "fallback" and d.value == catalog["fallback_assignee"][service]["assignee"]
-        assert "fallback_assignee" in d.flags and d.confidence <= config.FALLBACK_CONFIDENCE
-    assert "not Order Management" in other.reason
+    assert (weak.source, weak.value) == ("pattern_match", "quinn.anderson@intcom.com")
+    assert (other.source, other.value) == ("pattern_match", "victor.hamon@intcom.com")
+
+
+def _settlement_scores(catalog, xena: list[float], ursula: float) -> dict:
+    ids = [p["id"] for p in catalog["patterns"] if p["service"] == "Securities Settlement"]
+    by = {p["id"]: p["resolver"] for p in catalog["patterns"]}
+    xs = iter(xena)
+    scores = {pid: (next(xs) if by[pid] == "xena.schmidt@intcom.com" else ursula) for pid in ids}
+    return {"patterns": [], "pattern_scores": {p["id"]: 0.5 for p in catalog["patterns"]} | scores}
+
+
+def test_securities_settlement_resolver_is_the_best_on_average(catalog):
+    # One xena pattern beats ursula's only pattern, but xena's patterns are weaker on average.
+    d = assignee_decision(_svc("Securities Settlement"), _settlement_scores(catalog, [0.72, 0.56], 0.66), catalog, ORIG)
+    assert d.value == "ursula.klassen@intcom.com"
+    close = _settlement_scores(catalog, [0.80, 0.80], 0.79)
+    clear = _settlement_scores(catalog, [0.80, 0.80], 0.50)
+    d_close, d_clear = (assignee_decision(_svc("Securities Settlement", 1.0), r, catalog, ORIG) for r in (close, clear))
+    assert d_close.value == d_clear.value == "xena.schmidt@intcom.com"
+    assert d_close.confidence_signals["retrieval_margin"] == pytest.approx(0.01)
+    assert d_close.confidence < d_clear.confidence
+
+
+def test_fallback_only_for_services_without_resolver(catalog):
+    pid = _pid(catalog, "Trade Matching")
+    d = assignee_decision(_svc("NAV Calculation"), _retrieved(catalog, pid, 0.95), catalog, ORIG)
+    assert d.source == "fallback" and d.value == catalog["fallback_assignee"]["NAV Calculation"]["assignee"]
+    assert "fallback_assignee" in d.flags and d.confidence <= config.FALLBACK_CONFIDENCE
+    assert "no documented resolver" in d.reason
 
 
 def test_alternatives_only_from_pattern_resolvers(catalog):

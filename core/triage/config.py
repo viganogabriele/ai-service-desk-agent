@@ -50,7 +50,9 @@ TOP_K_PATTERNS = 3
 TOP_K_CARDS = 3
 
 # --- Thresholds --------------------------------------------------------------
-# Placeholder; to be tuned on the dev set (milestone 5).
+# Similarity at which a pattern starts to count as evidence for a resolver. It only scales
+# the retrieval_similarity confidence signal; it no longer gates the assignee, which follows
+# the service (see decisions.assignee_decision).
 ASSIGNEE_SIM_THRESHOLD = 0.60
 
 # --- Vocabularies ------------------------------------------------------------
@@ -178,6 +180,7 @@ CONFIDENCE_WEIGHTS = {
     "pattern_agreement": 1.0,
     "retrieval_margin": 1.0,
     "retrieval_similarity": 1.0,
+    "unique_resolver": 1.0,
     "prior_agreement": 0.5,
 }
 RETRIEVAL_MARGIN_SCALE = 0.10     # a top1-top2 cosine gap of >= 0.10 counts as fully separated

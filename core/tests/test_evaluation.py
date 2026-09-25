@@ -35,6 +35,8 @@ def test_score_counts_fields_confidence_and_patterns():
     assert res["conf"] == {"right": [0.9], "wrong": [0.3]}
     assert res["top_pattern"]["pattern_hit"] == 2 and res["top_pattern"]["resolver_hit"] == 2
     assert res["by_kind"]["pattern"] == (1, 2)
+    # No assignee decisions in these runs: every labelled assignee is a miss, split by service.
+    assert res["assignee_service_right"] == (0, 1) and res["assignee_service_wrong"] == (0, 1)
 
 
 def test_failed_runs_are_counted_not_scored():

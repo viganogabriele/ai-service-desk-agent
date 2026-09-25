@@ -39,6 +39,7 @@ Read `README.md` before doing anything. It is the source of truth for the task, 
   - These patterns cover 10 services. Securities Settlement has two resolvers, depending on the problem type.
   - Four of the resolvers never appear in the Assignee field at all.
   - Treat the pattern author as "the actual assignee implied by the ticket content".
+  - The pattern depends only on the service, never on the ticket template: every description template of a pattern service (access, licence, alert, misrouted…) carries that service's patterns in roughly equal shares. So the resolver is a function of the service, and the assignee is exactly as accurate as the service.
 - **Services with no resolver pattern:** Portfolio Accounting, Trading Platform, Fund Pricing, NAV Calculation, Rimes Data Feed, Risk & Compliance Monitoring, Identity & Access Management, SharePoint & File Storage, CRM & Client Portal, Emailed Support Tickets. For these, fall back to the most frequent training assignee for the service, and label the result `fallback`.
 - **Resolution status in training is uniformly random.** "Problem fixed." (about 5.8k occurrences) is vague filler and must never be copied. So are the five `Resolution recorded: …` comments (for example "service restored.", about 4.8k occurrences, random authors and services); they are not patterns.
 - **Licence and access requests are filed under the target application's service** in training ("New license requested for Tax Reporting" → Tax Reporting), not under Identity & Access Management.
@@ -89,7 +90,7 @@ Read `README.md` before doing anything. It is the source of truth for the task, 
 4. **Deterministic post-processing.**
    - Team = lookup(service).
    - Priority = matrix(urgency, impact).
-   - Assignee = the top pattern's resolver if that pattern's service equals the chosen service and its similarity is at or above `ASSIGNEE_SIM_THRESHOLD`; otherwise the fallback.
+   - Assignee follows the chosen service, not the top pattern: a service with one resolver gets that resolver (confidence = service confidence); Securities Settlement picks the resolver whose patterns there have the highest mean similarity (confidence from the margin between resolvers); a service without patterns gets the fallback. The old rule (top pattern in the same service and at or above `ASSIGNEE_SIM_THRESHOLD`) scored 30/60 on the dev set, against 38/60 for this rule (59/60 when the service is right). `ASSIGNEE_SIM_THRESHOLD` now only scales the similarity confidence signal.
    - Assignee `alternatives` come only from pattern resolvers (same service first, then same team); a service without patterns lists only its fallback. Other training assignees are random and are never offered.
    - Lanes (`triage/lanes.py`, thresholds and autonomy in `config.py` as policy `p1`): every `cancelled` ticket goes to `human_only` (the triage output does not separate nonsense from misrouted; cancelling is the riskiest status to automate).
 5. **Resolution comment LLM call.**
@@ -202,7 +203,7 @@ docs/
   - About 70 LLM-generated challenge-style tickets from the KB only: 2 per resolution pattern (one misrouted with a misleading title), 2 per service without patterns (from its card), plus clarification, cannot-reproduce and nonsense tickets. The service is never named (checked in code).
   - Tickets derived from the training records are not useful here: without their resolution comment they are generic templates that name the service, and some training services are wrong on purpose.
   - Labels come from the source pattern.
-  - Use it to tune `ASSIGNEE_SIM_THRESHOLD` and the prompts. Report per-field accuracy.
+  - Use it to tune the prompts. Report per-field accuracy; the assignee is reported split by whether the service was right, since it follows the service.
   - The numbers are optimistic, because the same model writes and solves these tickets.
 - The 20 challenge tickets are a final run, not a tuning loop.
 

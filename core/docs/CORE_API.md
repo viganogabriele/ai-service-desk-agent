@@ -115,7 +115,7 @@ Every predicted field in a run has this shape. The CLI writes the same records t
   - self-consistency agreement across N samples (N is configurable; 1 is allowed for speed, in which case this signal is omitted);
   - agreement between the LLM's service and the top-ranked service card;
   - the retrieval margin.
-- **Pattern-match assignee:** similarity and margin.
+- **Pattern-match assignee:** the assignee follows the service. A service with one resolver inherits the service confidence. A service with several resolvers uses the mean pattern similarity per resolver and the margin between resolvers, capped by the service confidence.
 - **Fallback assignee:** a low fixed ceiling (e.g. 0.2).
 - **Rule fields:** inherit the minimum confidence of their inputs.
 - Once acceptances and overrides accumulate, calibrate the scores against them (step 3).
