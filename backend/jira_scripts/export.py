@@ -11,10 +11,10 @@ import argparse
 import json
 import os
 
-import backend.jira_scripts.config as config
-from backend.jira_scripts.jira_client import Jira, adf_to_text, option_label, rank
-from backend.jira_scripts.loop import label_of
-from backend.jira_scripts.upload import load_records
+import config
+from jira_client import Jira, adf_to_text, option_label, rank
+from loop import label_of
+from upload import load_records
 
 F = config.FIELDS
 LEVELS = ["Highest", "High", "Medium", "Low", "Lowest"]  # challenge vocabulary

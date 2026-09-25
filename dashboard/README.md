@@ -67,14 +67,14 @@ Shared pieces live in `src/components/ui/`: `Button` / `buttonVariants` (also fo
 
 **Usage** (`/usage`, the coins icon in the top bar) reads the Core's LLM usage ledger (`GET /usage`, CORE_API §9) through the backend's `/core` proxy and refreshes every 30 seconds. It shows the estimated cost, tokens or calls (switch at the top) for the past 24 hours, 7, 30 or 90 days: a headline figure split by provider, an hourly or daily chart, totals (processed, cached and uncached input, output and reasoning tokens, cache savings, cost per classification), call outcomes (answers from the Core's disk cache, retries after invalid output, failures, mean response time) and a breakdown by model, pipeline step, purpose or day. Costs are list-price estimates from the Core's `LLM_PRICES`, fixed when each call is made; the page lists the prices it used. Without the Core the page says so and retries.
 
-**Ask a stronger model** appears only when `VITE_PREMIUM_SOLVER_URL` points to a second triage PoC instance (`python -m triage_poc --model <larger model> serve --port 8766`). The operator hint is appended to the ticket comments. Failures show a plain message and change nothing.
+**Ask a stronger model** appears only when `VITE_PREMIUM_SOLVER_URL` points to a solver that answers `GET /health` and `POST /triage` with a list holding one challenge record. The repository no longer ships one: the triage PoC that served this contract has been removed, so the button stays hidden unless you run your own. The operator hint is appended to the ticket comments. Failures show a plain message and change nothing.
 
 ## Model playground and end-to-end tests
 
 Open **Model playground** (the flask in the header), or go to `/playground` after `pnpm dev`.
 The page works independently of the ticket queue and starts with the checked-in Qwen 4B development
-run. `scripts/prepare_playground.py` reads `fixtures/dev_predictions.json`, `fixtures/dev_input.json`
-and `fixtures/dev_reference.json` to generate its data. Those six cases have labels for **service
+run. `scripts/prepare_playground.py` reads `dashboard/fixtures/dev_predictions.json`, `dev_input.json`
+and `dev_reference.json` to generate its data. Those six cases have labels for **service
 and work type only**. The displayed timings are saved observations, with no recorded hardware or
 run date. They are not fresh inference or a comparison against the Core pipeline.
 

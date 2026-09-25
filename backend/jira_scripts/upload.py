@@ -11,8 +11,8 @@ Writes uploaded.json mapping Jira keys to the original record index.
 import argparse
 import json
 
-import backend.jira_scripts.config as config
-from backend.jira_scripts.jira_client import Jira, JiraError, adf, find_work_type, match_option
+import config
+from jira_client import Jira, JiraError, adf, find_work_type, match_option
 
 F = config.FIELDS
 

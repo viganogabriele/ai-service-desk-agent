@@ -32,7 +32,7 @@ export class DemoTicketError extends Error {}
 export type DemoTicket = { key: string; warnings: string[] };
 
 /**
- * Files a ticket the Core wrote in Jira, like jira/upload.py files the challenge (the
+ * Files a ticket the Core wrote in Jira, like backend/jira_scripts/upload.py files the challenge (the
  * request type goes in the description footer), then hands it to the Core for triage.
  */
 export async function createDemoTicket(

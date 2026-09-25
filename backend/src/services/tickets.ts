@@ -14,7 +14,7 @@ import { getCursor, JIRA_SYNC_CURSOR, loadTickets } from "../db/store";
 export type WorkType = "Incident" | "Service Request";
 export type TicketStatus = "open" | "in progress" | "done";
 
-/** Same keys as the records in jira/data/challenge_blind.json, plus the Jira `Key`. */
+/** Same keys as the records in backend/jira_scripts/data/challenge_blind.json, plus the Jira `Key`. */
 export type TicketRecord = {
 	Key: string;
 	"Work type": WorkType;
@@ -207,7 +207,7 @@ export function toTicketRecord(issue: JiraIssue): TicketRecord {
 	};
 }
 
-/** Same envelope as jira/data/challenge_blind.json. */
+/** Same envelope as backend/jira_scripts/data/challenge_blind.json. */
 export type TicketExport = {
 	fetchedAtUtc: string;
 	jql: string;

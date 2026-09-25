@@ -12,7 +12,7 @@ CREATE TABLE jira_field_map (
 );
 
 -- One row per Jira ticket, in the challenge-record shape (same names as
--- jira/data/challenge_blind.json). Dates are site-local, like the dataset.
+-- backend/jira_scripts/data/challenge_blind.json). Dates are site-local, like the dataset.
 CREATE TABLE tickets (
     external_key               text PRIMARY KEY,  -- "SUP-22"
     jira_id                    text NOT NULL UNIQUE,
