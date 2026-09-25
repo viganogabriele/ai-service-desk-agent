@@ -301,7 +301,10 @@ describe("Core events -> Jira", () => {
 		core.emit({
 			type: "decision.overridden",
 			ticket_id: coreTicketId,
-			payload: { actor: DASHBOARD_ACTOR, changes: [] },
+			payload: {
+				actor: `${DASHBOARD_ACTOR}:maria.rossi@intcom.com`,
+				changes: [],
+			},
 		});
 		core.emit({
 			type: "comment.updated",

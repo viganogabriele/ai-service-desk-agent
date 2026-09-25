@@ -60,19 +60,13 @@ export async function refreshTicket(
 	return snapshot;
 }
 
-const writes = new WeakMap<JiraClient, Map<string, Promise<void>>>();
+// One queue per ticket for every writer: the sync loop and each signed-in user.
+const pending = new Map<string, Promise<void>>();
 
-// API requests and the sync loop share the same client and per-ticket queue.
 async function serialWrite<T>(
-	jira: JiraClient,
 	key: string,
 	write: () => Promise<T>,
 ): Promise<T> {
-	let pending = writes.get(jira);
-	if (!pending) {
-		pending = new Map();
-		writes.set(jira, pending);
-	}
 	const run = (pending.get(key) ?? Promise.resolve()).then(write);
 	const settled = run.then(
 		() => undefined,
@@ -149,7 +143,7 @@ export async function writeToJira(
 			const patch = patches[index];
 			if (!patch) continue;
 			try {
-				results[index] = await serialWrite(jira, patch.Key, () => write(patch));
+				results[index] = await serialWrite(patch.Key, () => write(patch));
 			} catch (error) {
 				errors.push(error);
 			}

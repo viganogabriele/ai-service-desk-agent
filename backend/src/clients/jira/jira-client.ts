@@ -44,17 +44,19 @@ export interface JiraClient {
 	getWorkTypes(): Promise<JiraWorkType[]>;
 }
 
-export type JiraClientConfig = {
-	baseUrl: string;
-	email: string;
-	apiToken: string;
-};
+export type JiraClientConfig =
+	| { baseUrl: string; email: string; apiToken: string }
+	/** OAuth 2.0 (3LO): baseUrl is https://api.atlassian.com/ex/jira/{cloudid}. */
+	| { baseUrl: string; accessToken: string };
 
 const MAX_ATTEMPTS = 6;
 
 export function createRealJiraClient(config: JiraClientConfig): JiraClient {
 	const base = config.baseUrl.replace(/\/+$/, "");
-	const authorization = `Basic ${btoa(`${config.email}:${config.apiToken}`)}`;
+	const authorization =
+		"accessToken" in config
+			? `Bearer ${config.accessToken}`
+			: `Basic ${btoa(`${config.email}:${config.apiToken}`)}`;
 
 	async function call(
 		method: string,

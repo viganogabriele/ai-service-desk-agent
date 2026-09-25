@@ -1,7 +1,16 @@
 import { Link, Outlet, createRootRoute, useMatchRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { ChartColumn, FlaskConical, Gem, Rows3, SquareKanban, Undo2, X } from "lucide-react";
+import {
+  ChartColumn,
+  FlaskConical,
+  Gem,
+  LogOut,
+  Rows3,
+  SquareKanban,
+  Undo2,
+  X,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardProvider, useDashboard } from "../state";
 import type { Notice } from "../state";
@@ -15,8 +24,13 @@ import logo from "../assets/logo.png";
 
 export const Route = createRootRoute({ component: Root });
 
-// The operator shown in the top bar. There is no sign-in yet; the desk has one reviewer.
-const OPERATOR = { initials: "LC", name: "Lorenzo Corallo" };
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .map((part) => part[0] ?? "")
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
 const TOPBAR_ICON =
   "size-11 rounded-pill border-transparent bg-surface hover:border-transparent hover:bg-elevated max-md:size-10";
@@ -43,6 +57,45 @@ function Root() {
         )}
       </Tooltip.Provider>
     </TicketFiltersProvider>
+  );
+}
+
+/** Who changes tickets: Jira records every write as the signed-in Atlassian user. */
+function Operator() {
+  const { signIn } = useDashboard();
+
+  if (!signIn) return null;
+
+  if (!signIn.user)
+    return (
+      <a
+        className={cn(buttonVariants({ variant: "primary" }), "ml-1 h-11 rounded-pill px-4.5")}
+        href={signIn.url}
+      >
+        Sign in with Atlassian
+      </a>
+    );
+
+  return (
+    <>
+      <span
+        className="ml-1 grid size-11 place-items-center rounded-full bg-elevated font-display text-md font-medium tracking-initials text-strong max-md:size-9"
+        role="img"
+        aria-label={signIn.user.name}
+        data-tip={`${signIn.user.name} · ${signIn.user.email}`}
+      >
+        {initials(signIn.user.name)}
+      </span>
+      <Button
+        size="icon"
+        className={TOPBAR_ICON}
+        aria-label="Sign out"
+        data-tip="Sign out"
+        onClick={signIn.signOut}
+      >
+        <LogOut size={18} strokeWidth={1.75} />
+      </Button>
+    </>
   );
 }
 
@@ -90,14 +143,7 @@ function Shell({ playground = false }: { playground?: boolean }) {
             <FlaskConical size={18} strokeWidth={1.75} />
           </Link>
           <ThemeToggle className={TOPBAR_ICON} />
-          <span
-            className="ml-1 grid size-11 place-items-center rounded-full bg-elevated font-display text-md font-medium tracking-initials text-strong max-md:size-9"
-            role="img"
-            aria-label={OPERATOR.name}
-            data-tip={OPERATOR.name}
-          >
-            {OPERATOR.initials}
-          </span>
+          {!playground && <Operator />}
         </div>
       </header>
       <main

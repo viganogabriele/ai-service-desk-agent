@@ -102,8 +102,18 @@ export async function sendClosures(
 	return { closed };
 }
 
-/** The Core actor the dashboard records its decisions as, after writing them to Jira itself. */
+/**
+ * The Core actor the dashboard records its decisions as, after writing them to
+ * Jira itself: "dashboard", or "dashboard:<email>" for a signed-in user.
+ */
 export const DASHBOARD_ACTOR = "dashboard";
+
+function isDashboard(actor: unknown): boolean {
+	return (
+		typeof actor === "string" &&
+		(actor === DASHBOARD_ACTOR || actor.startsWith(`${DASHBOARD_ACTOR}:`))
+	);
+}
 
 /** The events the sync layer acts on (CORE_API §6.A step 4 and §8). */
 function writebackTrigger(event: CoreEvent): WritebackTrigger | null {
@@ -112,7 +122,7 @@ function writebackTrigger(event: CoreEvent): WritebackTrigger | null {
 			return event.payload.lane === "auto_applied" ? "core_auto_applied" : null;
 		case "decision.overridden":
 			// Already in Jira: exporting would also push the AI's other fields, e.g. Resolution.
-			return event.payload.actor === DASHBOARD_ACTOR ? null : "core_override";
+			return isDashboard(event.payload.actor) ? null : "core_override";
 		case "comment.updated":
 			// Without an origin the comment only went stale; there is no new text to write.
 			return event.payload.origin ? "core_comment" : null;

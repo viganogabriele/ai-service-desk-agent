@@ -1,13 +1,21 @@
 import { zValidator } from "@hono/zod-validator";
 import type { SQL } from "bun";
 import { Hono } from "hono";
+import { getCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 import type { JiraClient } from "../clients/jira/jira-client";
+import type { Auth } from "../services/auth";
 import { writeToJira } from "../services/jira-sync";
 import { ticketPatchBodySchema } from "../services/ticket-patch";
 import { storedTicketExport } from "../services/tickets";
+import { SESSION_COOKIE } from "./auth";
 
-export function createTicketsRoute(jira: JiraClient, sql: SQL) {
+/** With sign-in configured, writes act as the signed-in user; otherwise as JIRA_API_TOKEN. */
+export function createTicketsRoute(
+	jira: JiraClient,
+	sql: SQL,
+	auth: Auth | null = null,
+) {
 	return new Hono()
 		.get("/", async (c) => c.json(await storedTicketExport(sql)))
 		.post(
@@ -23,8 +31,13 @@ export function createTicketsRoute(jira: JiraClient, sql: SQL) {
 				}
 			}),
 			async (c) => {
+				const writer = auth ? auth.jira(getCookie(c, SESSION_COOKIE)) : jira;
+				if (!writer)
+					throw new HTTPException(401, {
+						message: "Sign in with Atlassian to change tickets",
+					});
 				const results = await writeToJira(
-					jira,
+					writer,
 					sql,
 					c.req.valid("json"),
 					"api",

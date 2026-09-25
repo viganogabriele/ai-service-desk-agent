@@ -8,10 +8,12 @@ import type { JiraClient } from "./clients/jira/jira-client";
 import { env } from "./env";
 import { errorBody } from "./lib/errors";
 import { log } from "./lib/log";
+import { createAuthRoute } from "./routes/auth";
 import { type CoreProxyConfig, createCoreRoute } from "./routes/core";
 import { createHealthRoute } from "./routes/health";
 import { createSyncRoute } from "./routes/sync";
 import { createTicketsRoute } from "./routes/tickets";
+import type { Auth } from "./services/auth";
 import type { Syncer } from "./services/sync";
 
 export type AppDeps = {
@@ -19,9 +21,11 @@ export type AppDeps = {
 	sql: SQL;
 	syncer: Syncer;
 	core: CoreProxyConfig;
+	/** Sign in with Atlassian; null keeps every write on JIRA_API_TOKEN. */
+	auth?: Auth | null;
 };
 
-export function createApp({ jira, sql, syncer, core }: AppDeps) {
+export function createApp({ jira, sql, syncer, core, auth = null }: AppDeps) {
 	const app = new Hono();
 
 	app.use(logger((message) => log.info(message)));
@@ -30,7 +34,8 @@ export function createApp({ jira, sql, syncer, core }: AppDeps) {
 
 	const route = app
 		.route("/health", createHealthRoute(sql, Boolean(core.baseUrl)))
-		.route("/tickets", createTicketsRoute(jira, sql))
+		.route("/auth", createAuthRoute(auth, `${env.DASHBOARD_ORIGIN}/`))
+		.route("/tickets", createTicketsRoute(jira, sql, auth))
 		.route("/sync", createSyncRoute(syncer))
 		.route("/core", createCoreRoute(core));
 

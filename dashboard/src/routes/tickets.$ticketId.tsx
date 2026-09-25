@@ -203,7 +203,7 @@ function Comments({ comments }: { comments: string[] }) {
 }
 
 function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) {
-  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move } =
+  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move, signIn } =
     useDashboard();
 
   const current = review(index);
@@ -375,7 +375,9 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
           <div>
             <CardTitle className="text-lg">Decide the next step</CardTitle>
             <p className="mt-0.5 text-sm text-muted">
-              Comments are posted to Jira as {personName(triage.assignee) || "the assignee"}.
+              {signIn?.user
+                ? `Comments are posted to Jira by ${signIn.user.name}.`
+                : `Comments are posted to Jira as ${personName(triage.assignee) || "the assignee"}.`}
             </p>
           </div>
         </div>

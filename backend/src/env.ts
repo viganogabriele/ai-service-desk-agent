@@ -15,6 +15,13 @@ const schema = z.object({
 	// Without it the backend still syncs Jira into Postgres; /core returns 503.
 	CORE_BASE_URL: optional(z.url()),
 	SYNC_SECONDS: z.coerce.number().int().positive().default(10),
+	// "Sign in with Atlassian" (OAuth 2.0 3LO). Without it, writes use JIRA_API_TOKEN.
+	ATLASSIAN_CLIENT_ID: optional(z.string().min(1)),
+	ATLASSIAN_CLIENT_SECRET: optional(z.string().min(1)),
+	// Served through the dashboard's /api proxy, so the session cookie stays first-party.
+	OAUTH_REDIRECT_URI: z
+		.url()
+		.default("http://localhost:5173/api/auth/callback"),
 });
 
 export type Env = z.infer<typeof schema>;

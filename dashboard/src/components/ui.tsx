@@ -7,6 +7,7 @@ import { OUTCOMES, OUTCOME_LABELS } from "../domain";
 import type { Outcome } from "../domain";
 import { personName } from "./tickets";
 import { cn } from "../lib/utils";
+import { useDashboard } from "../state";
 import { popoverClass } from "./select";
 import { Button } from "./ui/button";
 import { Field, Kbd, Textarea, fieldClass } from "./ui/form";
@@ -168,6 +169,8 @@ export function CommentEditor({
   // Runs on Ctrl/⌘+Enter; leave it out while the action is not available.
   onSubmit?: () => void;
 }) {
+  const { signIn } = useDashboard();
+
   return (
     <Field>
       {label}
@@ -179,7 +182,11 @@ export function CommentEditor({
         )}
       >
         <span className="flex items-center gap-2 px-3.5 pt-2.5 text-sm text-muted">
-          {author ? `Posted as ${personName(author)} · ${author}` : "Choose an assignee to post as"}
+          {!author
+            ? "Choose an assignee to post as"
+            : signIn?.user
+              ? `Posted by ${signIn.user.name} · ${signIn.user.email}`
+              : `Posted as ${personName(author)} · ${author}`}
         </span>
         <Textarea
           className="border-0 bg-transparent focus-visible:ring-0"

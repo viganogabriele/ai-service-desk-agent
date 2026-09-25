@@ -3,7 +3,9 @@ import type { ReactNode } from "react";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  HttpError,
   REASON_CODES,
+  coreActor,
   createBackendClient,
   levelOf,
   liveBundle,
@@ -11,7 +13,7 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type { CoreChange, TicketPatch } from "./lib/backend";
+import type { CoreChange, SignedInUser, TicketPatch } from "./lib/backend";
 import {
   LEVELS,
   OUTCOMES,
@@ -87,6 +89,8 @@ interface DashboardContextValue {
   regenerate: (index: number, hint: string) => Promise<void>;
   reset: () => void;
   exportData: () => void;
+  /** Sign in with Atlassian: null when the backend has it off (or is offline). */
+  signIn: { user: SignedInUser | null; url: string; signOut: () => void } | null;
 }
 
 interface SolverRecord {
@@ -113,7 +117,8 @@ const STORAGE_KEY = "service-desk-reviews-v2";
 
 const STRONGER_URL: string | null = import.meta.env.VITE_PREMIUM_SOLVER_URL || null;
 
-const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8787";
+// Through the dev server's proxy by default, so the backend's sign-in cookie is first-party.
+const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || "/api";
 
 const backend = createBackendClient(BACKEND_URL);
 
@@ -253,11 +258,13 @@ function initialReview(
   } satisfies Review;
 }
 
-// fetch rejects with a TypeError when the backend is down or blocks the origin.
+// fetch rejects with a TypeError when the backend is down; the dev proxy answers 502 instead.
+function unreachable(failure: Error) {
+  return failure instanceof TypeError || (failure instanceof HttpError && failure.status === 502);
+}
+
 function failureText(failure: Error) {
-  return failure instanceof TypeError
-    ? `The backend at ${BACKEND_URL} is not reachable.`
-    : failure.message;
+  return unreachable(failure) ? `The backend at ${BACKEND_URL} is not reachable.` : failure.message;
 }
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
@@ -270,7 +277,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       try {
         return { bundle: liveBundle(await backend.tickets(signal)), offline: false };
       } catch (failure) {
-        if (!(failure instanceof TypeError)) throw failure;
+        if (!(failure instanceof Error) || !unreachable(failure)) throw failure;
 
         return { bundle: await bundledData(signal), offline: true };
       }
@@ -287,6 +294,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     refetchInterval: 15_000,
     retry: false,
   });
+
+  const auth = useQuery({
+    queryKey: ["auth"],
+    queryFn: ({ signal }) => backend.auth(signal),
+    enabled: query.data?.offline === false,
+    retry: false,
+  });
+
+  const user = auth.data?.user ?? null;
 
   const health = useQuery<{ model: string }>({
     queryKey: ["stronger-model-health"],
@@ -392,10 +408,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     if (extra.resolution) patch.Resolution = extra.resolution;
 
-    // Same "author: text" form as the dataset comments.
+    // Signed in, Jira shows the real author; otherwise the dataset's "author: text" form.
     if (comment)
       patch["All Comments"] = [
-        current.triage.assignee ? `${current.triage.assignee}: ${comment}` : comment,
+        !user && current.triage.assignee ? `${current.triage.assignee}: ${comment}` : comment,
       ];
 
     const changedFields = proposal
@@ -488,9 +504,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     accepted: string[],
   ): Promise<string | null> => {
     try {
-      if (changes.length) await backend.coreOverride(core, changes);
+      if (changes.length) await backend.coreOverride(core, changes, coreActor(user));
 
-      if (accepted.length) await backend.coreAccept(core, accepted);
+      if (accepted.length) await backend.coreAccept(core, accepted, coreActor(user));
 
       return null;
     } catch (failure) {
@@ -640,6 +656,15 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     <DashboardContext.Provider
       value={{
         data,
+        signIn: auth.data?.enabled
+          ? {
+              user,
+              url: backend.signInUrl,
+              signOut: () => {
+                void backend.signOut().then(() => client.invalidateQueries({ queryKey: ["auth"] }));
+              },
+            }
+          : null,
         actions: saved.actions,
         stronger: {
           configured: STRONGER_URL !== null,

@@ -47,6 +47,17 @@ export interface TicketPatch {
   Status?: "open" | "in progress";
 }
 
+export interface SignedInUser {
+  accountId: string;
+  email: string;
+  name: string;
+}
+
+export interface AuthState {
+  enabled: boolean;
+  user: SignedInUser | null;
+}
+
 export interface PatchResult {
   key: string;
   ok: boolean;
@@ -102,8 +113,10 @@ export interface CoreChange {
   reason_code: string;
 }
 
-// Read by the backend: overrides by this actor are already in Jira and are not written back.
-export const CORE_ACTOR = "dashboard";
+// Read by the backend: overrides by "dashboard" or "dashboard:<email>" are already in Jira.
+export function coreActor(user: SignedInUser | null) {
+  return user ? `dashboard:${user.email}` : "dashboard";
+}
 
 export const REASON_CODES: Record<TriageField | "resolution", string> = {
   work_type: "wrong_work_type",
@@ -142,6 +155,9 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
   return {
     tickets: (signal?: AbortSignal) => request<TicketExport>("/tickets", { signal }),
     health: (signal?: AbortSignal) => request<Health>("/health", { signal }),
+    auth: (signal?: AbortSignal) => request<AuthState>("/auth/me", { signal }),
+    signInUrl: `${base}/auth/login`,
+    signOut: () => request<unknown>("/auth/logout", { method: "POST" }),
     sync: () => request<unknown>("/sync", { method: "POST" }),
     patch: (patches: TicketPatch[]) =>
       request<PatchResponse>("/tickets", {
@@ -180,17 +196,17 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
         }),
       );
     },
-    coreOverride: (core: NonNullable<Proposal["core"]>, changes: CoreChange[]) =>
+    coreOverride: (core: NonNullable<Proposal["core"]>, changes: CoreChange[], actor: string) =>
       request<unknown>(`/core/tickets/${encodeURIComponent(core.ticket_id)}/overrides`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ base_run_id: core.run_id, actor: CORE_ACTOR, changes }),
+        body: JSON.stringify({ base_run_id: core.run_id, actor, changes }),
       }),
-    coreAccept: (core: NonNullable<Proposal["core"]>, fields: string[]) =>
+    coreAccept: (core: NonNullable<Proposal["core"]>, fields: string[], actor: string) =>
       request<unknown>(`/core/tickets/${encodeURIComponent(core.ticket_id)}/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: core.run_id, actor: CORE_ACTOR, fields }),
+        body: JSON.stringify({ run_id: core.run_id, actor, fields }),
       }),
   };
 }
