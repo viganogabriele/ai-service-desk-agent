@@ -1,25 +1,23 @@
 import { Link, Outlet, createRootRoute, useMatchRoute } from "@tanstack/react-router";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { ChartColumn, Undo2, X } from "lucide-react";
+import { ChartColumn, Gem, Rows3, SquareKanban, Undo2, X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { DashboardProvider, useDashboard } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
 import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import logo from "../assets/logo.svg";
-import diamond from "../assets/diamond.svg";
-import rowsThree from "../assets/rows-three.svg";
-import layoutKanban from "../assets/layout-kanban.svg";
 
 export const Route = createRootRoute({ component: Root });
 
 // The operator shown in the top bar. There is no sign-in yet; the desk has one reviewer.
 const OPERATOR = { initials: "LC", name: "Lorenzo Corallo" };
 
-const VIEWS: { view: TicketFilters["view"]; label: string; icon: string }[] = [
-  { view: "priority", label: "Priority View", icon: diamond },
-  { view: "table", label: "List View", icon: rowsThree },
-  { view: "board", label: "Kanban View", icon: layoutKanban },
+const VIEWS: { view: TicketFilters["view"]; label: string; icon: LucideIcon }[] = [
+  { view: "priority", label: "Priority", icon: Gem },
+  { view: "table", label: "List", icon: Rows3 },
+  { view: "board", label: "Kanban", icon: SquareKanban },
 ];
 
 function Root() {
@@ -35,7 +33,7 @@ function Root() {
 }
 
 function Shell() {
-  const { filters, setFilters } = useTicketFilters();
+  const { filters } = useTicketFilters();
   const matchRoute = useMatchRoute();
   const onTickets = Boolean(matchRoute({ to: "/tickets", fuzzy: true }));
   const onDetail = Boolean(matchRoute({ to: "/tickets/$ticketId" }));
@@ -47,24 +45,7 @@ function Shell() {
           <img src={logo} alt="" width={32} height={32} />
           <span>TicketBuddy</span>
         </Link>
-        <nav className="view-nav" aria-label="Ticket views">
-          {VIEWS.map(({ view, label, icon }) => (
-            <Link
-              key={view}
-              to="/tickets"
-              search={{ view }}
-              activeProps={{}}
-              className={onTickets && filters.view === view ? "view-pill active" : "view-pill"}
-              aria-current={onTickets && filters.view === view ? "page" : undefined}
-              onClick={() =>
-                setFilters({ view, status: view === "table" ? filters.status : "all" })
-              }
-            >
-              <img src={icon} alt="" width={20} height={20} />
-              <span className="label">{label}</span>
-            </Link>
-          ))}
-        </nav>
+        <ViewSwitch active={onTickets ? filters.view : null} />
         <div className="topbar-end">
           <Link
             to="/overview"
@@ -92,6 +73,35 @@ function Shell() {
       <Toast />
       <TooltipLayer />
     </div>
+  );
+}
+
+/**
+ * One track, three equal segments and a thumb that slides to the active one. The stylesheet
+ * places the thumb from `data-active`, so nothing is measured; off the ticket pages it fades out.
+ */
+function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
+  const { filters, setFilters } = useTicketFilters();
+
+  return (
+    <nav className="view-switch" aria-label="Ticket views" data-active={active ?? undefined}>
+      <span className="view-thumb" aria-hidden="true" />
+      {VIEWS.map(({ view, label, icon: Icon }) => (
+        <Link
+          key={view}
+          to="/tickets"
+          search={{ view }}
+          activeProps={{}}
+          className="view-option"
+          aria-current={view === active ? "page" : undefined}
+          aria-label={label}
+          onClick={() => setFilters({ view, status: view === "table" ? filters.status : "all" })}
+        >
+          <Icon size={17} strokeWidth={1.9} />
+          <span className="label">{label}</span>
+        </Link>
+      ))}
+    </nav>
   );
 }
 

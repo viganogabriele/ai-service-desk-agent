@@ -60,14 +60,12 @@ function Overview() {
 
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <h1 className="blue">Overview</h1>
-          <p>
-            {fmt(h.total)} Jira service desk tickets created {dayLabel(h.first_day)} –{" "}
-            {dayLabel(h.last_day)}
-          </p>
-        </div>
+      <div className="section-head">
+        <h1>Overview</h1>
+        <p>
+          {fmt(h.total)} Jira service desk tickets created {dayLabel(h.first_day)} –{" "}
+          {dayLabel(h.last_day)}
+        </p>
       </div>
 
       <section className="grid" aria-label="Key figures">
@@ -179,7 +177,13 @@ function Overview() {
         </section>
       </div>
 
-      <h2 className="section-title">Incoming queue</h2>
+      <div className="section-head">
+        <h2>
+          Incoming queue
+          <span className="count num">{queue.total}</span>
+        </h2>
+        <p>The challenge tickets waiting in TicketBuddy</p>
+      </div>
       <div className="grid">
         <section className="card span-4">
           <div className="card-head">

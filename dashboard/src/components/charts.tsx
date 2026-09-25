@@ -200,6 +200,8 @@ export interface BarRow {
   label: string;
   value: number;
   highlight?: boolean;
+  // Colours the bar like a priority badge instead of the accent.
+  tone?: "danger" | "warning" | "success";
   note?: string;
 }
 
@@ -221,7 +223,9 @@ export function BarList({ rows, total }: { rows: BarRow[]; total?: number }) {
           </span>
           <span className="bar-track">
             <span
-              className={row.highlight ? "bar-fill accent" : "bar-fill"}
+              className={
+                row.tone ? `bar-fill ${row.tone}` : row.highlight ? "bar-fill accent" : "bar-fill"
+              }
               style={{ width: `${(row.value / max) * 100}%` }}
             />
           </span>

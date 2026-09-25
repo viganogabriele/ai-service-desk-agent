@@ -9,7 +9,7 @@ pnpm build
 pnpm lint
 ```
 
-The app is **TicketBuddy**; its visual design follows the [TicketBuddy Figma file](https://www.figma.com/design/P6yzcAFDS0q93hAAk9iagw/TicketBuddy): a top bar with the logo and three view pills (Priority, List, Kanban), blue for navigation and section titles, a yellow flag for priority and the primary action on a ticket card, Poppins for headings and Inter for body text. When the backend at `VITE_BACKEND_URL` is unreachable the app falls back to `public/dashboard-data.json` and keeps status changes in the browser, so the UI can be run and demoed without Jira.
+The app is **TicketBuddy**; its visual design follows the [TicketBuddy Figma file](https://www.figma.com/design/P6yzcAFDS0q93hAAk9iagw/TicketBuddy): a top bar with the logo and a toggle bar for the three views (Priority, List, Kanban), blue for navigation and section titles, red, yellow and green priority marks, yellow for the primary action, Poppins for headings and Inter for body text. When the backend at `VITE_BACKEND_URL` is unreachable the app falls back to `public/dashboard-data.json` and keeps status changes in the browser, so the UI can be run and demoed without Jira.
 
 Run the last three commands from the repository root. The matching commands also work inside `dashboard/`. Python 3 is required for `scripts/prepare_data.py`; `dev` and `build` run it automatically. It reads the historical and challenge JSON files at the repository root and writes a compact bundle to `public/dashboard-data.json`. That bundle is generated and is not committed.
 

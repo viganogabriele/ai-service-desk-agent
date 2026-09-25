@@ -1,10 +1,17 @@
-import { useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronsRight, Layers, Sparkles, UserRound } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+  Layers,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import { useDashboard } from "../state";
 import { LEVELS, STATUS_LABELS, priority, serviceInfo } from "../domain";
 import type { Level } from "../domain";
-import { Initials, PriorityBadge, StatusPill, personName } from "./tickets";
+import { Initials, PriorityBadge, StatusPill, levelOf, personName } from "./tickets";
 import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
 import { Menu } from "./ui";
@@ -66,51 +73,51 @@ function byRank(a: Scored, b: Scored) {
 }
 
 /**
- * A wheel mouse only sends vertical deltas, so the card strip cannot be scrolled at all on a
- * machine without a trackpad. Steer those deltas sideways; a horizontal delta or shift+wheel is
- * already handled by the browser. At either end the wheel goes back to scrolling the page.
+ * Scroll state and paging for the card strip. The strip only scrolls sideways on its own (trackpad,
+ * shift+wheel, keyboard); a vertical wheel always scrolls the page, and the arrows page by the
+ * cards in view for a mouse without a horizontal wheel.
  */
-function useSidewaysWheel() {
-  // A callback ref, so the listener follows the strip as it mounts and unmounts with the filters.
-  return useCallback((row: HTMLDivElement | null) => {
-    if (!row) return;
+function useStrip(count: number) {
+  const [strip, setStrip] = useState<HTMLDivElement | null>(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
 
-    // Where the smooth scroll in flight will land, so quick notches add up instead of restarting.
-    let target: number | null = null;
+  useEffect(() => {
+    if (!strip) return;
 
-    const onWheel = (event: WheelEvent) => {
-      if (event.deltaY === 0 || event.deltaX !== 0 || event.shiftKey) return;
-      const limit = row.scrollWidth - row.clientWidth;
-      const from = target ?? row.scrollLeft;
+    const update = () => {
+      const limit = strip.scrollWidth - strip.clientWidth;
 
-      if (event.deltaY < 0 ? from <= 1 : from >= limit - 1) return;
-      event.preventDefault();
-      // Move a whole card per notch: the strip snaps to card edges, so a wheel-sized nudge would
-      // snap straight back to the card it started from.
-      const [first, second] = row.children;
-
-      const card = second
-        ? second.getBoundingClientRect().left - first.getBoundingClientRect().left
-        : row.clientWidth;
-
-      const index = Math.round(from / card) + Math.sign(event.deltaY);
-
-      target = Math.min(limit, Math.max(0, index * card));
-      row.scrollTo({ left: target, behavior: "smooth" });
+      setAtStart(strip.scrollLeft <= 1);
+      setAtEnd(strip.scrollLeft >= limit - 1);
     };
 
-    const onScrollEnd = () => {
-      target = null;
-    };
+    update();
+    const observer = new ResizeObserver(update);
 
-    row.addEventListener("wheel", onWheel, { passive: false });
-    row.addEventListener("scrollend", onScrollEnd);
+    observer.observe(strip);
+    strip.addEventListener("scroll", update, { passive: true });
 
     return () => {
-      row.removeEventListener("wheel", onWheel);
-      row.removeEventListener("scrollend", onScrollEnd);
+      observer.disconnect();
+      strip.removeEventListener("scroll", update);
     };
-  }, []);
+  }, [strip, count]);
+
+  const page = (direction: 1 | -1) => {
+    if (!strip) return;
+    const [first, second] = strip.children;
+
+    const card = second
+      ? second.getBoundingClientRect().left - first.getBoundingClientRect().left
+      : strip.clientWidth;
+
+    const cards = Math.max(1, Math.floor(strip.clientWidth / card));
+
+    strip.scrollBy({ left: direction * cards * card, behavior: "smooth" });
+  };
+
+  return { attach: setStrip, atStart, atEnd, page };
 }
 
 /**
@@ -119,7 +126,7 @@ function useSidewaysWheel() {
  */
 export function PriorityView({ rows }: { rows: TicketRow[] }) {
   const urgent = rows.flatMap((row) => score(row) ?? []).sort(byRank);
-  const lane = useSidewaysWheel();
+  const { attach, atStart, atEnd, page } = useStrip(urgent.length);
 
   if (rows.length === 0) return <div className="empty">No tickets match these filters.</div>;
 
@@ -132,10 +139,30 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             <span className="count">{urgent.length}</span>
           </h2>
           <p>High priority, or medium priority on a critical service, not yet routed</p>
+          {!(atStart && atEnd) && (
+            <span className="strip-nav push">
+              <button
+                className="icon-button"
+                aria-label="Previous cards"
+                disabled={atStart}
+                onClick={() => page(-1)}
+              >
+                <ChevronLeft size={16} strokeWidth={2} />
+              </button>
+              <button
+                className="icon-button"
+                aria-label="Next cards"
+                disabled={atEnd}
+                onClick={() => page(1)}
+              >
+                <ChevronRight size={16} strokeWidth={2} />
+              </button>
+            </span>
+          )}
         </div>
         {urgent.length > 0 ? (
           <div
-            ref={lane}
+            ref={attach}
             className="ticket-row"
             role="group"
             aria-labelledby="lane-action"
@@ -151,7 +178,7 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
       </section>
       <section className="priority-lane" aria-labelledby="lane-all">
         <div className="section-head">
-          <h2 id="lane-all" className="neutral">
+          <h2 id="lane-all">
             All tickets
             <span className="count">{rows.length}</span>
           </h2>
@@ -172,7 +199,7 @@ function TicketCard({ item }: { item: Scored }) {
   const team = info?.[1] ?? "the service team";
 
   return (
-    <article className="ticket-card urgent">
+    <article className="ticket-card" data-level={levelOf(triage)?.toLowerCase()}>
       <div className="ticket-card-head">
         <PriorityBadge triage={triage} />
         <StatusPill status={current.status} />

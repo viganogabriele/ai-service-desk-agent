@@ -95,6 +95,15 @@ export function ticketOutcomes(historical: Bundle["historical"]) {
   ];
 }
 
+// Same colours as the priority badges: red for the urgent levels, yellow for medium, green below.
+const PRIORITY_TONES = {
+  Highest: "danger",
+  High: "danger",
+  Medium: "warning",
+  Low: "success",
+  Lowest: "success",
+} as const;
+
 export function queueStats(data: Bundle, review: (index: number) => Review) {
   const reviews = data.challenge.map((_, index) => review(index));
 
@@ -103,7 +112,7 @@ export function queueStats(data: Bundle, review: (index: number) => Review) {
       label: level,
       value: reviews.filter((item) => priority(item.triage.urgency, item.triage.impact) === level)
         .length,
-      highlight: level === "Highest" || level === "High",
+      tone: PRIORITY_TONES[level],
     })),
     statuses: STATUSES.map((status) => ({
       status,

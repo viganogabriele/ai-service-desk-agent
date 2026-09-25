@@ -232,7 +232,7 @@ function Board({
                 <i className={`dot ${STATUS_DOTS[status]}`} />
                 {STATUS_LABELS[status]}
               </span>
-              <span className="num">{cards.length}</span>
+              <span className="count num">{cards.length}</span>
             </header>
             {cards.map((row) => (
               <BoardCard
