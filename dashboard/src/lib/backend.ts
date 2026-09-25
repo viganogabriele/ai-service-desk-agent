@@ -136,6 +136,8 @@ interface CoreTicketSummary {
 export interface CoreState {
   proposals: Map<string, Proposal>;
   runs: Map<string, CoreTicketSummary["run_status"]>;
+  signature?: string;
+  expandedAt?: number;
 }
 
 /** Where the AI is with a ticket that has no suggestion yet. */
@@ -206,9 +208,7 @@ export class HttpError extends Error {
 export function createBackendClient(baseUrl: string, fetcher = fetch) {
   const base = baseUrl.replace(/\/+$/, "");
 
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetcher(`${base}${path}`, { ...init, credentials: "include" });
-
+  async function jsonResponse<T>(response: Response): Promise<T> {
     // The backend always answers JSON; a static host serves its HTML page for /api instead.
     if (!response.headers.get("Content-Type")?.includes("json"))
       throw new HttpError(response.status, `No backend answered at ${base}.`, UNREACHABLE);
@@ -227,8 +227,26 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
     return response.json();
   }
 
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return jsonResponse(await fetcher(`${base}${path}`, { ...init, credentials: "include" }));
+  }
+
   return {
-    tickets: (signal?: AbortSignal) => request<TicketExport>("/tickets", { signal }),
+    tickets: async (signal?: AbortSignal, etag?: string) => {
+      const response = await fetcher(`${base}/tickets`, {
+        signal,
+        credentials: "include",
+        cache: "no-store",
+        headers: etag ? { "If-None-Match": etag } : undefined,
+      });
+
+      if (response.status === 304) return { exported: null, etag };
+
+      return {
+        exported: await jsonResponse<TicketExport>(response),
+        etag: response.headers.get("ETag"),
+      };
+    },
     health: (signal?: AbortSignal) => request<Health>("/health", { signal }),
     auth: (signal?: AbortSignal) => request<AuthState>("/auth/me", { signal }),
     signInUrl: `${base}/auth/login`,
@@ -250,10 +268,25 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
      * Core proposals and runs by Jira key, from one request: the list expanded with each
      * ticket's view. Null when the backend has no Core configured.
      */
-    coreState: async (signal?: AbortSignal): Promise<CoreState | null> => {
+    coreState: async (
+      signal?: AbortSignal,
+      previous?: CoreState | null,
+    ): Promise<CoreState | null> => {
       let summaries: CoreTicketSummary[];
 
       try {
+        if (
+          previous?.signature &&
+          previous.expandedAt &&
+          Date.now() - previous.expandedAt < 60_000
+        ) {
+          const compact = (
+            await request<{ tickets: CoreTicketSummary[] }>("/core/tickets", { signal })
+          ).tickets;
+
+          if (JSON.stringify(compact) === previous.signature) return previous;
+        }
+
         summaries = (
           await request<{ tickets: CoreTicketSummary[] }>("/core/tickets?expand=view", { signal })
         ).tickets;
@@ -264,6 +297,8 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
       }
 
       return {
+        signature: JSON.stringify(summaries.map(({ view: _view, ...summary }) => summary)),
+        expandedAt: Date.now(),
         proposals: new Map(
           summaries.flatMap((summary) => {
             const proposal = summary.view ? coreProposal(summary.view, summary.risk ?? null) : null;

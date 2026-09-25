@@ -37,6 +37,28 @@ describe("GET /tickets", () => {
 		expect(body.jql).toContain("project = SUP");
 		expect(body.records.map((r) => r.Key)).toEqual(["SUP-1", "SUP-2"]);
 	});
+
+	it("skips the full export when the stored tickets are unchanged", async () => {
+		const { app, sql } = await setup();
+		const first = await app.request("/tickets");
+		const etag = first.headers.get("ETag");
+		expect(etag).toBeTruthy();
+		if (!etag) throw new Error("Missing ETag");
+
+		const unchanged = await app.request("/tickets", {
+			headers: { "If-None-Match": etag },
+		});
+		expect(unchanged.status).toBe(304);
+		expect(unchanged.headers.get("ETag")).toBe(etag);
+		expect(await unchanged.text()).toBe("");
+
+		await sql`UPDATE tickets SET synced_at = synced_at + interval '1 second' WHERE external_key = 'SUP-1'`;
+		const changed = await app.request("/tickets", {
+			headers: { "If-None-Match": etag },
+		});
+		expect(changed.status).toBe(200);
+		expect(changed.headers.get("ETag")).not.toBe(etag);
+	});
 });
 
 describe("POST /sync", () => {

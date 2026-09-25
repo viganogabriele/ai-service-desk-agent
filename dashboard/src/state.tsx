@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,14 +16,9 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type {
-  Classification,
-  CoreChange,
-  CoreState,
-  SignedInUser,
-  TicketPatch,
-} from "./lib/backend";
+import type { CoreChange, CoreState, SignedInUser, TicketPatch } from "./lib/backend";
 import type { LoadFailure } from "./components/load-error";
+import type { TicketRow } from "./components/tickets";
 import {
   LEVELS,
   OUTCOMES,
@@ -97,10 +92,10 @@ export interface Demo {
 
 interface DashboardContextValue {
   data: Bundle;
+  ticketRows: TicketRow[];
   actions: Action[];
   stronger: StrongerModel;
   demo: Demo;
-  arrival: (id: string) => Arrival | null;
   notice: Notice | null;
   dismissNotice: () => void;
   /** Show a notice unless one is up already, so it never replaces an Undo. */
@@ -108,8 +103,6 @@ interface DashboardContextValue {
   idOf: (index: number) => string;
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
-  /** Where the AI is with a ticket that has no suggestion yet; null otherwise. */
-  classification: (index: number) => Classification | null;
   /** The Core is connected, so new tickets are classified as they arrive. */
   classifying: boolean;
   update: (index: number, changes: Editable) => void;
@@ -164,6 +157,7 @@ const CLASSIFY_TIMEOUT_MS = 5 * 60_000;
 
 interface Loaded {
   bundle: Bundle;
+  etag: string | null;
   // True when the backend was unreachable and the bundled data file is shown instead.
   offline: boolean;
 }
@@ -346,14 +340,23 @@ export function DashboardProvider({
     // The backend's copy of Jira; the backend syncs Jira in the background.
     queryFn: async ({ signal }) => {
       try {
-        return { bundle: liveBundle(await backend.tickets(signal)), offline: false };
+        const cached = client.getQueryData<Loaded>(["dashboard-data"]);
+        const { exported, etag } = await backend.tickets(signal, cached?.etag ?? undefined);
+
+        if (!exported) {
+          if (!cached) throw new Error("The server returned no tickets.");
+
+          return cached;
+        }
+
+        return { bundle: liveBundle(exported), offline: false, etag };
       } catch (failure) {
         if (!(failure instanceof Error) || !unreachable(failure)) throw failure;
         const bundle = await bundledData(signal);
 
         if (!bundle) throw new NothingToShow("Nothing answered");
 
-        return { bundle, offline: true };
+        return { bundle, offline: true, etag: null };
       }
     },
     refetchInterval: (state) => (state.state.data?.offline ? false : 15_000),
@@ -383,8 +386,9 @@ export function DashboardProvider({
   const core = useQuery({
     queryKey: ["core-proposals"],
     queryFn: async ({ signal }) => {
-      const state = await backend.coreState(signal);
-      const before = client.getQueryData<CoreState | null>(["core-proposals"])?.proposals;
+      const previous = client.getQueryData<CoreState | null>(["core-proposals"]);
+      const state = await backend.coreState(signal, previous);
+      const before = previous?.proposals;
 
       const done = arrived.flatMap(({ id }) =>
         state?.proposals.has(id) && isWaiting(id, before) ? [id] : [],
@@ -476,7 +480,87 @@ export function DashboardProvider({
     return () => window.clearTimeout(timer);
   }, [oldest]);
 
-  if (!query.data) {
+  const loaded = query.data;
+  const offline = loaded?.offline ?? false;
+  const coreState = loaded?.offline ? null : (core.data ?? null);
+
+  const data = useMemo(() => {
+    if (!loaded) return null;
+
+    const { bundle } = loaded;
+
+    return coreState?.proposals.size
+      ? {
+          ...bundle,
+          proposals: bundle.challenge.map((ticket) => coreState.proposals.get(ticket.Key) ?? null),
+          proposal_source: { kind: "core" as const, path: null },
+        }
+      : bundle;
+  }, [loaded, coreState]);
+
+  const ticketRows = useMemo<TicketRow[]>(() => {
+    if (!data) return [];
+
+    const arrivedIds = new Set(arrived.map(({ id }) => id));
+    const classifiedIds = new Set(classified);
+    const unclassifiedIds = new Set(unclassified);
+
+    return data.challenge.map((ticket, index) => {
+      const id = ticket.Key;
+      const baseProposal = data.proposals[index];
+      const draft = saved.reviews[id];
+      const runId = baseProposal?.core?.run_id;
+
+      const current: Review = !draft
+        ? initialReview(ticket, baseProposal)
+        : offline
+          ? draft
+          : {
+              ...draft,
+              status: ticketStatus(ticket),
+              verified:
+                runId && draft.coreRunId !== runId
+                  ? coreReviewedFields(baseProposal)
+                  : [...new Set([...(draft.verified ?? []), ...coreReviewedFields(baseProposal)])],
+              coreRunId: runId,
+            };
+
+      const proposal =
+        current.version > 0
+          ? (saved.regenerated[id]?.[current.version - 1] ?? baseProposal)
+          : baseProposal;
+
+      const state = classificationOf(ticket, coreState);
+
+      return {
+        index,
+        id,
+        ticket,
+        proposal,
+        current,
+        classification: state && unclassifiedIds.has(id) ? "failed" : state,
+        arrival: !arrivedIds.has(id)
+          ? null
+          : !core.data?.proposals.has(id) && !unclassifiedIds.has(id)
+            ? "classifying"
+            : classifiedIds.has(id)
+              ? "classified"
+              : "arrived",
+      };
+    });
+  }, [
+    data,
+    offline,
+    saved.reviews,
+    saved.regenerated,
+    coreState,
+    arrived,
+    classified,
+    unclassified,
+    core.data?.proposals,
+  ]);
+
+  if (!loaded || !data) {
     if (!failure) return loading;
 
     return failed({
@@ -489,49 +573,12 @@ export function DashboardProvider({
     });
   }
 
-  const { bundle, offline } = query.data;
-
-  const coreState = offline ? null : (core.data ?? null);
-
-  // Online, the Core's proposals replace the bundle's (live bundles carry none).
-  const data = coreState?.proposals.size
-    ? {
-        ...bundle,
-        proposals: bundle.challenge.map((ticket) => coreState.proposals.get(ticket.Key) ?? null),
-        proposal_source: { kind: "core" as const, path: null },
-      }
-    : bundle;
-
   const idOf = (index: number) => data.challenge[index].Key;
 
-  const proposalAt = (index: number, version: number) =>
-    version > 0
-      ? (saved.regenerated[idOf(index)]?.[version - 1] ?? data.proposals[index])
-      : data.proposals[index];
-
   // Edits are local drafts; the status always comes from Jira.
-  const review = (index: number): Review => {
-    const ticket = data.challenge[index];
-    const draft = saved.reviews[idOf(index)];
+  const review = (index: number): Review => ticketRows[index].current;
 
-    if (!draft) return initialReview(ticket, data.proposals[index]);
-
-    if (offline) return draft;
-
-    const runId = data.proposals[index]?.core?.run_id;
-
-    return {
-      ...draft,
-      status: ticketStatus(ticket),
-      verified:
-        runId && draft.coreRunId !== runId
-          ? coreReviewedFields(data.proposals[index])
-          : [...new Set([...(draft.verified ?? []), ...coreReviewedFields(data.proposals[index])])],
-      coreRunId: runId,
-    };
-  };
-
-  const proposalFor = (index: number) => proposalAt(index, review(index).version);
+  const proposalFor = (index: number) => ticketRows[index].proposal;
 
   // The toast dismisses itself; see `Toast` in the root route.
   const show = (value: Notice) => setNotice(value);
@@ -843,14 +890,6 @@ export function DashboardProvider({
     })();
   };
 
-  const arrival = (id: string): Arrival | null => {
-    if (!arrived.some((item) => item.id === id)) return null;
-
-    if (waiting.some((item) => item.id === id)) return "classifying";
-
-    return classified.includes(id) ? "classified" : "arrived";
-  };
-
   const exportData = () => {
     const records = data.challenge.map((ticket, index) => {
       const current = review(index);
@@ -894,6 +933,7 @@ export function DashboardProvider({
     <DashboardContext.Provider
       value={{
         data,
+        ticketRows,
         signIn: auth.data?.enabled
           ? {
               user,
@@ -917,19 +957,12 @@ export function DashboardProvider({
           generating,
           simulate,
         },
-        arrival,
         notice,
         dismissNotice,
         announce,
         idOf,
         review,
         proposalFor,
-        classification: (index) => {
-          const state = classificationOf(data.challenge[index], coreState);
-
-          // A simulated ticket the AI did not classify in time is triaged by hand.
-          return state && unclassified.includes(idOf(index)) ? "failed" : state;
-        },
         classifying: coreState !== null,
         update,
         verify,

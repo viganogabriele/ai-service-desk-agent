@@ -93,7 +93,7 @@ export function tagKind(
 /* Tag chips: who owns the value. Blue = model, green check = confirmed, solid = you,
    dashed = derived by a rule, plain = what the reporter declared. */
 const tagChip = cva(
-  "group/chip inline-flex h-8 max-w-full items-center gap-1.75 rounded-control border px-2.5 text-left text-base font-medium text-foreground transition duration-150 data-[state=open]:border-ring data-[state=open]:ring-3 data-[state=open]:ring-primary-subtle pointer-coarse:h-10",
+  "group/chip inline-flex h-8 max-w-full items-center gap-1.75 rounded-control border px-2.5 text-left text-base font-medium text-foreground transition-colors duration-150 data-[state=open]:border-ring data-[state=open]:ring-3 data-[state=open]:ring-primary-subtle pointer-coarse:h-10",
   {
     variants: {
       kind: {
@@ -940,8 +940,8 @@ export function ClassificationSidebar({ index }: { index: number }) {
         {proposal && (
           <div className="flex h-1 overflow-hidden rounded-pill bg-hover" role="presentation">
             <span
-              className="rounded-pill bg-primary transition-all duration-200"
-              style={{ width: `${(settled / TRIAGE_FIELDS.length) * 100}%` }}
+              className="w-full origin-left rounded-pill bg-primary transition-transform duration-200"
+              style={{ transform: `scaleX(${settled / TRIAGE_FIELDS.length})` }}
             />
           </div>
         )}

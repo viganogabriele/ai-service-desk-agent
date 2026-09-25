@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { SQL } from "bun";
 import type { FieldMapping } from "../clients/jira/field-config";
 import type {
@@ -110,6 +111,18 @@ export function loadTickets(sql: SQL, key?: string): Promise<StoredTicket[]> {
 		sql,
 		key === undefined ? sql`` : sql`WHERE t.external_key = ${key}`,
 	);
+}
+
+/** A cheap version check before loading every record and its comments for the dashboard. */
+export async function ticketExportVersion(sql: SQL): Promise<string> {
+	const rows: { count: number; latest: string | null }[] = await sql`
+		SELECT count(*)::int AS count, MAX(synced_at)::text AS latest FROM tickets`;
+	const row = rows[0];
+	const digest = createHash("sha1")
+		.update(`${row?.count ?? 0}:${row?.latest ?? ""}`)
+		.digest("hex");
+
+	return `"${digest}"`;
 }
 
 /** Open tickets whose current content the Core has not received (CORE_API §6.A). */

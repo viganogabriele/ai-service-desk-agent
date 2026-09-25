@@ -459,7 +459,7 @@ export function Bar({
       <span className="flex h-2 max-sm:col-span-2 max-sm:row-start-2 max-sm:h-1.5">
         <span
           className={cn(
-            "h-full min-w-0.5 rounded-r-sm transition duration-150 ease-soft group-hover:brightness-120",
+            "h-full min-w-0.5 rounded-r-sm group-hover:brightness-120",
             fillTones[tone],
           )}
           style={{ width }}

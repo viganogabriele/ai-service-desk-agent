@@ -101,6 +101,7 @@ This is how the pipeline scored on a frozen set of 300 labelled tickets, using o
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | `qwen2.5:7b` (local, Ollama) | 225/300 | 228/300 | 251/300 | 213/300 | 189/300 | 204/300 | 109/137 |
 | `gpt-6-luna` (OpenAI) | 289/300 | 298/300 | 296/300 | 225/300 | 207/300 | 219/300 | 130/137 |
+| `Apertus-v1.5-70B` (Swisscom) | 269/300 | 185/300 | 268/300 | 216/300 | 194/300 | 220/300 | 123/137 |
 
 Read these numbers with their limits in mind:
 - Urgency and impact labels involve judgment.

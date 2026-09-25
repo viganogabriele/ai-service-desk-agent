@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Flag, LoaderCircle, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
@@ -29,6 +37,7 @@ export interface TicketFilters {
   rating: "all" | "Critical" | "Non-Critical";
   change: "all" | "service" | "work";
   view: "table" | "board" | "priority";
+  page: number;
   // A table column the operator clicked; null keeps the queue order.
   sort: TicketSort | null;
 }
@@ -55,6 +64,7 @@ export const DEFAULT_FILTERS: TicketFilters = {
   rating: "all",
   change: "all",
   view: "priority",
+  page: 1,
   sort: null,
 };
 
@@ -69,15 +79,16 @@ const FiltersContext = createContext<FiltersContextValue | null>(null);
 export function TicketFiltersProvider({ children }: { children: ReactNode }) {
   const [filters, setAll] = useState(DEFAULT_FILTERS);
 
+  const setFilters = useCallback((changed: Partial<TicketFilters>) => {
+    setAll((current) => ({
+      ...current,
+      ...changed,
+      page: changed.page ?? (Object.keys(changed).some((key) => key !== "page") ? 1 : current.page),
+    }));
+  }, []);
+
   return (
-    <FiltersContext.Provider
-      value={{
-        filters,
-        setFilters: (changed) => setAll((current) => ({ ...current, ...changed })),
-      }}
-    >
-      {children}
-    </FiltersContext.Provider>
+    <FiltersContext.Provider value={{ filters, setFilters }}>{children}</FiltersContext.Provider>
   );
 }
 
@@ -153,71 +164,75 @@ const byQueue = (a: TicketRow, b: TicketRow) =>
   a.index - b.index;
 
 export function useTicketRows() {
-  const { data, review, proposalFor, idOf, classification, arrival } = useDashboard();
+  const { ticketRows: rows } = useDashboard();
   const { filters } = useTicketFilters();
-  const needle = filters.query.trim().toLowerCase();
-  // The board has no column headers to show a sort, so it keeps the queue order.
-  const sort = filters.view === "board" ? null : filters.sort;
-
-  const rows: TicketRow[] = data.challenge.map((ticket, index) => ({
-    index,
-    id: idOf(index),
-    ticket,
-    proposal: proposalFor(index),
-    current: review(index),
-    classification: classification(index),
-    arrival: arrival(idOf(index)),
-  }));
 
   // Simulated tickets stay on top until someone works on them, newest (highest Jira key) first.
   const pinned = (row: TicketRow) =>
     row.arrival && row.current.status === "new" ? Number(row.id.split("-").at(-1)) || 1 : 0;
 
-  const visible = rows
-    .filter((row) => {
-      const { status, triage } = row.current;
+  const visible = useMemo(() => {
+    const needle = filters.query.trim().toLowerCase();
+    // The board has no column headers to show a sort, so it keeps the queue order.
+    const sort = filters.view === "board" ? null : filters.sort;
 
-      if (filters.status === "open" && !isOpen(status)) return false;
+    return (
+      rows
+        .filter((row) => {
+          const { status, triage } = row.current;
 
-      if (filters.status !== "all" && filters.status !== "open" && status !== filters.status)
-        return false;
+          if (filters.status === "open" && !isOpen(status)) return false;
 
-      if (filters.service !== "all" && triage.service !== filters.service) return false;
+          if (filters.status !== "all" && filters.status !== "open" && status !== filters.status)
+            return false;
 
-      if (filters.rating !== "all" && serviceInfo(triage.service)?.[2] !== filters.rating)
-        return false;
+          if (filters.service !== "all" && triage.service !== filters.service) return false;
 
-      if (
-        filters.change === "service" &&
-        (!row.proposal ||
-          row.proposal.proposal.service === row.ticket["Affected Business or IT Services"][0])
-      )
-        return false;
+          if (filters.rating !== "all" && serviceInfo(triage.service)?.[2] !== filters.rating)
+            return false;
 
-      if (
-        filters.change === "work" &&
-        (!row.proposal || row.proposal.proposal.work_type === row.ticket["Work type"])
-      )
-        return false;
+          if (
+            filters.change === "service" &&
+            (!row.proposal ||
+              row.proposal.proposal.service === row.ticket["Affected Business or IT Services"][0])
+          )
+            return false;
 
-      if (
-        needle &&
-        ![
-          row.id,
-          row.ticket.Summary,
-          row.ticket.Description,
-          row.ticket.Reporter,
-          row.ticket["Request type"],
-          triage.service,
-          triage.assignee,
-        ].some((text) => text?.toLowerCase().includes(needle))
-      )
-        return false;
+          if (
+            filters.change === "work" &&
+            (!row.proposal || row.proposal.proposal.work_type === row.ticket["Work type"])
+          )
+            return false;
 
-      return true;
-    })
-    // Simulated tickets stay on top whatever the sort.
-    .sort((a, b) => pinned(b) - pinned(a) || (sort ? bySort(a, b, sort) : 0) || byQueue(a, b));
+          if (
+            needle &&
+            ![
+              row.id,
+              row.ticket.Summary,
+              row.ticket.Description,
+              row.ticket.Reporter,
+              row.ticket["Request type"],
+              triage.service,
+              triage.assignee,
+            ].some((text) => text?.toLowerCase().includes(needle))
+          )
+            return false;
+
+          return true;
+        })
+        // Simulated tickets stay on top whatever the sort.
+        .sort((a, b) => pinned(b) - pinned(a) || (sort ? bySort(a, b, sort) : 0) || byQueue(a, b))
+    );
+  }, [
+    rows,
+    filters.query,
+    filters.status,
+    filters.service,
+    filters.rating,
+    filters.change,
+    filters.view,
+    filters.sort,
+  ]);
 
   return { rows, visible };
 }
@@ -349,7 +364,7 @@ export function SearchField({
   return (
     <label
       className={cn(
-        "group/search flex h-10 w-85 max-w-full items-center gap-2.5 rounded-pill border bg-surface px-3.5 text-sm text-muted transition duration-120 ease-out focus-within:border-ring focus-within:ring-3 focus-within:ring-primary-subtle pointer-coarse:h-10.5",
+        "group/search flex h-10 w-85 max-w-full items-center gap-2.5 rounded-pill border bg-surface px-3.5 text-sm text-muted transition-colors duration-120 ease-out focus-within:border-ring focus-within:ring-3 focus-within:ring-primary-subtle pointer-coarse:h-10.5",
         compact && "w-full",
         className,
       )}
@@ -394,9 +409,8 @@ export function SearchField({
 // Filters share a row with the search field, and split a phone-width row evenly.
 const FILTER_CLASS = "min-w-37.5 max-sm:min-w-0 max-sm:flex-1";
 
-export function StatusFilter() {
+export function StatusFilter({ rows }: { rows: TicketRow[] }) {
   const { filters, setFilters } = useTicketFilters();
-  const { rows } = useTicketRows();
 
   return (
     <Select
