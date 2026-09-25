@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PlaygroundRouteImport } from './routes/playground'
+import { Route as UsageRouteImport } from './routes/usage'
 import { Route as TicketsIndexRouteImport } from './routes/tickets.index'
 import { Route as TicketsTicketIdRouteImport } from './routes/tickets.$ticketId'
 
@@ -30,6 +31,11 @@ const PlaygroundRoute = PlaygroundRouteImport.update({
   path: '/playground',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsageRoute = UsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TicketsIndexRoute = TicketsIndexRouteImport.update({
   id: '/tickets/',
   path: '/tickets/',
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
+  '/usage': typeof UsageRoute
   '/tickets/$ticketId': typeof TicketsTicketIdRoute
   '/tickets/': typeof TicketsIndexRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
+  '/usage': typeof UsageRoute
   '/tickets/$ticketId': typeof TicketsTicketIdRoute
   '/tickets': typeof TicketsIndexRoute
 }
@@ -60,20 +68,33 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
+  '/usage': typeof UsageRoute
   '/tickets/$ticketId': typeof TicketsTicketIdRoute
   '/tickets/': typeof TicketsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/overview' | '/playground' | '/tickets/$ticketId' | '/tickets/'
+    | '/'
+    | '/overview'
+    | '/playground'
+    | '/usage'
+    | '/tickets/$ticketId'
+    | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/overview' | '/playground' | '/tickets/$ticketId' | '/tickets'
+  to:
+    | '/'
+    | '/overview'
+    | '/playground'
+    | '/usage'
+    | '/tickets/$ticketId'
+    | '/tickets'
   id:
     | '__root__'
     | '/'
     | '/overview'
     | '/playground'
+    | '/usage'
     | '/tickets/$ticketId'
     | '/tickets/'
   fileRoutesById: FileRoutesById
@@ -82,6 +103,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OverviewRoute: typeof OverviewRoute
   PlaygroundRoute: typeof PlaygroundRoute
+  UsageRoute: typeof UsageRoute
   TicketsTicketIdRoute: typeof TicketsTicketIdRoute
   TicketsIndexRoute: typeof TicketsIndexRoute
 }
@@ -109,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlaygroundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/usage': {
+      id: '/usage'
+      path: '/usage'
+      fullPath: '/usage'
+      preLoaderRoute: typeof UsageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tickets/': {
       id: '/tickets/'
       path: '/tickets'
@@ -130,6 +159,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OverviewRoute: OverviewRoute,
   PlaygroundRoute: PlaygroundRoute,
+  UsageRoute: UsageRoute,
   TicketsTicketIdRoute: TicketsTicketIdRoute,
   TicketsIndexRoute: TicketsIndexRoute,
 }

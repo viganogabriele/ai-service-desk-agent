@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   ChartColumn,
+  Coins,
   FlaskConical,
   Gem,
   LogOut,
@@ -47,12 +48,13 @@ const VIEWS: { view: TicketFilters["view"]; label: string; icon: LucideIcon }[] 
 
 function Root() {
   const matchRoute = useMatchRoute();
-  const playground = Boolean(matchRoute({ to: "/playground" }));
+  // These pages talk to the Core directly and do not wait for the tickets.
+  const standalone = Boolean(matchRoute({ to: "/playground" }) || matchRoute({ to: "/usage" }));
 
   return (
     <TicketFiltersProvider>
       <Tooltip.Provider delayDuration={450} skipDelayDuration={400}>
-        {playground ? (
+        {standalone ? (
           <Shell>
             <Outlet />
           </Shell>
@@ -184,6 +186,18 @@ function Shell({
             data-tip="Model playground"
           >
             <FlaskConical size={18} strokeWidth={1.75} />
+          </Link>
+          <Link
+            to="/usage"
+            className={cn(
+              buttonVariants({ size: "icon" }),
+              TOPBAR_ICON,
+              "data-[status=active]:bg-elevated data-[status=active]:text-primary-text",
+            )}
+            aria-label="Usage and cost"
+            data-tip="Usage and cost"
+          >
+            <Coins size={18} strokeWidth={1.75} />
           </Link>
           {notifications}
           <ThemeToggle className={TOPBAR_ICON} />
