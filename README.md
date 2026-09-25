@@ -6,7 +6,7 @@ It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The 
 
 ## How a ticket is classified
 
-![Classification pipeline: an algorithm finds similar past cases, the LLM decides five fields, fixed rules derive team, priority and assignee, an algorithm scores confidence and picks a lane, the LLM drafts the resolution note, and a human reviews it before Jira is updated](docs/classification-pipeline.svg)
+![Classification pipeline: an algorithm finds similar past cases, the LLM decides five fields, fixed rules derive team, priority and assignee, an algorithm scores confidence and picks a lane, the LLM drafts the resolution note, and a human reviews it before Jira is updated](classification-pipeline.svg)
 
 The pipeline uses a language model (LLM) only where the ticket has to be *understood* or *written*. Anything with one correct answer, such as a lookup, a table or a threshold, is computed by ordinary code. The code always produces the same result, and its decisions can be checked.
 
@@ -46,9 +46,8 @@ Jira Cloud  <-->  backend (sync + gateway)  <-->  Core (triage engine + API)
 | --- | --- | --- |
 | [`core/`](core/) | The triage pipeline shown above, exposed as a REST API with an event stream. It decides and remembers (runs, decisions, overrides, knowledge-base versions, policy) but never calls Jira. | Python, FastAPI, SQLite, sentence-transformers; LLM through Ollama, Swisscom Apertus or OpenAI |
 | [`backend/`](backend/) | The only component that talks to Jira. It copies tickets into Postgres, sends open tickets to the Core, writes approved results back to Jira and proxies the Core API for the UI. It also handles optional Atlassian sign-in. | Bun, Hono, Postgres, Zod |
-| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts and a model playground. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
-| [`jira/`](jira/) | Scripts that upload the challenge tickets to a Jira site, run a simple triage loop and export results in the challenge format. | Python |
-| [`triage_poc/`](triage_poc/README.md) | The first prototype: a single-file pipeline with no dependencies. Kept for reference. | Python, Ollama |
+| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts and a model playground. A "Simulate incoming ticket" button files a demo ticket, written by the Core from a knowledge-base scenario, and shows it arriving and being classified live. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
+| [`jira/`](jira/) | Scripts that upload the challenge tickets to a Jira site and export results in the challenge format. | Python |
 
 The Core's integration contract is [core/docs/CORE_API.md](core/docs/CORE_API.md), and its product concept is [core/docs/UI_CONCEPT.md](core/docs/UI_CONCEPT.md).
 
@@ -114,6 +113,6 @@ See [core/eval/](core/eval/README.md) for the method, per-ticket results and the
 ## Further reading
 
 - [instructions.md](instructions.md): the official challenge specification, including the priority matrix and the list of critical services.
-- [ANALYSIS.md](ANALYSIS.md) and [ADVISOR_REVIEW.md](ADVISOR_REVIEW.md): data findings and the revised scope after the advisor review.
+- [core/AGENTS.md](core/AGENTS.md): the verified data facts and the full pipeline rules.
+- [core/docs/CORE_API.md](core/docs/CORE_API.md): the contract between the Core, the backend and the dashboard.
 - [PRD.md](PRD.md): dashboard product requirements (in Italian).
-- [chats/](chats/): archived design discussions.
