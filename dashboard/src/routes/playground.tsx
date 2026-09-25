@@ -445,7 +445,7 @@ function Playground() {
               <h2 className="font-display text-2xl font-semibold">Run evidence</h2>
               <p className="mt-1 text-sm text-secondary">
                 {saved
-                  ? "Saved baseline · output/dev_predictions.json · run date and hardware not recorded"
+                  ? "Saved baseline · dashboard/fixtures/dev_predictions.json · run date and hardware not recorded"
                   : `${evaluation.evaluation_id} · ${evaluation.created_at ? new Date(evaluation.created_at).toLocaleString() : "Date unavailable"}`}
               </p>
             </div>

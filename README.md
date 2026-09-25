@@ -112,7 +112,5 @@ See [core/eval/](core/eval/README.md) for the method, per-ticket results and the
 
 ## Further reading
 
-- [instructions.md](instructions.md): the official challenge specification, including the priority matrix and the list of critical services.
 - [core/AGENTS.md](core/AGENTS.md): the verified data facts and the full pipeline rules.
 - [core/docs/CORE_API.md](core/docs/CORE_API.md): the contract between the Core, the backend and the dashboard.
-- [PRD.md](PRD.md): dashboard product requirements (in Italian).

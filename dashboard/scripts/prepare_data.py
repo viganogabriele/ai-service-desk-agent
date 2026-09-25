@@ -1,8 +1,8 @@
 """Build the dashboard's compact, reproducible data bundle from source files.
 
 AI proposals are read from solver output only; nothing is generated here:
-1. `dashboard/data/proposals.json` in the PRD §3.1 contract, if present;
-2. otherwise the triage PoC output `output/triaged.json`, if it matches the incoming tickets;
+1. `dashboard/data/proposals.json` (`Proposal` in `src/domain.ts`, checked by `validate()`), if present;
+2. otherwise the saved triage PoC output `dashboard/fixtures/triaged.json`, if it matches the incoming tickets;
 3. otherwise no proposals, and the UI shows the reporter-declared values.
 """
 
@@ -16,11 +16,12 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD = Path(__file__).resolve().parents[1]
-HISTORY = ROOT / "jira_first_20000_requested_fields_synthetic.json"
-CHALLENGE = next(ROOT.glob("jira_hackathon_blind_eval_challenge_*.json"))
+DATA = ROOT / "backend/jira_scripts/data"
+HISTORY = DATA / "jira_first_20000_requested_fields_synthetic.json"
+CHALLENGE = DATA / "challenge_blind.json"
 OUTPUT = DASHBOARD / "public/dashboard-data.json"
 PROPOSAL_FILE = DASHBOARD / "data/proposals.json"
-SOLVER_OUTPUT = ROOT / "output/triaged.json"
+SOLVER_OUTPUT = DASHBOARD / "fixtures/triaged.json"
 LEVELS = ["Highest", "High", "Medium", "Low", "Lowest"]
 RESOLUTIONS = ["done", "cancelled", "clarification", "cannot reproduce"]
 # Minimum TF-IDF cosine similarity for a historical resolution to be offered as a reference.
@@ -80,7 +81,7 @@ complete_weeks = sorted(
 
 # Proposals -------------------------------------------------------------------------------------
 def from_solver_output(records):
-    """Map triage PoC records (`python -m triage_poc triage`) onto the §3.1 proposal contract."""
+    """Map saved triage PoC records onto the `Proposal` shape that `validate()` checks."""
     proposals = []
     for index, (row, source) in enumerate(zip(records, challenge)):
         if row["Summary"] != source["Summary"]:
@@ -119,7 +120,7 @@ def validate(proposal):
     body["impact"] = level(body["impact"], f"{proposal['ticket_id']} impact")
     if body["resolution"] not in RESOLUTIONS:
         raise ValueError(f"{proposal['ticket_id']}: unknown resolution {body['resolution']!r}")
-    # §3.1 comments are `email: text`; the dashboard stores the text and the assignee separately.
+    # Proposal comments are `email: text`; the dashboard stores the text and the assignee separately.
     comment = body.get("resolution_comment") or ""
     prefix = f"{body['assignee_candidates'][0]['email']}:" if body.get("assignee_candidates") else ""
     if prefix and comment.startswith(prefix):
@@ -138,7 +139,7 @@ elif SOLVER_OUTPUT.exists():
     if len(records) != len(challenge):
         raise ValueError(f"{SOLVER_OUTPUT} has {len(records)} records for {len(challenge)} tickets")
     proposals = [validate(item) for item in from_solver_output(records)]
-    proposal_source = {"kind": "solver_output", "path": "output/triaged.json"}
+    proposal_source = {"kind": "solver_output", "path": "dashboard/fixtures/triaged.json"}
 else:
     proposals = [None] * len(challenge)
     proposal_source = {"kind": "none", "path": None}

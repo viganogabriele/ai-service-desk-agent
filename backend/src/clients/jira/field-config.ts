@@ -1,4 +1,4 @@
-// Site-specific Jira ids and vocabulary. Mirrors jira/config.py.
+// Site-specific Jira ids and vocabulary. Mirrors backend/jira_scripts/config.py.
 
 export const JIRA_PROJECT_KEY = "SUP";
 
