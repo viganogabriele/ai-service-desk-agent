@@ -29,9 +29,9 @@ function totals(cost: number, tokens: number, calls: number): UsageTotals {
 }
 
 test("money keeps small call costs readable", () => {
-  assert.equal(money(0), "CHF 0.00");
-  assert.equal(money(0.0042), "CHF 0.0042");
-  assert.equal(money(1204.5), "CHF 1,204.50");
+  assert.equal(money(0), "USD 0.00");
+  assert.equal(money(0.0042), "USD 0.0042");
+  assert.equal(money(1204.5), "USD 1,204.50");
 });
 
 test("token counts are compact, like the provider consoles", () => {

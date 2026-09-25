@@ -144,8 +144,8 @@ export function rankBy<T extends UsageTotals>(rows: T[], metric: UsageMetric) {
     .sort((a, b) => metricValue(b.row, metric) - metricValue(a.row, metric));
 }
 
-/** Money with enough decimals to tell small calls apart: CHF 0.0042, CHF 3.10, CHF 1,204.50. */
-export function money(value: number, currency = "CHF") {
+/** Money with enough decimals to tell small calls apart: USD 0.0042, USD 3.10, USD 1,204.50. */
+export function money(value: number, currency = "USD") {
   const digits = value !== 0 && Math.abs(value) < 0.01 ? 4 : 2;
 
   return `${currency} ${value.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
@@ -161,7 +161,7 @@ export function compact(value: number) {
   return compactFormat.format(value);
 }
 
-export function formatMetric(value: number, metric: UsageMetric, currency = "CHF") {
+export function formatMetric(value: number, metric: UsageMetric, currency = "USD") {
   if (metric === "cost") return money(value, currency);
 
   return metric === "tokens" ? compact(value) : value.toLocaleString("en-US");

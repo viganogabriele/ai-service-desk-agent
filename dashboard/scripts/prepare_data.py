@@ -93,7 +93,7 @@ def from_solver_output(records):
             "ticket_id": ticket_id(index),
             "model_id": triage["model"],
             "latency_ms": round((triage["classification_seconds"] + triage["comment_seconds"]) * 1000),
-            "cost_chf": None,
+            "cost_usd": None,
             "proposal": {
                 "work_type": row["Work type"],
                 "service": row["Affected Business or IT Services"][0],

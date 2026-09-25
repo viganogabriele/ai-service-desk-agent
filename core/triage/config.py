@@ -47,15 +47,18 @@ MAX_TOKENS = {"TriageOutput": 400, "TriageSample": 80, "TriageEvidence": 400, "S
               "DevTicket": 700, "ResolutionComment": 200}
 MAX_TOKENS_DEFAULT = 600
 
-# Usage ledger prices in CHF per million tokens, keyed "provider/model" or "provider/*".
+# Usage ledger prices in USD per million tokens, keyed "provider/model" or "provider/*".
 # Estimates, not invoices: check the provider's current rate card and override with
 # LLM_PRICES (JSON, same shape). A model without a price is recorded at 0 and flagged.
 # Output prices apply to reasoning tokens too, since the providers bill them as output.
-USAGE_CURRENCY = "CHF"
+USAGE_CURRENCY = "USD"
 LLM_PRICES: dict[str, dict[str, float]] = {
     "ollama/*": {"input": 0.0, "cached_input": 0.0, "output": 0.0},  # self-hosted Mac mini
-    "openai/gpt-6-luna": {"input": 1.00, "cached_input": 0.10, "output": 8.00},
-    "swisscom/swiss-ai/Apertus-v1.5-70B": {"input": 0.60, "cached_input": 0.60, "output": 1.80},
+    # OpenAI rate card, standard processing. Cache writes ($0.125) are not billed here:
+    # the Responses API does not report cache-write tokens.
+    "openai/gpt-6-luna": {"input": 0.10, "cached_input": 0.01, "output": 0.50},
+    # Swisscom lists CHF 0.60 in / CHF 1.80 out; converted at 1 CHF = 1.25 USD.
+    "swisscom/swiss-ai/Apertus-v1.5-70B": {"input": 0.75, "cached_input": 0.75, "output": 2.25},
     **json.loads(os.getenv("LLM_PRICES", "{}")),
 }
 

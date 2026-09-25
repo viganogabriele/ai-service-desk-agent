@@ -251,7 +251,7 @@ function fromSolver(record: SolverRecord | undefined, id: string): Proposal {
       triage.classification_seconds === undefined || triage.comment_seconds === undefined
         ? null
         : Math.round((triage.classification_seconds + triage.comment_seconds) * 1000),
-    cost_chf: null,
+    cost_usd: null,
     proposal: {
       work_type: record["Work type"],
       service,

@@ -152,7 +152,7 @@ export function aiStats(
   );
 
   const costs = pairs.flatMap(({ proposal }) =>
-    proposal.cost_chf == null ? [] : [proposal.cost_chf],
+    proposal.cost_usd == null ? [] : [proposal.cost_usd],
   );
 
   const latest = new Map<string, Action>();

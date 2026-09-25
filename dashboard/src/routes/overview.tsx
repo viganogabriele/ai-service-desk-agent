@@ -301,7 +301,7 @@ function Overview() {
                     </Fact>
                   )}
                   {ai.meanCost !== null && (
-                    <Fact label="Model cost per ticket">CHF {fmt(ai.meanCost, 3)}</Fact>
+                    <Fact label="Model cost per ticket">USD {fmt(ai.meanCost, 3)}</Fact>
                   )}
                 </dl>
               </Card>

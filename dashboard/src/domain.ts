@@ -194,7 +194,7 @@ export interface Proposal {
   ticket_id: string;
   model_id: string;
   latency_ms?: number | null;
-  cost_chf?: number | null;
+  cost_usd?: number | null;
   // When the Core finished the run (CORE_API §5).
   classified_at?: string | null;
   proposal: {
