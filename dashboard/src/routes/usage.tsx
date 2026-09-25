@@ -17,12 +17,12 @@ import {
   WINDOWS,
   bucketLabel,
   compact,
-  fetchUsage,
   formatMetric,
   labelOf,
   metricValue,
   money,
   rankBy,
+  usageQueryOptions,
 } from "../lib/usage";
 import type { ModelRow, Usage, UsageMetric, UsageTotals, UsageWindow } from "../lib/usage";
 import { cn } from "../lib/utils";
@@ -61,9 +61,6 @@ export const Route = createFileRoute("/usage")({
   },
 });
 
-// The same backend as the rest of the dashboard: the dev proxy at /api unless overridden.
-const base = (import.meta.env.VITE_BACKEND_URL || "/api").replace(/\/+$/, "");
-
 const REFRESH_MS = 30_000;
 
 const row = "grid grid-cols-12 gap-card-gap";
@@ -90,10 +87,8 @@ function UsagePage() {
   const by = search.by ?? "model";
 
   const query = useQuery({
-    queryKey: ["usage", base, span],
-    queryFn: ({ signal }) => fetchUsage(base, span, signal),
+    ...usageQueryOptions(span),
     refetchInterval: REFRESH_MS,
-    retry: 1,
   });
 
   const set = (next: UsageSearch) =>

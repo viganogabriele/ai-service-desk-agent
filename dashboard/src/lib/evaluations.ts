@@ -1,3 +1,20 @@
+import { queryOptions } from "@tanstack/react-query";
+
+export function baselineQueryOptions() {
+  return queryOptions({
+    queryKey: ["playground-baseline"],
+    queryFn: async ({ signal }): Promise<Evaluation> => {
+      const response = await fetch("/playground-baseline.json", { signal });
+
+      if (!response.ok)
+        throw new Error("Saved baseline could not be loaded. Run pnpm data and retry.");
+
+      return response.json();
+    },
+    staleTime: Infinity,
+  });
+}
+
 export const EVALUATION_FIELDS = {
   service: "Service",
   work_type: "Work type",

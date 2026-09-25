@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import {
   HttpError,
   REASON_CODES,
@@ -160,6 +161,41 @@ interface Loaded {
   etag: string | null;
   // True when the backend was unreachable and the bundled data file is shown instead.
   offline: boolean;
+}
+
+const dashboardQueryKey = ["dashboard-data"] as const;
+
+function dashboardQueryOptions(client: QueryClient) {
+  return {
+    queryKey: dashboardQueryKey,
+    queryFn: async ({ signal }: { signal: AbortSignal }): Promise<Loaded> => {
+      try {
+        const cached = client.getQueryData<Loaded>(dashboardQueryKey);
+        const { exported, etag } = await backend.tickets(signal, cached?.etag ?? undefined);
+
+        if (!exported) {
+          if (!cached) throw new Error("The server returned no tickets.");
+
+          return cached;
+        }
+
+        return { bundle: liveBundle(exported), offline: false, etag };
+      } catch (failure) {
+        if (!(failure instanceof Error) || !unreachable(failure)) throw failure;
+        const bundle = await bundledData(signal);
+
+        if (!bundle) throw new NothingToShow("Nothing answered");
+
+        return { bundle, offline: true, etag: null };
+      }
+    },
+    staleTime: 15_000,
+    retry: (count: number, failure: Error) => !(failure instanceof NothingToShow) && count < 3,
+  };
+}
+
+export function prefetchDashboard(client: QueryClient) {
+  return client.prefetchQuery(dashboardQueryOptions(client));
 }
 
 /** Neither the backend nor a bundled data file answered, so there is nothing to show. */
@@ -335,33 +371,9 @@ export function DashboardProvider({
 }) {
   const client = useQueryClient();
 
-  const query = useQuery<Loaded>({
-    queryKey: ["dashboard-data"],
-    // The backend's copy of Jira; the backend syncs Jira in the background.
-    queryFn: async ({ signal }) => {
-      try {
-        const cached = client.getQueryData<Loaded>(["dashboard-data"]);
-        const { exported, etag } = await backend.tickets(signal, cached?.etag ?? undefined);
-
-        if (!exported) {
-          if (!cached) throw new Error("The server returned no tickets.");
-
-          return cached;
-        }
-
-        return { bundle: liveBundle(exported), offline: false, etag };
-      } catch (failure) {
-        if (!(failure instanceof Error) || !unreachable(failure)) throw failure;
-        const bundle = await bundledData(signal);
-
-        if (!bundle) throw new NothingToShow("Nothing answered");
-
-        return { bundle, offline: true, etag: null };
-      }
-    },
+  const query = useQuery({
+    ...dashboardQueryOptions(client),
     refetchInterval: (state) => (state.state.data?.offline ? false : 15_000),
-    // A backend that is down stays down for a while; the error page retries on its own clock.
-    retry: (count, failure) => !(failure instanceof NothingToShow) && count < 3,
   });
 
   const { refetch } = query;
@@ -385,6 +397,7 @@ export function DashboardProvider({
   // AI proposals from the Core. Without it the dashboard still works on Jira data alone.
   const core = useQuery({
     queryKey: ["core-proposals"],
+    staleTime: 5_000,
     queryFn: async ({ signal }) => {
       const previous = client.getQueryData<CoreState | null>(["core-proposals"]);
       const state = await backend.coreState(signal, previous);
@@ -422,6 +435,7 @@ export function DashboardProvider({
 
   const backendHealth = useQuery({
     queryKey: ["backend-health"],
+    staleTime: 60_000,
     queryFn: ({ signal }) => backend.health(signal),
     enabled: query.data?.offline === false,
     refetchInterval: 60_000,
@@ -430,6 +444,7 @@ export function DashboardProvider({
 
   const auth = useQuery({
     queryKey: ["auth"],
+    staleTime: 60_000,
     queryFn: ({ signal }) => backend.auth(signal),
     enabled: query.data?.offline === false,
     retry: false,
@@ -439,6 +454,7 @@ export function DashboardProvider({
 
   const health = useQuery<{ model: string }>({
     queryKey: ["stronger-model-health"],
+    staleTime: 30_000,
     enabled: STRONGER_URL !== null,
     retry: false,
     refetchInterval: 30_000,

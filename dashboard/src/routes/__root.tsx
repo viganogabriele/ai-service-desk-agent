@@ -1,6 +1,14 @@
-import { Link, Outlet, createRootRoute, useMatchRoute, useSearch } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createRootRoute,
+  useMatchRoute,
+  useMatches,
+  useSearch,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   ChartColumn,
@@ -14,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { DashboardProvider, useDashboard } from "../state";
+import { DashboardProvider, prefetchDashboard, useDashboard } from "../state";
 import type { Notice } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
@@ -25,6 +33,8 @@ import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import { Button, buttonVariants } from "../components/ui/button";
 import { cn } from "../lib/utils";
+import { usageQueryOptions } from "../lib/usage";
+import { baselineQueryOptions } from "../lib/evaluations";
 import logo from "../assets/logo.png";
 
 export const Route = createRootRoute({ component: Root });
@@ -47,9 +57,9 @@ const VIEWS: { view: TicketFilters["view"]; label: string; icon: LucideIcon }[] 
 ];
 
 function Root() {
-  const matchRoute = useMatchRoute();
+  const activeRoute = useMatches({ select: (matches) => matches.at(-1)?.routeId });
   // These pages talk to the Core directly and do not wait for the tickets.
-  const standalone = Boolean(matchRoute({ to: "/playground" }) || matchRoute({ to: "/usage" }));
+  const standalone = activeRoute === "/playground" || activeRoute === "/usage";
 
   return (
     <TicketFiltersProvider>
@@ -137,6 +147,10 @@ function Shell({
   operator?: ReactNode;
   children: ReactNode;
 }) {
+  const queryClient = useQueryClient();
+  const prefetchTickets = () => void prefetchDashboard(queryClient);
+  const prefetchUsage = () => void queryClient.prefetchQuery(usageQueryOptions("30d"));
+  const prefetchPlayground = () => void queryClient.prefetchQuery(baselineQueryOptions());
   const { filters } = useTicketFilters();
   // Read from the URL as well: the filters only pick up `?view=` once the ticket page mounts.
   const search: { view?: TicketFilters["view"] } = useSearch({ strict: false });
@@ -155,6 +169,8 @@ function Shell({
       <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background px-page max-lg:gap-4 max-md:h-16 max-sm:gap-2">
         <Link
           to="/tickets"
+          onPointerEnter={prefetchTickets}
+          onFocus={prefetchTickets}
           className="inline-flex h-11 items-center gap-3.5 rounded-button font-display text-xl font-semibold whitespace-nowrap text-strong"
           aria-label="TicketBuddy home"
         >
@@ -165,6 +181,8 @@ function Shell({
         <div className="ml-auto flex items-center gap-2">
           <Link
             to="/overview"
+            onPointerEnter={prefetchTickets}
+            onFocus={prefetchTickets}
             className={cn(
               buttonVariants({ size: "icon" }),
               TOPBAR_ICON,
@@ -177,6 +195,8 @@ function Shell({
           </Link>
           <Link
             to="/playground"
+            onPointerEnter={prefetchPlayground}
+            onFocus={prefetchPlayground}
             className={cn(
               buttonVariants({ size: "icon" }),
               TOPBAR_ICON,
@@ -189,6 +209,8 @@ function Shell({
           </Link>
           <Link
             to="/usage"
+            onPointerEnter={prefetchUsage}
+            onFocus={prefetchUsage}
             className={cn(
               buttonVariants({ size: "icon" }),
               TOPBAR_ICON,
@@ -225,6 +247,8 @@ function Shell({
  */
 function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
   const { filters, setFilters } = useTicketFilters();
+  const queryClient = useQueryClient();
+  const prefetchTickets = () => void prefetchDashboard(queryClient);
 
   return (
     <nav
@@ -240,6 +264,8 @@ function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
         <Link
           key={view}
           to="/tickets"
+          onPointerEnter={prefetchTickets}
+          onFocus={prefetchTickets}
           search={{ view }}
           activeProps={{}}
           className="inline-flex h-9 items-center justify-center gap-2 rounded-pill px-5 font-display text-md font-semibold whitespace-nowrap text-nav transition-colors duration-150 hover:text-secondary aria-[current=page]:text-primary-text max-md:px-4 max-sm:px-2 [&_svg]:transition-transform [&_svg]:duration-200 [&_svg]:ease-out hover:not-aria-[current=page]:[&_svg]:-translate-y-px"

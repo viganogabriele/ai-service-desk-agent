@@ -8,6 +8,7 @@ import { Field } from "../components/ui/form";
 import { cn } from "../lib/utils";
 import {
   EVALUATION_FIELDS,
+  baselineQueryOptions,
   fieldName,
   getCases,
   getEvaluation,
@@ -61,22 +62,16 @@ function Playground() {
   const [error, setError] = useState("");
   const [storageError, setStorageError] = useState("");
 
-  const baseline = useQuery({
-    queryKey: ["playground-baseline"],
-    queryFn: async ({ signal }): Promise<Evaluation> => {
-      const response = await fetch("/playground-baseline.json", { signal });
-
-      if (!response.ok)
-        throw new Error("Saved baseline could not be loaded. Run pnpm data and retry.");
-
-      return response.json();
-    },
-  });
+  const baseline = useQuery(baselineQueryOptions());
 
   const runs = useQueries({
     queries: history.map((entry) => ({
       queryKey: [historyKey, entry.id],
       queryFn: ({ signal }: { signal: AbortSignal }) => getEvaluation(entry.id, signal),
+      staleTime: (query: { state: { data: Evaluation | undefined } }) =>
+        query.state.data?.status === "completed" || query.state.data?.status === "failed"
+          ? Infinity
+          : 2_000,
       refetchInterval: (query: { state: { data: Evaluation | undefined } }) => {
         const status = query.state.data?.status;
 

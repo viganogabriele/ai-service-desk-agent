@@ -1,5 +1,7 @@
 /** GET /usage of the Core (CORE_API §9, LLM usage), through the backend's /core proxy. */
 
+import { queryOptions } from "@tanstack/react-query";
+
 export const WINDOWS = [
   { value: "24h", label: "Past 24h" },
   { value: "7d", label: "7 days" },
@@ -8,6 +10,17 @@ export const WINDOWS = [
 ] as const;
 
 export type UsageWindow = (typeof WINDOWS)[number]["value"];
+
+export function usageQueryOptions(window: UsageWindow) {
+  const base = (import.meta.env.VITE_BACKEND_URL || "/api").replace(/\/+$/, "");
+
+  return queryOptions({
+    queryKey: ["usage", base, window],
+    queryFn: ({ signal }) => fetchUsage(base, window, signal),
+    staleTime: 30_000,
+    retry: 1,
+  });
+}
 
 export const METRICS = [
   { value: "cost", label: "Cost" },
