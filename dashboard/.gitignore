@@ -28,3 +28,7 @@ dist-ssr
 
 # TanStack router plugin temp files
 .tanstack
+
+/public/playground-baseline.json
+/playwright-report/
+/test-results/

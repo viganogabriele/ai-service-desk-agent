@@ -130,3 +130,20 @@ rewards:
   the training data.
 - Good luck, and have fun digging through Rimes feed delays, NAV tolerance
   breaches, and mysteriously vague "problem fixed" comments!
+
+
+## Comparing OpenAI and Apertus in the playground
+
+The dashboard's `/playground` can evaluate both providers through this Core. Set `OPENAI_API_KEY`
+and `APERTUS_API_KEY` in the Core process environment before startup. The existing defaults use
+OpenAI's Responses endpoint and Swisscom's Swiss AI Weeks Apertus endpoint. Override
+`SWISSCOM_API_URL` with the full chat-completions URL if your Apertus account uses another host.
+Keep credentials on the server; do not use `VITE_` variables for them.
+
+Evaluation `versions.model` accepts `openai/gpt-6-luna`,
+`swisscom/swiss-ai/Apertus-v1.5-70B`, and `ollama/qwen2.5:7b`. A provider prefix selects the adapter
+for that run without changing the process-wide `LLM_PROVIDER`. Bare model names still use
+`LLM_PROVIDER`. The qualified ID is recorded in run versions. Missing cloud credentials are
+rejected before queueing. Shadow runs preserve live state and do not trigger Jira writebacks.
+
+See [playground setup and browser tests](../dashboard/README.md#model-playground-and-end-to-end-tests).

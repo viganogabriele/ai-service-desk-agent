@@ -572,6 +572,17 @@ class Core:
         if versions.get("prompt") and versions["prompt"] != self.engine.versions.prompt:
             raise StateError(422, "unknown_prompt_version", "only the deployed prompt version can be evaluated",
                              {"available": [self.engine.versions.prompt]})
+        if versions.get("model"):
+            from triage.llm import require_provider_key, resolve_model
+
+            try:
+                provider, _ = resolve_model(versions["model"])
+            except (ValueError, AttributeError) as exc:
+                raise StateError(422, "invalid_model", "Use a model name, optionally prefixed with openai/, swisscom/ or ollama/.") from exc
+            try:
+                require_provider_key(provider)
+            except ValueError as exc:
+                raise StateError(503, "provider_not_configured", str(exc)) from exc
         tickets = self._gold() if ticket_set == "gold" else self._recent(int(body.get("days") or 30))
         tickets = [t for t in tickets if self.db.latest_live_run(t) is not None]
         eid = self.db.add_evaluation(body, versions, tickets)

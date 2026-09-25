@@ -117,3 +117,30 @@ def test_emerging_issues_cluster_weak_matches(api):
     assert value["weak_tickets"] == 4
     [cluster] = value["clusters"]
     assert cluster["size"] == 3 and "vendor feed" in cluster["example"]
+
+
+def test_evaluation_requires_cloud_credentials_before_queueing(api, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("APERTUS_API_KEY", raising=False)
+    for model, variable in [("openai/gpt-6-luna", "OPENAI_API_KEY"),
+                            ("swisscom/swiss-ai/Apertus-v1.5-70B", "APERTUS_API_KEY")]:
+        response = api.post("/evaluations", json={"versions": {"model": model}})
+        assert response.status_code == 503
+        assert response.json()["error"] == "provider_not_configured"
+        assert variable in response.json()["message"]
+    assert "evaluation.completed" not in event_types(api)
+    assert api.post("/evaluations", json={"versions": {"model": "openai/"}}).status_code == 422
+
+
+def test_evaluations_keep_provider_identity_and_live_state(api, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-secret")
+    monkeypatch.setenv("APERTUS_API_KEY", "test-apertus-secret")
+    live = post(api)
+    api.post(f"/tickets/{live['ticket_id']}/accept", json={"run_id": live["run_id"], "actor": "reviewer"})
+    for model in ("openai/gpt-6-luna", "swisscom/swiss-ai/Apertus-v1.5-70B"):
+        queued = api.post("/evaluations", json={"versions": {"model": model}})
+        assert queued.status_code == 202
+        result = api.get(f"/evaluations/{queued.json()['evaluation_id']}").json()
+        assert result["results"]["versions"]["model"] == model
+        assert "secret" not in str(result)
+    assert api.get(f"/tickets/{live['ticket_id']}").json()["latest_run"]["run_id"] == live["run_id"]
