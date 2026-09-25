@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +11,7 @@ import {
 import { useDashboard } from "../state";
 import { LEVELS, STATUS_LABELS, priority, serviceInfo } from "../domain";
 import type { Level } from "../domain";
-import { Initials, PriorityBadge, StatusPill, levelOf, personName } from "./tickets";
+import { Initials, PriorityBadge, StatusPill, levelOf, opensOnClick, personName } from "./tickets";
 import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
 import { Menu } from "./ui";
@@ -206,6 +206,7 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
 
 function TicketCard({ item }: { item: Scored }) {
   const { assign } = useDashboard();
+  const navigate = useNavigate();
   const { row, note, age } = item;
   const { ticket, current, id, index } = row;
   const { triage } = current;
@@ -216,12 +217,17 @@ function TicketCard({ item }: { item: Scored }) {
   return (
     <article
       className={cn(
-        "group/card relative flex min-w-0 flex-none basis-strip-card snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
+        "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
         "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
         // The border picks up the priority badge colour, so a card reads at a glance like its badge.
         (level === "Highest" || level === "High") && "border-danger/28 hover:border-danger/50",
         level === "Medium" && "border-warning/28 hover:border-warning/50",
       )}
+      // The whole card opens the ticket, but its badges keep their tooltips and the text stays selectable.
+      onClick={(event) => {
+        if (opensOnClick(event))
+          void navigate({ to: "/tickets/$ticketId", params: { ticketId: id } });
+      }}
     >
       <div className="flex items-center justify-between gap-2.5">
         <PriorityBadge triage={triage} />
@@ -231,7 +237,7 @@ function TicketCard({ item }: { item: Scored }) {
         to="/tickets/$ticketId"
         params={{ ticketId: id }}
         data-card-title
-        className="line-clamp-2 font-display text-lg leading-snug font-medium text-pretty text-strong transition-colors duration-150 ease-soft group-hover/card:text-primary-text after:absolute after:inset-0 after:rounded-card focus-visible:outline-none"
+        className="line-clamp-2 font-display text-lg leading-snug font-medium text-pretty text-strong transition-colors duration-150 ease-soft group-hover/card:text-primary-text focus-visible:outline-none"
       >
         {ticket.Summary}
       </Link>
@@ -275,7 +281,7 @@ function TicketCard({ item }: { item: Scored }) {
           )}
         </div>
       )}
-      <div className="relative z-1 mt-auto flex items-center justify-between gap-2.5">
+      <div className="mt-auto flex items-center justify-between gap-2.5">
         <Link
           to="/tickets/$ticketId"
           params={{ ticketId: id }}

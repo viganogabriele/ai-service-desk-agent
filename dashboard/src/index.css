@@ -121,6 +121,9 @@
   --color-tooltip: #2a2a2a;
   --color-tooltip-foreground: var(--color-foreground);
   --color-tooltip-border: rgb(255 255 255 / 0.1);
+  /* Floating lists, pickers, menus and the toast: raised in the dark theme, paper in the light one,
+     unlike the tooltip bubble, which stays dark on both. */
+  --color-popover: var(--color-tooltip);
   --color-scrollbar: rgb(255 255 255 / 0.14);
   --color-scrollbar-hover: rgb(255 255 255 / 0.26);
   --color-selection: rgb(71 151 255 / 0.35);
@@ -351,6 +354,7 @@
   --color-tooltip: #1c2024;
   --color-tooltip-foreground: #f4f4f4;
   --color-tooltip-border: transparent;
+  --color-popover: #ffffff;
   --color-scrollbar: rgb(20 24 28 / 0.2);
   --color-scrollbar-hover: rgb(20 24 28 / 0.34);
   --color-chart-2: rgb(20 24 28 / 0.5);

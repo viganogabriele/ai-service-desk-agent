@@ -6,11 +6,13 @@ import type { Editable } from "../state";
 import { STATUSES, STATUS_DOTS, STATUS_HELP, STATUS_LABELS } from "../domain";
 import type { Status } from "../domain";
 import {
+  DEFAULT_FILTERS,
   FilterSelects,
   Initials,
   PriorityBadge,
   SearchField,
   StatusFilter,
+  isFiltered,
   isOpen,
   personName,
   useTicketFilters,
@@ -19,9 +21,10 @@ import {
 import type { TicketRow } from "../components/tickets";
 import { PriorityView } from "../components/priority";
 import { TicketTable } from "../components/table";
-import { CommentEditor, Dialog, Menu, OutcomePicker } from "../components/ui";
+import { CommentEditor, Dialog, Menu, OutcomePicker, SubmitHint } from "../components/ui";
 import { Dot } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Empty } from "../components/ui/card";
 import { SectionCount, SectionHead, SectionText, SectionTitle } from "../components/ui/section";
 import { cn } from "../lib/utils";
 
@@ -131,7 +134,15 @@ function TicketList() {
           </Button>
         </div>
       )}
-      {filters.view === "table" ? (
+      {visible.length === 0 && isFiltered(filters) ? (
+        <Empty className="grid justify-items-center gap-4">
+          No tickets match these filters.
+          <Button onClick={() => setFilters({ ...DEFAULT_FILTERS, view: filters.view })}>
+            <X size={16} strokeWidth={1.75} />
+            Clear filters
+          </Button>
+        </Empty>
+      ) : filters.view === "table" ? (
         <>
           <SectionHead>
             <SectionTitle>
@@ -338,6 +349,7 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
   const [outcome, setOutcome] = useState(row.current.outcome);
   const assignee = row.current.triage.assignee;
   const text = target === "resolved" ? reply : question;
+  const ready = Boolean(assignee) && text.trim().length > 0;
 
   const confirm = () => {
     const changes: Editable = target === "resolved" ? { reply, outcome } : { question };
@@ -366,7 +378,8 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={!assignee || !text.trim()} onClick={confirm}>
+          <SubmitHint />
+          <Button variant="primary" disabled={!ready} onClick={confirm}>
             {target === "resolved" ? "Resolve ticket" : "Send question"}
           </Button>
         </>
@@ -381,6 +394,7 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
             placeholder="What was done, and how the reporter can confirm it is fixed."
             value={reply}
             onChange={setReply}
+            onSubmit={ready ? confirm : undefined}
           />
         </>
       ) : (
@@ -391,6 +405,7 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
           rows={4}
           value={question}
           onChange={setQuestion}
+          onSubmit={ready ? confirm : undefined}
         />
       )}
     </Dialog>

@@ -40,7 +40,7 @@ function niceTicks(min: number, max: number, count: number) {
 function Tooltip({ x, y, children }: { x: number; y: number; children: ReactNode }) {
   return (
     <div
-      className="pointer-events-none absolute z-2 grid min-w-37.5 gap-0.5 rounded-control bg-tooltip px-2.5 py-2 text-sm text-secondary shadow-popover"
+      className="pointer-events-none absolute z-2 grid min-w-37.5 gap-0.5 rounded-control bg-popover px-2.5 py-2 text-sm text-secondary shadow-popover"
       style={{ left: x, top: y }}
       role="status"
     >

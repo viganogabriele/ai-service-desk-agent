@@ -21,7 +21,7 @@ export const optionSearchInputClass =
 
 export const optionEmptyClass = "px-2 py-2.5 text-muted";
 
-export const popoverClass = "rounded-tile bg-tooltip shadow-popover";
+export const popoverClass = "rounded-tile bg-popover shadow-popover";
 
 export interface SelectOption<T extends string> {
   value: T;
@@ -40,6 +40,8 @@ interface SelectProps<T extends string> {
   hideLabel?: boolean;
   searchable?: boolean;
   disabled?: boolean;
+  // Marks the trigger when the value narrows something, such as a filter that is not "all".
+  active?: boolean;
   className?: string;
 }
 
@@ -52,6 +54,7 @@ export function Select<T extends string>({
   hideLabel = false,
   searchable = options.length > 10,
   disabled = false,
+  active = false,
   className,
 }: SelectProps<T>) {
   const id = useId();
@@ -60,7 +63,7 @@ export function Select<T extends string>({
   const list = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
+  const [cursor, setCursor] = useState(0);
   const [upward, setUpward] = useState(false);
   const typed = useRef({ text: "", at: 0 });
   const needle = query.trim().toLowerCase();
@@ -94,13 +97,13 @@ export function Select<T extends string>({
 
   useEffect(() => {
     if (open)
-      list.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [active, open]);
+      list.current?.querySelector(`[data-index="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [cursor, open]);
 
   function show() {
     if (disabled) return;
     setQuery("");
-    setActive(
+    setCursor(
       Math.max(
         0,
         options.findIndex((option) => option.value === value),
@@ -128,16 +131,21 @@ export function Select<T extends string>({
 
     const last = shown.length - 1;
 
-    if (event.key === "ArrowDown") setActive((current) => Math.min(last, current + 1));
-    else if (event.key === "ArrowUp") setActive((current) => Math.max(0, current - 1));
-    else if (event.key === "Home") setActive(0);
-    else if (event.key === "End") setActive(last);
-    else if (event.key === "Enter" || (event.key === " " && !searchable)) choose(shown[active]);
+    if (event.key === "ArrowDown") setCursor((current) => Math.min(last, current + 1));
+    else if (event.key === "ArrowUp") setCursor((current) => Math.max(0, current - 1));
+    else if (event.key === "Home") setCursor(0);
+    else if (event.key === "End") setCursor(last);
+    else if (event.key === "Enter" || (event.key === " " && !searchable)) choose(shown[cursor]);
     else if (event.key === "Escape") {
       setOpen(false);
       trigger.current?.focus();
-    } else if (event.key === "Tab") setOpen(false);
-    else if (!searchable && event.key.length === 1) {
+    } else if (event.key === "Tab") {
+      // Hand focus back to the trigger so Tab moves on from there, instead of vanishing with the list.
+      setOpen(false);
+      trigger.current?.focus();
+
+      return;
+    } else if (!searchable && event.key.length === 1) {
       const now = Date.now();
       typed.current = {
         text: (now - typed.current.at < 600 ? typed.current.text : "") + event.key.toLowerCase(),
@@ -148,7 +156,7 @@ export function Select<T extends string>({
         option.label.toLowerCase().startsWith(typed.current.text),
       );
 
-      if (match >= 0) setActive(match);
+      if (match >= 0) setCursor(match);
 
       return;
     } else return;
@@ -172,13 +180,15 @@ export function Select<T extends string>({
         type="button"
         className={cn(
           "group/trigger flex h-10 w-full items-center justify-between gap-2 rounded-pill border bg-surface pr-3 pl-3.5 text-left text-base font-medium text-foreground transition duration-120 ease-out hover:border-border-hover disabled:cursor-not-allowed disabled:opacity-50 aria-expanded:border-ring aria-expanded:ring-3 aria-expanded:ring-primary-subtle pointer-coarse:h-10.5",
+          "data-active:border-primary/45 data-active:text-primary-text data-active:hover:border-primary/70 data-active:[&_svg]:text-primary-text",
           focusRing,
         )}
+        data-active={active ? "" : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-labelledby={`${id}-label ${id}-value`}
         aria-controls={open ? `${id}-list` : undefined}
-        aria-activedescendant={open && !searchable && shown[active] ? `${id}-${active}` : undefined}
+        aria-activedescendant={open && !searchable && shown[cursor] ? `${id}-${cursor}` : undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : show())}
         onKeyDown={onKeyDown}
@@ -214,10 +224,10 @@ export function Select<T extends string>({
                 value={query}
                 placeholder="Search…"
                 aria-controls={`${id}-list`}
-                aria-activedescendant={shown[active] ? `${id}-${active}` : undefined}
+                aria-activedescendant={shown[cursor] ? `${id}-${cursor}` : undefined}
                 onChange={(event) => {
                   setQuery(event.target.value);
-                  setActive(0);
+                  setCursor(0);
                 }}
                 onKeyDown={onKeyDown}
               />
@@ -241,8 +251,8 @@ export function Select<T extends string>({
                   data-index={index}
                   role="option"
                   aria-selected={option.value === value}
-                  className={cn(optionClass, index === active && "bg-active")}
-                  onPointerEnter={() => setActive(index)}
+                  className={cn(optionClass, index === cursor && "bg-active")}
+                  onPointerEnter={() => setCursor(index)}
                   onPointerDown={(event) => event.preventDefault()}
                   onClick={() => choose(option)}
                 >
