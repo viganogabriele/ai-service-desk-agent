@@ -19,11 +19,13 @@ class Engine:
         self._lock = threading.Lock()
         self.use_kb(kb_version or self.kb_store.live() or config.KB_VERSION)
 
-    def variant(self, kb_version: str | None = None, model: str | None = None) -> "Engine":
-        """A shadow engine: another KB version and/or model, same embedder (loaded once),
-        no evidence or comment calls (shadow runs only compare decisions)."""
-        return Engine(n_samples=self.n_samples, evidence=False, comment=False, kb_store=self.kb_store,
-                      model=model or self.model, kb_version=kb_version or self.kb_version,
+    def variant(self, kb_version: str | None = None, model: str | None = None, comment: bool = False,
+                n_samples: int | None = None) -> "Engine":
+        """A shadow engine: another KB version and/or model, same embedder (loaded once), no
+        evidence call. Shadow evaluations only compare decisions, so they skip the comment too;
+        a blind test needs it, since the resolution note is part of the output file."""
+        return Engine(n_samples=self.n_samples if n_samples is None else n_samples, evidence=False, comment=comment,
+                      kb_store=self.kb_store, model=model or self.model, kb_version=kb_version or self.kb_version,
                       embedder=self.retriever.embedder)
 
     def embed(self, texts: list[str]):

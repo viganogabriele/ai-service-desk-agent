@@ -13,6 +13,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   ChartColumn,
   Coins,
+  FileJson2,
   FlaskConical,
   Gem,
   LogOut,
@@ -58,8 +59,10 @@ const VIEWS: { view: TicketFilters["view"]; label: string; icon: LucideIcon }[] 
 
 function Root() {
   const activeRoute = useMatches({ select: (matches) => matches.at(-1)?.routeId });
+
   // These pages talk to the Core directly and do not wait for the tickets.
-  const standalone = activeRoute === "/playground" || activeRoute === "/usage";
+  const standalone =
+    activeRoute === "/playground" || activeRoute === "/usage" || activeRoute === "/blind-test";
 
   return (
     <TicketFiltersProvider>
@@ -179,6 +182,21 @@ function Shell({
         </Link>
         <ViewSwitch active={onTickets ? (search.view ?? filters.view) : null} />
         <div className="ml-auto flex items-center gap-2">
+          <Link
+            to="/blind-test"
+            className={cn(
+              buttonVariants(),
+              "h-11 gap-2 rounded-pill border-dashed border-border-hover bg-transparent px-4 font-display text-md font-semibold text-secondary hover:border-solid hover:border-primary/55 hover:bg-primary-subtle hover:text-primary-text",
+              "data-[status=active]:border-solid data-[status=active]:border-primary/55 data-[status=active]:bg-primary-subtle data-[status=active]:text-primary-text",
+              "max-md:size-10 max-md:px-0",
+            )}
+            aria-label="Blind test pipeline"
+            data-tip="Blind test pipeline"
+          >
+            <FileJson2 size={17} strokeWidth={1.75} />
+            <span className="max-md:hidden">Blind test</span>
+          </Link>
+          <span className="mx-1 h-6 w-px bg-border-hover max-sm:hidden" aria-hidden="true" />
           <Link
             to="/overview"
             onPointerEnter={prefetchTickets}

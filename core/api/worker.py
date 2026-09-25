@@ -16,6 +16,10 @@ class WorkerPool:
     def submit(self, kind: str, priority: int, **payload) -> None:
         if self.workers == 0:  # inline mode (tests, scripts): run now, deterministically
             self._handle(kind, payload)
+        elif kind == "blind_test":
+            # Minutes of cloud calls on a judge's file: its own thread, so live tickets keep their workers.
+            threading.Thread(target=self._handle, args=(kind, payload), daemon=True,
+                             name=f"blind-test-{payload['pipeline']}").start()
         else:
             self.q.put((priority, next(self._order), kind, payload))
 
@@ -28,6 +32,8 @@ class WorkerPool:
             self.core.process_kb_build(payload["actor"])
         elif kind == "evaluation":
             self.core.process_evaluation(payload["evaluation_id"])
+        elif kind == "blind_test":
+            self.core.process_blind_test(payload["blind_test_id"], payload["pipeline"])
 
     def _loop(self) -> None:
         while True:

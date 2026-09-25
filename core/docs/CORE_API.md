@@ -209,6 +209,11 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
   - `POST /policy/preview` estimates the auto-apply rate and error rate on recent gold-labelled tickets (step 3+).
 - **Kill switch:** `POST /policy/pause` and `POST /policy/resume`. While paused, triage still runs but nothing is auto-applied.
 
+### E. Blind tests
+- `POST /blind-tests` with `{input: <challenge-format object>, source?: <file name>}` returns `202 {blind_test_id, tickets, pipelines: [{key, model}], skipped: [{key, model, reason}]}`. The input must carry every field the output writes (`config.PREDICTED_FIELDS`) on each record, else `422 invalid_blind_test`; at most `BLIND_TEST_MAX_RECORDS` records. The `submission` pipeline uses `BLIND_TEST_MODEL` (its provider key is required, else `503 provider_not_configured`); the `reference` pipeline uses `BLIND_TEST_REFERENCE_MODEL` and is listed under `skipped` when its key is not set.
+- Each pipeline runs in its own thread (never a live worker), `BLIND_TEST_CONCURRENCY` tickets at a time for cloud providers, with the resolution note and without evidence quotes or self-consistency samples (`BLIND_TEST_SAMPLES`, default 0: they only feed confidence, never the file). No ticket, snapshot, run or event is created; the usage ledger records every call with purpose `blind_test`.
+- `GET /blind-tests/{id}` returns `status` (`running` | `completed` | `failed`), the stored `input`, and per pipeline: `status`, `seconds` (wall clock), `progress` (`total`, `queued`, `running`, `completed`, `failed`), `tickets[]` (`key`, `summary`, `status`, `seconds`, `latency_ms` = model time from the ledger, `error`), `usage` (cost, tokens, calls, cache hits, `latency_ms`, currency), `versions`, and `output`: the input with the predictions filled, exactly as `python run.py triage` writes it (`triage.output.build_output`); a failed ticket keeps its record unchanged. Pipelines still running when the Core restarts are marked failed.
+
 ## 7. Endpoints
 
 | Method | Path | Purpose | Step |
@@ -244,6 +249,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 | GET | `/audit` | Search decisions, overrides and KB/policy changes | 2 |
 | GET | `/usage?window=` | LLM tokens and estimated cost, see §9 | usage |
 | POST/GET | `/evaluations`, `/evaluations/{id}` | Shadow evaluation | 3 |
+| POST/GET | `/blind-tests`, `/blind-tests/{id}` | A judge's challenge-format file, triaged by the submission model (and a reference model) without touching live state; progress, timings, tokens, cost and the filled file | blind |
 | POST | `/demo/tickets` | Write a new challenge-style ticket for a demo; stores nothing | demo |
 | POST | `/policy/preview` | Estimated impact of a policy change | 3 |
 

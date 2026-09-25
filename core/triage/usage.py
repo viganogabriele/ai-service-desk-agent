@@ -143,6 +143,18 @@ def _rows(groups: dict[str, dict], total_cost: float, extra=None) -> list[dict]:
     return sorted(rows, key=lambda r: (-r["cost"], -r["tokens"], r["key"]))
 
 
+def totals(calls: list[dict]) -> dict:
+    """Cost, counts and tokens of a set of calls, plus the model time they took: the sum of
+    the latencies of the calls that reached a provider (a cache hit took no model time)."""
+    acc = _empty()
+    for c in calls:
+        _add(acc, c)
+    out = _finish(acc, 0.0)
+    out.pop("share")
+    out["latency_ms"] = sum(c["latency_ms"] or 0 for c in calls if c["outcome"] != "cache_hit")
+    return out
+
+
 def summarize(calls: list[dict], window: str, now: dt.datetime) -> dict:
     """Totals, a zero-filled series and breakdowns by model, provider, stage and purpose
     for the calls in the window (calls outside it are ignored)."""

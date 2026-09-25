@@ -53,7 +53,12 @@ CREATE TABLE IF NOT EXISTS llm_calls (
   input_tokens INTEGER NOT NULL, cached_input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL,
   reasoning_tokens INTEGER NOT NULL, latency_ms INTEGER, cost REAL NOT NULL, saved REAL NOT NULL,
   priced INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS blind_tests (
+  blind_test_id TEXT PRIMARY KEY, source TEXT, input TEXT NOT NULL, skipped TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS blind_test_pipelines (
+  blind_test_id TEXT NOT NULL, key TEXT NOT NULL, record TEXT NOT NULL, PRIMARY KEY (blind_test_id, key));
 CREATE INDEX IF NOT EXISTS llm_calls_time ON llm_calls (occurred_at);
+CREATE INDEX IF NOT EXISTS llm_calls_run ON llm_calls (run_id);
 CREATE INDEX IF NOT EXISTS runs_ticket_idx ON runs (ticket_id);
 CREATE INDEX IF NOT EXISTS overrides_ticket_idx ON overrides (ticket_id, seq);
 CREATE INDEX IF NOT EXISTS acceptances_ticket_idx ON acceptances (ticket_id);
@@ -455,6 +460,50 @@ class Database:
 
     def llm_calls_since(self, since: str) -> list[dict]:
         return [dict(r) for r in self._all("SELECT * FROM llm_calls WHERE occurred_at >= ? ORDER BY seq", (since,))]
+
+    def llm_calls_for_runs(self, run_ids: list[str]) -> list[dict]:
+        if not run_ids:
+            return []
+        return [dict(r) for r in self._all(
+            f"SELECT * FROM llm_calls WHERE run_id IN ({','.join('?' * len(run_ids))}) ORDER BY seq", tuple(run_ids))]
+
+    # -- blind tests (api/blind_tests.py) -----------------------------------------------
+    def add_blind_test(self, source: str | None, raw: dict, pipelines: list[dict], skipped: list[dict]) -> str:
+        bid = new_id("bt")
+        with self.lock, self.conn:
+            self.conn.execute("INSERT INTO blind_tests VALUES (?, ?, ?, ?, ?)",
+                              (bid, source, json.dumps(raw, ensure_ascii=False), json.dumps(skipped), utc_now()))
+            self.conn.executemany("INSERT INTO blind_test_pipelines VALUES (?, ?, ?)",
+                                  [(bid, p["key"], json.dumps(p, ensure_ascii=False)) for p in pipelines])
+        return bid
+
+    def blind_test(self, blind_test_id: str) -> dict | None:
+        row = self._one("SELECT * FROM blind_tests WHERE blind_test_id = ?", (blind_test_id,))
+        if not row:
+            return None
+        pipelines = [json.loads(r["record"]) for r in self._all(
+            "SELECT record FROM blind_test_pipelines WHERE blind_test_id = ? ORDER BY rowid", (blind_test_id,))]
+        return {**dict(row), "input": json.loads(row["input"]), "skipped": json.loads(row["skipped"]),
+                "pipelines": pipelines}
+
+    def blind_test_pipeline(self, blind_test_id: str, key: str) -> dict | None:
+        row = self._one("SELECT record FROM blind_test_pipelines WHERE blind_test_id = ? AND key = ?", (blind_test_id, key))
+        return json.loads(row[0]) if row else None
+
+    def save_blind_test_pipeline(self, blind_test_id: str, record: dict) -> None:
+        self._write("UPDATE blind_test_pipelines SET record = ? WHERE blind_test_id = ? AND key = ?",
+                    (json.dumps(record, ensure_ascii=False), blind_test_id, record["key"]))
+
+    def fail_unfinished_blind_tests(self, error: str) -> int:
+        """Pipelines still queued or running belong to a process that is gone (their threads
+        live in memory only): mark them failed so a client stops waiting."""
+        rows = self._all("SELECT blind_test_id, record FROM blind_test_pipelines "
+                         "WHERE json_extract(record, '$.status') IN ('queued', 'running')")
+        for r in rows:
+            record = json.loads(r["record"])
+            self.save_blind_test_pipeline(r["blind_test_id"], {**record, "status": "failed", "error": error,
+                                                                "completed_at": utc_now()})
+        return len(rows)
 
     # -- evaluations (shadow) ---------------------------------------------------------
     def add_evaluation(self, request: dict, versions: dict, ticket_ids: list[str]) -> str:

@@ -27,6 +27,7 @@ const merge = extendTailwindMerge({
         "strip-card",
         "upcoming-card",
         "textarea",
+        "code",
         "safe-l",
         "safe-r",
         "safe-b",
