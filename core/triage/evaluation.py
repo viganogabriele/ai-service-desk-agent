@@ -70,6 +70,8 @@ def score(runs, labelled) -> dict:
     for f in CORE_FIELDS + SEVERITY_FIELDS:
         scored = [r for r in ok if r["label"].get(f)]
         res["fields"][f] = (sum(r["pred"][f] == r["label"][f] for r in scored), len(scored))
+    res["severity"] = {f: ordinal_metrics([(r["label"][f], r["pred"][f]) for r in ok if r["label"].get(f)])
+                       for f in SEVERITY_FIELDS}
     for kind in sorted({r["kind"] for r in ok}):
         rs = [r for r in ok if r["kind"] == kind]
         res["by_kind"][kind] = (sum(r["pred"]["service"] == r["label"]["service"] for r in rs), len(rs))
@@ -97,6 +99,30 @@ def score(runs, labelled) -> dict:
     return res
 
 
+def ordinal_metrics(pairs: list[tuple[str, str]]) -> dict:
+    """Level distance between (label, prediction) pairs: exact share, share within one
+    level, mean absolute error, signed bias (> 0 = rated too high) and quadratic-weighted
+    kappa. Exact match alone hides that a one-level miss and a four-level miss differ."""
+    if not pairs:
+        return {}
+    k = len(config.LEVELS)
+    rank = {lvl: k - 1 - i for i, lvl in enumerate(config.LEVELS)}  # Highest = 4 ... Lowest = 0
+    diffs = [rank[p] - rank[t] for t, p in pairs]
+    n = len(pairs)
+    observed = sum(d * d for d in diffs)
+    t_counts = [sum(rank[t] == r for t, _ in pairs) for r in range(k)]
+    p_counts = [sum(rank[p] == r for _, p in pairs) for r in range(k)]
+    expected = sum(t_counts[a] * p_counts[b] * (a - b) ** 2 for a in range(k) for b in range(k)) / n
+    return {
+        "n": n,
+        "exact": sum(d == 0 for d in diffs) / n,
+        "within_one": sum(abs(d) <= 1 for d in diffs) / n,
+        "mae": sum(abs(d) for d in diffs) / n,
+        "bias": sum(diffs) / n,
+        "qwk": 1 - observed / expected if expected else 1.0,
+    }
+
+
 def _dist(xs: list[float]) -> str:
     if not xs:
         return "-"
@@ -109,6 +135,10 @@ def format_report(res: dict, elapsed: float) -> str:
     lines.append(f"Completed with optional-stage warnings: {res['completed_with_warnings']}")
     lines.append("Label match (core): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in CORE_FIELDS))
     lines.append("Label match (severity): " + "  ".join(f"{f} {_pct(*res['fields'][f])}" for f in SEVERITY_FIELDS))
+    for f, m in res["severity"].items():
+        if m:
+            lines.append(f"  {f}: within one level {m['within_one']:.0%}  mean abs error {m['mae']:.2f}  "
+                         f"bias {m['bias']:+.2f}  weighted kappa {m['qwk']:.2f}")
     lines.append(f"Service on tickets that never name it: {_pct(*res['service_unnamed'])}")
     lines.append(f"AI fields with >= 1 verified evidence span: {_pct(*res['evidence'])}")
     comments = res["comments"]

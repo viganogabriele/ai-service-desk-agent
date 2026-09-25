@@ -89,7 +89,8 @@ Read `README.md` before doing anything. It is the source of truth for the task, 
      - done = otherwise
 4. **Deterministic post-processing.**
    - Team = lookup(service).
-   - Priority = matrix(urgency, impact).
+   - Resolution caps (`RESOLUTION_SEVERITY_CAPS`): `cannot reproduce` → urgency and impact Lowest; `clarification` → urgency at most Medium, impact at most Low. The capped field keeps `source: ai_judgment`, takes the resolution's confidence, is flagged `capped_by_resolution`, and lists the LLM's rating as its first alternative. The caps are part of the prompt version.
+   - Priority = matrix(urgency, impact), after the caps.
    - Assignee follows the chosen service, not the top pattern: a service with one resolver gets that resolver (confidence = service confidence); Securities Settlement picks the resolver whose patterns there have the highest mean similarity (confidence from the margin between resolvers); a service without patterns gets the fallback. The old rule (top pattern in the same service and at or above `ASSIGNEE_SIM_THRESHOLD`) scored 30/60 on the dev set, against 38/60 for this rule (59/60 when the service is right). `ASSIGNEE_SIM_THRESHOLD` now only scales the similarity confidence signal.
    - Assignee `alternatives` come only from pattern resolvers (same service first, then same team); a service without patterns lists only its fallback. Other training assignees are random and are never offered.
    - Lanes (`triage/lanes.py`, thresholds and autonomy in `config.py` as policy `p1`): every `cancelled` ticket goes to `human_only` (the triage output does not separate nonsense from misrouted; cancelling is the riskiest status to automate).
@@ -205,6 +206,7 @@ docs/
   - Labels come from the source pattern.
   - Use it to tune the prompts. Report per-field accuracy; the assignee is reported split by whether the service was right, since it follows the service.
   - The numbers are optimistic, because the same model writes and solves these tickets.
+- **Urgency / impact labels are soft.** Near-duplicate tickets agree on impact only about 61% of the time (urgency 78%), so exact match tops out at roughly 75–80% on impact. Report the ordinal metrics as well (within one level, mean absolute error, bias, weighted kappa). `python eval/analyze_severity.py <results.json>` breaks the errors down without calling an LLM.
 - The 20 challenge tickets are a final run, not a tuning loop.
 
 ## Working conventions

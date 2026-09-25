@@ -91,6 +91,7 @@ Every predicted field in a run has this shape. The CLI writes the same records t
   - `weak_match`, `generic_bucket`, `fallback_assignee`
   - `downgrade_on_critical`, `service_changed`, `work_type_changed`
   - `stale_comment`, `forced_inconsistent`, `conflict_with_override`
+  - `capped_by_resolution`: urgency or impact was lowered to the ceiling its resolution status allows (`cannot reproduce` → Lowest; `clarification` → urgency Medium, impact Low). The LLM's rating is the first alternative.
 - **`pinned`** is true when a human override applies. `effective_value` then comes from that override.
 
 **Resolution comment record**

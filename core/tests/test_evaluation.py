@@ -3,7 +3,7 @@ import json
 import random
 
 from triage import config
-from triage.evaluation import load_labelled, score
+from triage.evaluation import load_labelled, ordinal_metrics, score
 from triage.schemas import DecisionRecord, Evidence, PatternEvidence, RunRecord
 
 spec = importlib.util.spec_from_file_location("make_devset", config.ROOT / "eval" / "make_devset.py")
@@ -63,3 +63,13 @@ def test_devset_service_name_check():
 def test_devset_adjacent_service_prefers_same_team():
     catalog = {"service_team": {"A": "T1", "B": "T1", "C": "T2"}}
     assert make_devset._adjacent(random.Random(0), "A", catalog) == "B"
+
+
+def test_ordinal_metrics():
+    perfect = ordinal_metrics([("High", "High"), ("Low", "Low"), ("Lowest", "Lowest")])
+    assert perfect["exact"] == perfect["within_one"] == perfect["qwk"] == 1.0 and perfect["mae"] == 0
+    m = ordinal_metrics([("Medium", "High"), ("Low", "High"), ("Lowest", "Lowest"), ("High", "High")])
+    assert m["exact"] == 0.5 and m["within_one"] == 0.75
+    assert m["mae"] == 0.75 and m["bias"] == 0.75  # +1, +2, 0, 0 levels
+    assert 0 < m["qwk"] < 1
+    assert ordinal_metrics([]) == {}

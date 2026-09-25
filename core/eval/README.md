@@ -27,3 +27,13 @@ LLM_PROVIDER=ollama TRIAGE_MODEL=qwen2.5:7b .venv/bin/python eval/evaluate.py \
   --file eval/handwritten.json --samples 3 --evidence --comment --concurrency 2 \
   --results-file eval/results/ollama-qwen2.5-7b-handwritten.json
 ```
+
+## Urgency and impact analysis
+
+```sh
+.venv/bin/python eval/analyze_severity.py eval/results/gpt-6-luna-medium-standard.json eval/results/ollama-qwen2.5-7b.json
+```
+
+The script reads the training file and stored results only; it makes no LLM calls. It checks the training Urgency/Impact/Priority against every other field (they carry no signal). It breaks down the evaluation errors by source, criticality and resolution. It compares label agreement between near-duplicate tickets with the model's own agreement on the same pairs, and it replays the stored predictions with and without `RESOLUTION_SEVERITY_CAPS`.
+
+The generated urgency and impact labels are noisy. Near-duplicate tickets share an impact label only about 61% of the time (urgency 78%). Exact match therefore tops out at roughly 75–80% on impact, which is why the report also shows the share within one level, mean absolute error, bias and weighted kappa.

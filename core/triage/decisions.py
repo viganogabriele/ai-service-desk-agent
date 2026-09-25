@@ -13,7 +13,7 @@ from triage.confidence import (
     vote_alternatives,
 )
 from triage.evidence import locate_quotes
-from triage.priority import compute_priority, normalize_level
+from triage.priority import compute_priority, normalize_level, severity_cap
 from triage.schemas import (
     Alternative,
     DecisionRecord,
@@ -165,6 +165,42 @@ def build_ai_decisions(record: dict, final: TriageOutput, samples: list[TriageSa
             alternatives=_alternatives(field, value, sampled, context),
             flags=_flags(field, value, original, final.service, context),
         )
+    return out
+
+
+_CAP_WHY = {
+    "cannot reproduce": "an alert that cleared by itself has no operational effect left",
+    "clarification": "the ticket cannot be acted on until the missing details arrive",
+}
+
+
+def cap_severity_decisions(decisions: dict[str, DecisionRecord], original: dict) -> dict[str, DecisionRecord]:
+    """Lower urgency / impact to the ceiling the resolution status allows. The capped value
+    is only as reliable as the resolution, so it takes the resolution's confidence; the
+    LLM's own rating stays first among the alternatives."""
+    resolution = decisions["resolution"]
+    service = decisions["service"].value
+    out = dict(decisions)
+    for field in ("urgency", "impact"):
+        d = decisions[field]
+        capped = severity_cap(field, d.value, resolution.value)
+        if capped == d.value:
+            continue
+        alternatives = [Alternative(value=d.value, score=d.confidence, source="ai_judgment")]
+        alternatives += [a for a in d.alternatives if a.value not in (d.value, capped)]
+        signals = {"resolution": resolution.confidence, "llm_rating": d.confidence}
+        if "raw_confidence" in resolution.confidence_signals:  # calibrated: keep the raw input for refits
+            signals["raw_confidence"] = resolution.confidence_signals["raw_confidence"]
+        out[field] = d.model_copy(update={
+            "value": capped,
+            "effective_value": capped,
+            "confidence": resolution.confidence,
+            "confidence_signals": signals,
+            "reason": (f"The LLM rated {field} {d.value}; capped at {capped} because the ticket closes as "
+                       f"'{resolution.value}' and {_CAP_WHY[resolution.value]}."),
+            "alternatives": alternatives,
+            "flags": _flags(field, capped, original, service, {}) + ["capped_by_resolution"],
+        })
     return out
 
 

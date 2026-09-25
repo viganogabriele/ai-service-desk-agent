@@ -17,7 +17,7 @@ Flag = Literal[
     "weak_match", "generic_bucket", "fallback_assignee",
     "downgrade_on_critical", "service_changed", "work_type_changed",
     "stale_comment", "forced_inconsistent", "conflict_with_override",
-    "assignee_needs_review",
+    "assignee_needs_review", "capped_by_resolution",
 ]
 Lane = Literal["auto_applied", "needs_review", "human_only"]
 

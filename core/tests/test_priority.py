@@ -3,7 +3,7 @@ import re
 import pytest
 
 from triage import config
-from triage.priority import compute_priority, normalize_level
+from triage.priority import compute_priority, normalize_level, severity_cap
 
 
 def _readme_matrix() -> dict[tuple[str, str], str]:
@@ -48,3 +48,17 @@ def test_criticality_matches_readme():
     text = (config.ROOT / "README.md").read_text(encoding="utf-8")
     rows = dict(re.findall(r"^\| ([^|*]+?) \| (Critical|Non-Critical) \|$", text, flags=re.M))
     assert rows == config.CRITICALITY
+
+
+@pytest.mark.parametrize("field, level, resolution, expected", [
+    ("urgency", "High", "cannot reproduce", "Lowest"),
+    ("impact", "Medium", "cannot reproduce", "Lowest"),
+    ("urgency", "Highest", "clarification", "Medium"),
+    ("urgency", "Low", "clarification", "Low"),        # already below the ceiling
+    ("impact", "High", "clarification", "Low"),
+    ("impact", "Lowest", "clarification", "Lowest"),
+    ("impact", "Highest", "done", "Highest"),          # no cap for actionable tickets
+    ("urgency", "high", "cancelled", "High"),
+])
+def test_severity_cap(field, level, resolution, expected):
+    assert severity_cap(field, level, resolution) == expected

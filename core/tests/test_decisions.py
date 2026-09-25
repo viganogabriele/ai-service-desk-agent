@@ -1,5 +1,12 @@
 from triage import config
-from triage.decisions import build_ai_decisions, original_values, priority_decision, snapshot_id, team_decision
+from triage.decisions import (
+    build_ai_decisions,
+    cap_severity_decisions,
+    original_values,
+    priority_decision,
+    snapshot_id,
+    team_decision,
+)
 from triage.schemas import TriageEvidence, TriageOutput, TriageSample
 
 RECORD = {
@@ -79,3 +86,36 @@ def test_snapshot_id_is_content_hash():
 def test_no_evidence_means_no_spans():
     d = build_ai_decisions(RECORD, FINAL, SAMPLES, RETRIEVED, None)
     assert all(not r.evidence.ticket_spans for r in d.values())
+
+
+def _build_with(**changes):
+    fields = {**FIELDS, **changes}
+    final = TriageOutput(reasoning="r", **fields)
+    return build_ai_decisions(RECORD, final, [TriageSample(**fields)] * 3, RETRIEVED, None)
+
+
+def test_clarification_caps_severity():
+    d = _build_with(resolution="clarification", urgency="Highest", impact="High")
+    capped = cap_severity_decisions(d, original_values(RECORD))
+    u, i = capped["urgency"], capped["impact"]
+    assert (u.value, u.effective_value, i.value) == ("Medium", "Medium", "Low")
+    assert u.source == "ai_judgment" and "capped_by_resolution" in u.flags
+    assert u.confidence == d["resolution"].confidence
+    assert u.alternatives[0].value == "Highest" and u.alternatives[0].score == d["urgency"].confidence
+    assert "capped at Medium" in u.reason and "'clarification'" in u.reason
+    pr = priority_decision(u, i, "Trade Matching", original_values(RECORD))
+    assert pr.value == "Low"  # matrix[Medium][Low]
+
+
+def test_cap_recomputes_downgrade_flag():
+    d = _build_with(resolution="cannot reproduce", urgency="High", impact="Medium")
+    capped = cap_severity_decisions(d, original_values(RECORD))
+    assert capped["urgency"].value == capped["impact"].value == "Lowest"
+    assert "downgrade_on_critical" in capped["urgency"].flags  # reported High on a critical service
+
+
+def test_no_cap_leaves_decisions_untouched():
+    d = _build_with(resolution="done", urgency="Highest", impact="Highest")
+    assert cap_severity_decisions(d, original_values(RECORD)) == d
+    d = _build_with(resolution="clarification", urgency="Low", impact="Lowest")
+    assert cap_severity_decisions(d, original_values(RECORD)) == d

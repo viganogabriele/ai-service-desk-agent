@@ -165,6 +165,15 @@ IMPACT_DEFINITIONS = {
     "Lowest": "No direct operational impact; informational/maintenance without service degradation",
 }
 
+# Highest urgency / impact a resolution status allows (README definitions): an alert that
+# cleared by itself has no operational effect left, and a clarification ticket cannot be
+# acted on until the missing details arrive. The LLM tends to rate the business context
+# these tickets describe instead (300-ticket set, Luna: priority 73% -> 79%).
+RESOLUTION_SEVERITY_CAPS = {
+    "cannot reproduce": {"urgency": "Lowest", "impact": "Lowest"},
+    "clarification": {"urgency": "Medium", "impact": "Low"},
+}
+
 # Show the ticket's reported (often wrong) values to the LLM. Off: qwen2.5:7b anchored
 # on them and kept the wrong service even when retrieval pointed elsewhere.
 SHOW_REPORTED_SERVICE = False

@@ -1,5 +1,7 @@
 """Per-ticket triage: retrieval (step 2) and the structured triage LLM call (step 3),
 plus self-consistency samples for confidence. Post-processing (step 4) is milestone 3."""
+import json
+
 from triage import config
 from triage.catalog import split_comment
 from triage.llm import chat_structured
@@ -127,8 +129,10 @@ def triage_versions(kb_dir=None, kb_version: str | None = None):
     from triage.decisions import run_versions
     from triage.resolution import SYSTEM_PROMPT as COMMENT_PROMPT
 
-    return run_versions(TRIAGE_SYSTEM_PROMPT + EVIDENCE_SYSTEM_PROMPT + COMMENT_PROMPT, TriageOutput.model_json_schema(),
-                        kb_dir, kb_version)
+    # The severity caps change triage output like a prompt edit does, so they version with it.
+    caps = json.dumps(config.RESOLUTION_SEVERITY_CAPS, sort_keys=True)
+    return run_versions(TRIAGE_SYSTEM_PROMPT + EVIDENCE_SYSTEM_PROMPT + COMMENT_PROMPT + caps,
+                        TriageOutput.model_json_schema(), kb_dir, kb_version)
 
 
 def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict, catalog: dict,
@@ -140,6 +144,7 @@ def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict
     from triage.decisions import (
         assignee_decision,
         build_ai_decisions,
+        cap_severity_decisions,
         original_values,
         priority_decision,
         snapshot_id,
@@ -158,6 +163,7 @@ def run_ticket(record: dict, ticket_id: str, run_id: str, retriever, cards: dict
         decisions = build_ai_decisions(record, out["triage"], out["samples"], out["retrieved"], out["evidence"])
         decisions = calibrate(decisions, calibration, config.AI_FIELDS)  # rule fields then inherit calibrated inputs
         original = original_values(record)
+        decisions = cap_severity_decisions(decisions, original)
         decisions["team"] = team_decision(decisions["service"], catalog["service_team"], original)
         decisions["priority"] = priority_decision(decisions["urgency"], decisions["impact"], decisions["service"].value, original)
         decisions["assignee"] = assignee_decision(decisions["service"], out["retrieved"], catalog, original)
