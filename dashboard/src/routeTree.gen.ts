@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BlindTestRouteImport } from './routes/blind-test'
 import { Route as OverviewRouteImport } from './routes/overview'
 import { Route as PlaygroundRouteImport } from './routes/playground'
 import { Route as UsageRouteImport } from './routes/usage'
@@ -19,6 +20,11 @@ import { Route as TicketsTicketIdRouteImport } from './routes/tickets.$ticketId'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlindTestRoute = BlindTestRouteImport.update({
+  id: '/blind-test',
+  path: '/blind-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OverviewRoute = OverviewRouteImport.update({
@@ -49,6 +55,7 @@ const TicketsTicketIdRoute = TicketsTicketIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/blind-test': typeof BlindTestRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
   '/usage': typeof UsageRoute
@@ -57,6 +64,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/blind-test': typeof BlindTestRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
   '/usage': typeof UsageRoute
@@ -66,6 +74,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/blind-test': typeof BlindTestRoute
   '/overview': typeof OverviewRoute
   '/playground': typeof PlaygroundRoute
   '/usage': typeof UsageRoute
@@ -76,6 +85,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/blind-test'
     | '/overview'
     | '/playground'
     | '/usage'
@@ -84,6 +94,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/blind-test'
     | '/overview'
     | '/playground'
     | '/usage'
@@ -92,6 +103,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/blind-test'
     | '/overview'
     | '/playground'
     | '/usage'
@@ -101,6 +113,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BlindTestRoute: typeof BlindTestRoute
   OverviewRoute: typeof OverviewRoute
   PlaygroundRoute: typeof PlaygroundRoute
   UsageRoute: typeof UsageRoute
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/blind-test': {
+      id: '/blind-test'
+      path: '/blind-test'
+      fullPath: '/blind-test'
+      preLoaderRoute: typeof BlindTestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/overview': {
@@ -157,6 +177,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BlindTestRoute: BlindTestRoute,
   OverviewRoute: OverviewRoute,
   PlaygroundRoute: PlaygroundRoute,
   UsageRoute: UsageRoute,

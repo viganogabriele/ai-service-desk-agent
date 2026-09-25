@@ -167,6 +167,8 @@
   --spacing-pop: calc(100vw - 24px);
   /* Three lines of text plus the textarea's vertical padding. */
   --spacing-textarea: calc(3lh + 24px);
+  /* The input and output blocks of the blind test page: one fixed height, scrolled inside. */
+  --spacing-code: clamp(360px, calc(100dvh - 400px), 640px);
   /* A priority card in the sideways strip: the Figma width, narrower on a phone. */
   --spacing-strip-card: min(377px, 88vw);
   /* A ticket the AI is still classifying: a thin card, narrower than the ones you act on. */

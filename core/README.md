@@ -132,6 +132,16 @@ rewards:
   breaches, and mysteriously vague "problem fixed" comments!
 
 
+## Blind tests from the dashboard
+
+The dashboard's `/blind-test` page sends a challenge-format file to `POST /blind-tests` and polls
+`GET /blind-tests/{id}` (CORE_API §6E). The submission pipeline is `BLIND_TEST_MODEL` (default
+`openai/gpt-6-luna`, needs `OPENAI_API_KEY`); when `APERTUS_API_KEY` is set, `BLIND_TEST_REFERENCE_MODEL`
+(default `swisscom/swiss-ai/Apertus-v1.5-70B`) runs alongside for reference. `BLIND_TEST_CONCURRENCY`
+(default 4) tickets run at a time. The output is the input file with the predictions filled in, the
+same structure `python run.py triage` writes. Live tickets are never touched; the calls show on the
+Usage page under the `blind_test` purpose.
+
 ## Comparing OpenAI and Apertus in the playground
 
 The dashboard's `/playground` can evaluate both providers through this Core. Set `OPENAI_API_KEY`

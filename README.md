@@ -23,6 +23,7 @@ It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The 
 
 > [!IMPORTANT]
 > Results for the blind eval tickets are in [jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json](jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json).
+> To run the pipeline on a new blind file, open **Blind test** in the dashboard's top bar (`/blind-test`): drop the JSON, press Run, download the filled file. The *Submission* output is the one to judge; the *Reference* output (Apertus) is shown for comparison only.
 
 ## How a ticket is classified
 
@@ -66,7 +67,7 @@ Jira Cloud  <-->  backend (sync + gateway)  <-->  Core (triage engine + API)
 | --- | --- | --- |
 | [`core/`](core/) | The triage pipeline shown above, exposed as a REST API with an event stream. It decides and remembers (runs, decisions, overrides, knowledge-base versions, policy) but never calls Jira. | Python, FastAPI, SQLite, sentence-transformers; LLM through Ollama, Swisscom Apertus or OpenAI |
 | [`backend/`](backend/) | The only component that talks to Jira. It copies tickets into Postgres, sends open tickets to the Core, writes approved results back to Jira and proxies the Core API for the UI. It also handles optional Atlassian sign-in. | Bun, Hono, Postgres, Zod |
-| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts, a model playground and a usage page with the tokens and estimated cost of every LLM call. A "Simulate incoming ticket" button files a demo ticket, written by the Core from a knowledge-base scenario, and shows it arriving and being classified live. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
+| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts, a model playground, a usage page with the tokens and estimated cost of every LLM call, and a blind test page where a judge drops a new challenge file and downloads the filled one. A "Simulate incoming ticket" button files a demo ticket, written by the Core from a knowledge-base scenario, and shows it arriving and being classified live. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
 | [`jira/`](jira/) | Scripts that upload the challenge tickets to a Jira site and export results in the challenge format. | Python |
 
 The Core's integration contract is [core/docs/CORE_API.md](core/docs/CORE_API.md), and its product concept is [core/docs/UI_CONCEPT.md](core/docs/UI_CONCEPT.md).

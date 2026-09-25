@@ -786,6 +786,22 @@ class Core:
             raise _not_found("evaluation", evaluation_id)
         return ev
 
+    # -- blind tests (api/blind_tests.py) -------------------------------------------------
+    def create_blind_test(self, body: dict) -> dict:
+        from api import blind_tests
+
+        return blind_tests.create(self, body)
+
+    def process_blind_test(self, blind_test_id: str, pipeline: str) -> dict:
+        from api import blind_tests
+
+        return blind_tests.process(self, blind_test_id, pipeline)
+
+    def blind_test(self, blind_test_id: str) -> dict:
+        from api import blind_tests
+
+        return blind_tests.view(self, blind_test_id)
+
     def policy_preview(self, content: dict, days: int = 30) -> dict:
         """Estimated auto-apply rate (recent tickets) and error rate (auto-applied gold
         tickets whose decisions disagree with human labels) for the current and a proposed

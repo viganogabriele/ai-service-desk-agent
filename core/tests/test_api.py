@@ -42,7 +42,7 @@ class FakeEngine:
         self.catalog, self.cards = self.kb_store.load(version)
         self.kb_version, self.versions = version, VERSIONS.model_copy(update={"kb": version, "model": self.model})
 
-    def variant(self, kb_version=None, model=None):
+    def variant(self, kb_version=None, model=None, comment=False, n_samples=None):
         v = FakeEngine.__new__(FakeEngine)
         v.plan, v.model_plans, v.calls, v.model = self.plan, self.model_plans, 0, model or self.model
         v.kb_store = self.kb_store

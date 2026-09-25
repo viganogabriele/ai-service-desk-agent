@@ -65,6 +65,15 @@ LLM_PRICES: dict[str, dict[str, float]] = {
 # The Mac mini's Ollama serves one request at a time (measured); 2 client threads
 # overlap client-side work and keep the server busy. Raise with OLLAMA_NUM_PARALLEL.
 LLM_CONCURRENCY = int(os.getenv("LLM_CONCURRENCY", "2"))
+# Blind tests (api/blind_tests.py): a judge's challenge-format file, triaged by the submission
+# model and, when its key is set, a reference model. Provider-qualified names, as in evaluations.
+BLIND_TEST_MODEL = os.getenv("BLIND_TEST_MODEL", "openai/gpt-6-luna")
+BLIND_TEST_REFERENCE_MODEL = os.getenv("BLIND_TEST_REFERENCE_MODEL", "swisscom/swiss-ai/Apertus-v1.5-70B")
+# Tickets in flight per cloud pipeline (Ollama keeps LLM_CONCURRENCY). Self-consistency samples
+# only feed the confidence signal, never the output file, so blind tests skip them by default.
+BLIND_TEST_CONCURRENCY = int(os.getenv("BLIND_TEST_CONCURRENCY", "4"))
+BLIND_TEST_SAMPLES = int(os.getenv("BLIND_TEST_SAMPLES", "0"))
+BLIND_TEST_MAX_RECORDS = 200
 # Separate evidence-quote call (~5 s/ticket). Off for evaluation runs.
 EVIDENCE_ENABLED = True
 # Resolution-comment call (~4 s/ticket). Off for evaluation runs.

@@ -12,7 +12,7 @@ from triage.state import StateError
 from api import events
 from api.core import Core
 from api.db import Database
-from api.routers import demo, evaluations, kb, metrics, policy, review, tickets
+from api.routers import blind_tests, demo, evaluations, kb, metrics, policy, review, tickets
 from api.worker import WorkerPool
 
 
@@ -27,6 +27,7 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
         pool.start()
         for run_id in core.db.pending_live_run_ids():  # queued or interrupted before a restart
             pool.submit("run", 1, run_id=run_id)
+        core.db.fail_unfinished_blind_tests("the Core restarted before this pipeline finished")
         app.state.core, app.state.pool = core, pool
         yield
         pool.stop()
@@ -63,6 +64,7 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
     app.include_router(metrics.router)
     app.include_router(evaluations.router)
     app.include_router(demo.router)
+    app.include_router(blind_tests.router)
     return app
 
 
