@@ -122,3 +122,25 @@ def test_swisscom_unwraps_schema_named_object(tmp_path, monkeypatch):
     monkeypatch.setenv("APERTUS_API_KEY", "test-key")
     monkeypatch.setattr("triage.llm.httpx.post", post)
     assert chat_structured(MSG, Out, model="m", cache_dir=tmp_path) == Out(level="Low", n=2)
+
+
+def test_openai_uses_high_standard_responses_and_validates(tmp_path, monkeypatch):
+    from triage import config
+
+    sent = []
+
+    def post(url, **kwargs):
+        sent.append(kwargs["json"])
+        return httpx.Response(
+            200, json={"status": "completed", "output": [{"type": "message", "content": [
+                {"type": "output_text", "text": '{"level":"Low","n":2}'}]}], "usage": {}},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(config, "LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setattr("triage.llm.httpx.post", post)
+    assert chat_structured(MSG, Out, model="gpt-6-luna", cache_dir=tmp_path) == Out(level="Low", n=2)
+    assert sent[0]["reasoning"] == {"effort": "high", "mode": "standard"}
+    assert sent[0]["text"] == {"format": {"type": "json_object"}}
+    assert sent[0]["store"] is False

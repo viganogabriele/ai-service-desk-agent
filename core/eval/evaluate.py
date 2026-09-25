@@ -30,10 +30,14 @@ def main() -> None:
     out = config.OUTPUTS_DIR / f"decisions_{decisions.run_id}.json"
     out.write_text(decisions.model_dump_json(indent=1), encoding="utf-8")
     report_path = config.OUTPUTS_DIR / f"evaluation_{decisions.run_id}.json"
+    settings = {"samples": args.samples, "evidence": args.evidence, "comment": args.comment,
+                "concurrency": args.concurrency, "limit": args.limit}
+    if config.LLM_PROVIDER == "openai":
+        settings.update(reasoning_effort=config.OPENAI_REASONING_EFFORT,
+                        reasoning_mode=config.OPENAI_REASONING_MODE)
     report_path.write_text(json.dumps({
         "file": args.file, "provider": config.LLM_PROVIDER, "versions": decisions.versions.model_dump(),
-        "settings": {"samples": args.samples, "evidence": args.evidence, "comment": args.comment,
-                     "concurrency": args.concurrency, "limit": args.limit},
+        "settings": settings,
         "report": report, "metrics": metrics,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"Versions: {decisions.versions.model_dump()}\nSaved {out.relative_to(config.ROOT)} and "

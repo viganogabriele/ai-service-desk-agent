@@ -27,6 +27,10 @@ SWISSCOM_API_URL = os.getenv(
     "SWISSCOM_API_URL",
     "https://api.swisscom.com/products/swiss-ai-weeks/apertus-1.5-70b/v1/chat/completions",
 )
+OPENAI_API_URL = os.getenv("OPENAI_API_URL", "https://api.openai.com/v1/responses")
+OPENAI_REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "high")
+OPENAI_REASONING_MODE = os.getenv("OPENAI_REASONING_MODE", "standard")
+OPENAI_TIMEOUT_S = 180
 # AGENTS.md default is qwen2.5:14b; the Mac mini currently runs the 7b variant.
 TRIAGE_MODEL = os.getenv("TRIAGE_MODEL", "qwen2.5:7b")
 EMBED_MODEL = "BAAI/bge-small-en-v1.5"

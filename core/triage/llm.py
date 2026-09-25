@@ -1,4 +1,4 @@
-"""Structured calls through Ollama or Swisscom, with validation retries and disk cache."""
+"""Structured calls through Ollama, Swisscom, or OpenAI, with retries and disk cache."""
 import hashlib
 import json
 import os
@@ -75,6 +75,40 @@ def _swisscom_chat(model: str, messages: list[dict], schema: dict, options: dict
             "usage": payload.get("usage"), "elapsed_s": round(time.monotonic() - started, 3)}
 
 
+def _openai_chat(model: str, messages: list[dict], schema: dict, options: dict) -> dict:
+    key = os.getenv("OPENAI_API_KEY")
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY is required for the OpenAI provider")
+    prompt = [dict(message) for message in messages]
+    instruction = "Return one JSON object matching this schema exactly:\n" + json.dumps(schema, ensure_ascii=False)
+    if prompt and prompt[0]["role"] == "system":
+        prompt[0]["content"] += "\n\n" + instruction
+    else:
+        prompt.insert(0, {"role": "system", "content": instruction})
+    started = time.monotonic()
+    response = httpx.post(
+        config.OPENAI_API_URL,
+        headers={"Authorization": f"Bearer {key}"},
+        json={
+            "model": model,
+            "input": prompt,
+            "text": {"format": {"type": "json_object"}},
+            "reasoning": {"effort": config.OPENAI_REASONING_EFFORT, "mode": config.OPENAI_REASONING_MODE},
+            "max_output_tokens": options["num_predict"],
+            "store": False,
+        },
+        timeout=config.OPENAI_TIMEOUT_S,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    content = "".join(
+        item.get("text", "") for output in payload.get("output", []) if output.get("type") == "message"
+        for item in output.get("content", []) if item.get("type") == "output_text"
+    )
+    return {"message": {"content": content}, "done_reason": "length" if payload.get("status") == "incomplete" else payload.get("status"),
+            "usage": payload.get("usage"), "elapsed_s": round(time.monotonic() - started, 3)}
+
+
 def chat_structured(
     messages: list[dict],
     output_model: type[M],
@@ -87,20 +121,24 @@ def chat_structured(
     client=None,
 ) -> M:
     """One structured call. On a validation failure, truncation or timeout, retry up to
-    LLM_MAX_RETRIES times (validation errors are fed back; retries use a shifted seed so
-    they are deterministic but not identical). Only validated results are cached, under
+    LLM_MAX_RETRIES times (validation errors are fed back; retries use a shifted seed
+    where the provider supports it). Only validated results are cached, under
     the key of the original request, so reruns are instant and identical."""
     model = model or config.TRIAGE_MODEL
     schema = output_model.model_json_schema()
     options = _options(temperature, seed)
     provider = config.LLM_PROVIDER
-    if provider not in ("ollama", "swisscom"):
+    if provider not in ("ollama", "swisscom", "openai"):
         raise ValueError(f"Unknown LLM provider: {provider}")
     key_model = model if provider == "ollama" else f"{provider}:{model}"
+    if provider == "openai":
+        key_model += f":{config.OPENAI_REASONING_EFFORT}:{config.OPENAI_REASONING_MODE}"
     key = cache_key(key_model, messages, schema, options)  # the output cap is not part of the key
     max_tokens = config.MAX_TOKENS.get(output_model.__name__, config.MAX_TOKENS_DEFAULT)
     if provider == "swisscom" and output_model.__name__ == "TriageSample":
         max_tokens = max(max_tokens, 200)
+    if provider == "openai":
+        max_tokens = max(2048, max_tokens * 6)
     path = _cache_path(key, cache_dir)
 
     if use_cache and path.exists():
@@ -117,8 +155,10 @@ def chat_structured(
             if provider == "ollama":
                 response = client.chat(model=model, messages=convo, format=schema, options=call_options,
                                        keep_alive=config.KEEP_ALIVE)
-            else:
+            elif provider == "swisscom":
                 response = _swisscom_chat(model, convo, schema, call_options)
+            else:
+                response = _openai_chat(model, convo, schema, call_options)
         except Exception as e:  # noqa: BLE001 - timeouts / transient backend errors are retried
             if not _is_transient(e):
                 raise
@@ -130,7 +170,7 @@ def chat_structured(
         if _field(response, "done_reason") == "length":
             last_error = RuntimeError(f"output hit the {max_tokens}-token cap")
             continue  # truncated JSON: retry with the shifted seed, do not feed the garbage back
-        if provider == "swisscom":
+        if provider in ("swisscom", "openai"):
             try:
                 parsed = json.loads(content)
             except json.JSONDecodeError:
