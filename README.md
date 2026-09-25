@@ -4,6 +4,9 @@ TicketBuddy reads incoming Jira service-desk tickets and proposes how an experie
 
 It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The challenge is sponsored by [SwissLife](https://github.com/Swiss-ai-Weeks/SwissLife-2026), pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
 
+> [!IMPORTANT]
+> Results for the blind eval tickets are in [jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json](jira_hackathon_blind_eval_challenge_20260923083915-1141_solution.json).
+
 ## How a ticket is classified
 
 ![Classification pipeline: an algorithm finds similar past cases, the LLM decides five fields, fixed rules derive team, priority and assignee, an algorithm scores confidence and picks a lane, the LLM drafts the resolution note, and a human reviews it before Jira is updated](classification-pipeline.svg)
