@@ -19,6 +19,7 @@ import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
 import { LoadError } from "../components/load-error";
 import { PageSkeleton } from "../components/skeleton";
+import { Notifications } from "../components/notifications";
 import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import { Button, buttonVariants } from "../components/ui/button";
@@ -68,7 +69,10 @@ function Root() {
               </Shell>
             )}
           >
-            <Shell operator={<Operator />}>
+            <Shell
+              notifications={<Notifications className={TOPBAR_ICON} />}
+              operator={<Operator />}
+            >
               <Outlet />
             </Shell>
             <Toast />
@@ -118,8 +122,19 @@ function Operator() {
   );
 }
 
-/** The top bar and the page. `operator` needs the tickets, so it is left out until they load. */
-function Shell({ operator, children }: { operator?: ReactNode; children: ReactNode }) {
+/**
+ * The top bar and the page. `notifications` and `operator` need the tickets, so they are left out
+ * until they load.
+ */
+function Shell({
+  notifications,
+  operator,
+  children,
+}: {
+  notifications?: ReactNode;
+  operator?: ReactNode;
+  children: ReactNode;
+}) {
   const { filters } = useTicketFilters();
   // Read from the URL as well: the filters only pick up `?view=` once the ticket page mounts.
   const search: { view?: TicketFilters["view"] } = useSearch({ strict: false });
@@ -170,6 +185,7 @@ function Shell({ operator, children }: { operator?: ReactNode; children: ReactNo
           >
             <FlaskConical size={18} strokeWidth={1.75} />
           </Link>
+          {notifications}
           <ThemeToggle className={TOPBAR_ICON} />
           {operator}
         </div>

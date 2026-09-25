@@ -12,7 +12,7 @@ test("ticket queue fits the viewport and classification can be approved inline",
   );
 
   await page.goto("/tickets");
-  await expect(page.getByRole("heading", { name: /Action Required/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Attention needed/i })).toBeVisible();
 
   const viewportWidth = await page.evaluate(() => window.innerWidth);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -180,5 +180,5 @@ test("an unreachable backend explains the failure and recovers on retry", async 
 
   await page.unroute("**/dashboard-data.json");
   await page.getByRole("button", { name: "Retry now" }).click();
-  await expect(page.getByRole("heading", { name: /Action Required/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Attention needed/i })).toBeVisible();
 });

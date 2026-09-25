@@ -1,14 +1,7 @@
-import importlib.util
 import json
-import random
 
-from triage import config
 from triage.evaluation import load_labelled, score
 from triage.schemas import DecisionRecord, Evidence, PatternEvidence, RunRecord
-
-spec = importlib.util.spec_from_file_location("make_devset", config.ROOT / "eval" / "make_devset.py")
-make_devset = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(make_devset)
 
 V = {"model": "m", "prompt": "p", "kb": "k", "policy": "po"}
 
@@ -51,15 +44,3 @@ def test_load_labelled_strips_labels_and_adds_priority(tmp_path):
     p.write_text(json.dumps({"records": [{"id": "H1", "Summary": "s", "_label": {"urgency": "High", "impact": "Low"}}]}))
     [(tid, ticket, label)] = load_labelled(p)
     assert tid == "H1" and ticket == {"Summary": "s"} and label["priority"] == "Medium"
-
-
-def test_devset_service_name_check():
-    t = make_devset.DevTicket(request_type="Human Created Incident", summary="SimCorp job failed",
-                              description="x" * 50, work_type="Incident", urgency="High", impact="High")
-    assert make_devset._names_service(t, "SimCorp Dimension")
-    assert not make_devset._names_service(t, "Trade Matching")
-
-
-def test_devset_adjacent_service_prefers_same_team():
-    catalog = {"service_team": {"A": "T1", "B": "T1", "C": "T2"}}
-    assert make_devset._adjacent(random.Random(0), "A", catalog) == "B"

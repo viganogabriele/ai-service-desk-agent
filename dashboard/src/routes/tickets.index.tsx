@@ -1,14 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { UserPlus, X } from "lucide-react";
+import { LoaderCircle, Plus, UserPlus, X } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Editable } from "../state";
 import { STATUSES, STATUS_DOTS, STATUS_HELP, STATUS_LABELS } from "../domain";
 import type { Status } from "../domain";
 import {
   DEFAULT_FILTERS,
+  ClassifyingPill,
   FilterSelects,
   Initials,
+  Pending,
   PriorityBadge,
   SearchField,
   StatusFilter,
@@ -46,7 +48,7 @@ interface PendingMove {
 }
 
 function TicketList() {
-  const { assign, move, exportData, reset } = useDashboard();
+  const { assign, move, exportData, reset, demo } = useDashboard();
   const { filters, setFilters } = useTicketFilters();
   const { view } = Route.useSearch();
   const { rows, visible } = useTicketRows();
@@ -91,6 +93,22 @@ function TicketList() {
           <FilterSelects />
         </div>
         <span className="ml-auto" />
+        {demo.available && (
+          <Button
+            className="h-10 bg-surface"
+            disabled={demo.generating}
+            aria-busy={demo.generating || undefined}
+            data-tip="The AI writes a ticket like the challenge ones, then classifies it"
+            onClick={demo.simulate}
+          >
+            {demo.generating ? (
+              <LoaderCircle size={16} strokeWidth={1.75} className="animate-spin" />
+            ) : (
+              <Plus size={16} strokeWidth={1.75} />
+            )}
+            {demo.generating ? "Writing ticket…" : "Simulate incoming ticket"}
+          </Button>
+        )}
         <Menu
           // Matches the search field and filters beside it.
           className="size-10 bg-surface"
@@ -304,8 +322,32 @@ function BoardCard({
   onDragStart: () => void;
   onDragEnd: () => void;
 }) {
-  const { ticket, current, id } = row;
+  const { ticket, current, id, arrival } = row;
   const closed = current.status === "waiting" || current.status === "resolved";
+
+  // Not draggable or openable until the AI has classified it.
+  if (arrival === "classifying")
+    return (
+      <div
+        className="grid animate-arrive cursor-progress gap-2.5 rounded-tile border bg-surface p-3.5"
+        aria-disabled="true"
+        aria-busy="true"
+      >
+        <span className="flex items-center justify-between gap-2 text-sm">
+          <Pending className="h-5.5 w-20" />
+          <span className="text-sm font-medium whitespace-nowrap text-muted tabular-nums">
+            {id}
+          </span>
+        </span>
+        <b className="line-clamp-2 font-display text-base leading-snug font-medium text-secondary">
+          {ticket.Summary}
+        </b>
+        <Pending className="w-32" />
+        <span className="flex items-center border-t border-divider pt-2.5">
+          <ClassifyingPill />
+        </span>
+      </div>
+    );
 
   return (
     <Link
@@ -314,6 +356,7 @@ function BoardCard({
       className={cn(
         "group/card grid gap-2.5 rounded-tile border bg-surface p-3.5 transition duration-200 ease-soft hover:-translate-y-px hover:border-border-hover hover:shadow-float",
         closed ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
+        arrival === "classified" && "animate-settle",
         dragging &&
           "scale-98 border-dashed opacity-45 shadow-none hover:translate-y-0 hover:shadow-none",
       )}

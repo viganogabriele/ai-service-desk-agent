@@ -6,6 +6,7 @@ import {
   HttpError,
   REASON_CODES,
   UNREACHABLE,
+  classificationOf,
   coreActor,
   createBackendClient,
   levelOf,
@@ -15,7 +16,13 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type { CoreChange, SignedInUser, TicketPatch } from "./lib/backend";
+import type {
+  Classification,
+  CoreChange,
+  CoreState,
+  SignedInUser,
+  TicketPatch,
+} from "./lib/backend";
 import type { LoadFailure } from "./components/load-error";
 import {
   LEVELS,
@@ -75,15 +82,36 @@ export interface StrongerModel {
 
 export type Editable = Partial<Pick<Review, "triage" | "reply" | "outcome" | "question">>;
 
+/**
+ * A ticket simulated from this browser: waiting for the AI, classified a moment ago, or
+ * classified earlier. Arrivals stay at the top of the queue until someone works on them.
+ */
+export type Arrival = "classifying" | "classified" | "arrived";
+
+export interface Demo {
+  // The backend has a Core to write and classify tickets.
+  available: boolean;
+  generating: boolean;
+  simulate: () => void;
+}
+
 interface DashboardContextValue {
   data: Bundle;
   actions: Action[];
   stronger: StrongerModel;
+  demo: Demo;
+  arrival: (id: string) => Arrival | null;
   notice: Notice | null;
   dismissNotice: () => void;
+  /** Show a notice unless one is up already, so it never replaces an Undo. */
+  announce: (notice: Notice) => void;
   idOf: (index: number) => string;
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
+  /** Where the AI is with a ticket that has no suggestion yet; null otherwise. */
+  classification: (index: number) => Classification | null;
+  /** The Core is connected, so new tickets are classified as they arrive. */
+  classifying: boolean;
   update: (index: number, changes: Editable) => void;
   verify: (index: number, fields: Verifiable[], on: boolean) => Promise<void>;
   assign: (index: number, changes?: Editable) => void;
@@ -127,6 +155,12 @@ const BACKEND_URL: string = import.meta.env.VITE_BACKEND_URL || "/api";
 const backend = createBackendClient(BACKEND_URL);
 
 const EMPTY: SavedState = { reviews: {}, actions: [], regenerated: {} };
+
+// How long a newly classified ticket is highlighted.
+const CLASSIFIED_MS = 1600;
+
+// How long to wait for the AI to classify a simulated ticket.
+const CLASSIFY_TIMEOUT_MS = 5 * 60_000;
 
 interface Loaded {
   bundle: Bundle;
@@ -336,13 +370,57 @@ export function DashboardProvider({
 
   if (query.error && query.error !== failure) setFailure(query.error);
 
+  // Simulated tickets, newest first; those the AI just classified; those it did not classify in time.
+  const [arrived, setArrived] = useState<{ id: string; since: number }[]>([]);
+  const [classified, setClassified] = useState<string[]>([]);
+  const [unclassified, setUnclassified] = useState<string[]>([]);
+  const [generating, setGenerating] = useState(false);
+
+  const isWaiting = (id: string, proposals: ReadonlyMap<string, Proposal> | undefined) =>
+    !proposals?.has(id) && !unclassified.includes(id);
+
   // AI proposals from the Core. Without it the dashboard still works on Jira data alone.
   const core = useQuery({
     queryKey: ["core-proposals"],
-    queryFn: ({ signal }) => backend.coreProposals(signal),
+    queryFn: async ({ signal }) => {
+      const state = await backend.coreState(signal);
+      const before = client.getQueryData<CoreState | null>(["core-proposals"])?.proposals;
+
+      const done = arrived.flatMap(({ id }) =>
+        state?.proposals.has(id) && isWaiting(id, before) ? [id] : [],
+      );
+
+      if (done.length) {
+        setClassified((current) => [...current, ...done]);
+        window.setTimeout(
+          () => setClassified((current) => current.filter((id) => !done.includes(id))),
+          CLASSIFIED_MS,
+        );
+      }
+
+      return state;
+    },
     // Offline there is no backend to proxy the Core.
     enabled: query.data?.offline === false,
-    refetchInterval: 15_000,
+    // While the AI classifies a simulated ticket, show the result as soon as the Core has it; while
+    // it classifies any other, soon enough that the ticket leaves Upcoming shortly after.
+    refetchInterval: (state) => {
+      const current = state.state.data ?? null;
+
+      if (arrived.some(({ id }) => isWaiting(id, current?.proposals))) return 2_000;
+
+      return query.data?.bundle.challenge.some((ticket) => classificationOf(ticket, current))
+        ? 5_000
+        : 15_000;
+    },
+    retry: false,
+  });
+
+  const backendHealth = useQuery({
+    queryKey: ["backend-health"],
+    queryFn: ({ signal }) => backend.health(signal),
+    enabled: query.data?.offline === false,
+    refetchInterval: 60_000,
     retry: false,
   });
 
@@ -372,10 +450,31 @@ export function DashboardProvider({
   const [saved, setSaved] = useState<SavedState>(loadSaved);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const announce = useCallback((value: Notice) => setNotice((current) => current ?? value), []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [saved]);
+
+  const waiting = arrived.filter(({ id }) => isWaiting(id, core.data?.proposals));
+  const oldest = waiting.at(-1);
+
+  // Without a result the oldest waiting ticket becomes an ordinary one, triaged by hand.
+  useEffect(() => {
+    if (!oldest) return;
+
+    const timer = window.setTimeout(
+      () => {
+        setUnclassified((current) => [...current, oldest.id]);
+        setNotice({
+          message: `The AI has not classified ${oldest.id} yet. You can review it by hand.`,
+        });
+      },
+      oldest.since + CLASSIFY_TIMEOUT_MS - Date.now(),
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [oldest]);
 
   if (!query.data) {
     if (!failure) return loading;
@@ -392,15 +491,16 @@ export function DashboardProvider({
 
   const { bundle, offline } = query.data;
 
+  const coreState = offline ? null : (core.data ?? null);
+
   // Online, the Core's proposals replace the bundle's (live bundles carry none).
-  const data =
-    !offline && core.data?.size
-      ? {
-          ...bundle,
-          proposals: bundle.challenge.map((ticket) => core.data.get(ticket.Key) ?? null),
-          proposal_source: { kind: "core" as const, path: null },
-        }
-      : bundle;
+  const data = coreState?.proposals.size
+    ? {
+        ...bundle,
+        proposals: bundle.challenge.map((ticket) => coreState.proposals.get(ticket.Key) ?? null),
+        proposal_source: { kind: "core" as const, path: null },
+      }
+    : bundle;
 
   const idOf = (index: number) => data.challenge[index].Key;
 
@@ -721,6 +821,36 @@ export function DashboardProvider({
     });
   };
 
+  const simulate = () => {
+    setGenerating(true);
+
+    void (async () => {
+      try {
+        const { key, warnings } = await backend.demoTicket();
+
+        setArrived((current) => [{ id: key, since: Date.now() }, ...current]);
+        await client.invalidateQueries({ queryKey: ["dashboard-data"] });
+
+        if (warnings.length)
+          show({ message: `${key} was created. Jira noted: ${warnings.join("; ")}` });
+      } catch (failure) {
+        const error = failure instanceof Error ? failure : new Error(String(failure));
+
+        show({ message: `No ticket was simulated: ${failureText(error)}` });
+      } finally {
+        setGenerating(false);
+      }
+    })();
+  };
+
+  const arrival = (id: string): Arrival | null => {
+    if (!arrived.some((item) => item.id === id)) return null;
+
+    if (waiting.some((item) => item.id === id)) return "classifying";
+
+    return classified.includes(id) ? "classified" : "arrived";
+  };
+
   const exportData = () => {
     const records = data.challenge.map((ticket, index) => {
       const current = review(index);
@@ -782,11 +912,25 @@ export function DashboardProvider({
           online: health.isSuccess,
           model: health.data?.model ?? null,
         },
+        demo: {
+          available: !offline && backendHealth.data?.core === "configured",
+          generating,
+          simulate,
+        },
+        arrival,
         notice,
         dismissNotice,
+        announce,
         idOf,
         review,
         proposalFor,
+        classification: (index) => {
+          const state = classificationOf(data.challenge[index], coreState);
+
+          // A simulated ticket the AI did not classify in time is triaged by hand.
+          return state && unclassified.includes(idOf(index)) ? "failed" : state;
+        },
+        classifying: coreState !== null,
         update,
         verify,
         assign: (index, changes) =>

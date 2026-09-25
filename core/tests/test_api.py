@@ -94,6 +94,11 @@ class FakeEngine:
                          audit_sampled=sampled,
                          resolution_comment=ResolutionCommentRecord(text=f"{who}: Resolution: Handled {fields.get('Summary')}."))
 
+    def demo_ticket(self):
+        if self.plan.get("demo", {}).get("fail"):
+            raise RuntimeError("LLM backend unavailable")
+        return fields(summary="Demo ticket")
+
     def regenerate_comment(self, fields, decisions):
         who = decisions["assignee"].effective_value
         return ResolutionCommentRecord(text=f"{who}: Resolution: Regenerated for {decisions['service'].effective_value}.")
@@ -131,6 +136,18 @@ def test_health(api):
     body = api.get("/health").json()
     assert body["status"] == "ok" and body["kb_version"] == "v1" and body["versions"]["policy"] == "p1"
     assert body["queue_depth"] == 0 and body["policy_paused"] is False
+
+
+def test_demo_ticket_is_written_but_not_stored(api):
+    r = api.post("/demo/tickets")
+    assert r.status_code == 200 and r.json()["fields"]["Summary"] == "Demo ticket"
+    assert api.get("/tickets").json()["tickets"] == [] and api.engine.calls == 0 and types(api) == []
+
+
+def test_demo_ticket_llm_failure_is_503(api):
+    api.engine.plan["demo"] = {"fail": True}
+    r = api.post("/demo/tickets")
+    assert r.status_code == 503 and r.json()["error"] == "llm_unavailable"
 
 
 def test_import_is_idempotent_and_new_snapshots_retriage(api):

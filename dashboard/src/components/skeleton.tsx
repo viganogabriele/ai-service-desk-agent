@@ -86,17 +86,20 @@ function SectionHeadSkeleton({ text = true }: { text?: boolean }) {
   );
 }
 
+/** Attention needed and Most recent, each a strip of cards, then the whole queue. */
 function PrioritySkeleton() {
   return (
     <div className="grid gap-section">
-      <section className="min-w-0">
-        <SectionHeadSkeleton text={false} />
-        <div className="-mx-page flex gap-card-gap overflow-hidden px-page pt-1.5 pb-3">
-          {Array.from({ length: 4 }, (_, index) => (
-            <TicketCardSkeleton key={index} />
-          ))}
-        </div>
-      </section>
+      {[0, 1].map((lane) => (
+        <section key={lane} className="min-w-0">
+          <SectionHeadSkeleton text={false} />
+          <div className="-mx-page flex gap-card-gap overflow-hidden px-page pt-1.5 pb-3">
+            {Array.from({ length: 4 }, (_, index) => (
+              <TicketCardSkeleton key={index} />
+            ))}
+          </div>
+        </section>
+      ))}
       <section className="min-w-0">
         <SectionHeadSkeleton text={false} />
         <TableSkeleton rows={6} />
@@ -109,12 +112,13 @@ function TicketCardSkeleton() {
   return (
     <div className="flex flex-none basis-strip-card flex-col gap-4 rounded-card border bg-surface p-5 shadow-card">
       <div className="flex items-center justify-between">
+        <Bone className="h-5.5 w-27 rounded-pill" />
         <Bone className="h-5.5 w-20 rounded-pill" />
-        <Bone className="h-6 w-24 rounded-pill" />
       </div>
       <div className="grid gap-2">
         <Bone className="h-4.5 w-11/12" />
         <Bone className="h-4.5 w-3/5" />
+        <Bone className="mt-1 h-2.5 w-36" />
       </div>
       <div className="grid grid-cols-2 gap-2.5">
         <span className="grid h-15 content-center gap-2 rounded-tile bg-elevated px-3">
@@ -126,8 +130,7 @@ function TicketCardSkeleton() {
           <Bone className="w-3/4" />
         </span>
       </div>
-      <Bone className="w-28 self-end" />
-      <div className="flex items-center justify-between">
+      <div className="mt-8 flex items-center justify-between">
         <Bone className="h-9 w-44 rounded-pill" />
         <Bone className="size-9 rounded-pill" />
       </div>
