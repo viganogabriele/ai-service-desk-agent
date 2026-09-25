@@ -1,0 +1,1505 @@
+{
+  "file": "eval/handwritten.json",
+  "provider": "ollama",
+  "versions": {
+    "model": "qwen2.5:7b",
+    "prompt": "triage-3fca6d90c2",
+    "kb": "v1-7abf0d94",
+    "policy": "p1-b8d897c2"
+  },
+  "dataset_sha256": "19f0f528339c4b87b5e78aa2cadb8d0942b23bd0862c316250d085256da5c868",
+  "settings": {
+    "samples": 3,
+    "evidence": true,
+    "comment": true,
+    "concurrency": 2,
+    "limit": null
+  },
+  "report": "Tickets: 50 (0 failed), 664s total, 13.3s per ticket\nCompleted with optional-stage warnings: 0\nLabel match (core): service 44/50 (88%)  work_type 48/50 (96%)  resolution 42/50 (84%)\nLabel match (severity): urgency 32/50 (64%)  impact 30/50 (60%)  priority 33/50 (66%)\nService on tickets that never name it: 44/50 (88%)\nAI fields with >= 1 verified evidence span: 5/250 (2%)\nDraft comments: 50 written, 0 errors, 6 with unsupported specifics (needs human review)\nService by kind: - 44/50 (88%)  misleading-title -  plain-title -\nService confidence when right: n=44 min 0.21 / median 0.75 / max 1.00\nService confidence when wrong: n=6 min 0.01 / median 0.12 / max 0.31\n  conf >= 0.5: covers 30/50 (60%), accuracy 30/30 (100%)\n  conf >= 0.6: covers 26/50 (52%), accuracy 26/26 (100%)\n  conf >= 0.7: covers 24/50 (48%), accuracy 24/24 (100%)\nAssignee: 16/17 (94%) (service right 16/16 (100%), service wrong 0/1 (0%))\nTop pattern on pattern tickets: pattern -, resolver -\n  top similarity, resolver right: -\n  top similarity, resolver wrong: -\n  top similarity, service has no pattern: -\nService errors: H01 Trade Matching -> Order Management (0.25); H05 NAV Calculation -> Fund Pricing (0.31); H13 Order Management -> CRM & Client Portal (0.14); H33 Regulatory Reporting -> CRM & Client Portal (0.09); H35 Risk & Compliance Monitoring -> Emailed Support Tickets (0.02); H41 SharePoint & File Storage -> Emailed Support Tickets (0.01)",
+  "metrics": {
+    "n": 50,
+    "failed": 0,
+    "fields": {
+      "service": [
+        44,
+        50
+      ],
+      "work_type": [
+        48,
+        50
+      ],
+      "resolution": [
+        42,
+        50
+      ],
+      "urgency": [
+        32,
+        50
+      ],
+      "impact": [
+        30,
+        50
+      ],
+      "priority": [
+        33,
+        50
+      ]
+    },
+    "by_kind": {
+      "-": [
+        44,
+        50
+      ],
+      "misleading-title": [
+        0,
+        0
+      ],
+      "plain-title": [
+        0,
+        0
+      ]
+    },
+    "rows": [
+      {
+        "id": "H01",
+        "kind": "-",
+        "label": {
+          "service": "Trade Matching",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "quinn.anderson@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Order Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.25,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.8246,
+        "top_service": "Trade Matching",
+        "assignee": "victor.hamon@intcom.com"
+      },
+      {
+        "id": "H02",
+        "kind": "-",
+        "label": {
+          "service": "SimCorp Dimension",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "xena.schmidt@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "SimCorp Dimension",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.796,
+        "top_pattern": "P16",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.7114,
+        "top_service": "SimCorp Dimension",
+        "assignee": "xena.schmidt@intcom.com"
+      },
+      {
+        "id": "H03",
+        "kind": "-",
+        "label": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "ursula.klassen@intcom.com",
+          "urgency": "Medium",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.5777,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.7054,
+        "top_service": "Order Management",
+        "assignee": "ursula.klassen@intcom.com"
+      },
+      {
+        "id": "H04",
+        "kind": "-",
+        "label": {
+          "service": "Outlook & Email",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": "jack.martin@intcom.com",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Outlook & Email",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.863,
+        "top_pattern": "P10",
+        "top_resolver": "jack.martin@intcom.com",
+        "top_sim": 0.6541,
+        "top_service": "Outlook & Email",
+        "assignee": "jack.martin@intcom.com"
+      },
+      {
+        "id": "H05",
+        "kind": "-",
+        "label": {
+          "service": "NAV Calculation",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Fund Pricing",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.3077,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6789,
+        "top_service": "Order Management",
+        "assignee": "tania.gupta@intcom.com"
+      },
+      {
+        "id": "H06",
+        "kind": "-",
+        "label": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 1.0,
+        "top_pattern": "P11",
+        "top_resolver": "tara.singh@intcom.com",
+        "top_sim": 0.6474,
+        "top_service": "Regulatory Reporting",
+        "assignee": "gina.muller@intcom.com"
+      },
+      {
+        "id": "H07",
+        "kind": "-",
+        "label": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "cancelled",
+          "assignee": null,
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Incident",
+          "resolution": "cancelled",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.392,
+        "top_pattern": "P21",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6251,
+        "top_service": "Trade Matching",
+        "assignee": "nora.leclerc@intcom.com"
+      },
+      {
+        "id": "H08",
+        "kind": "-",
+        "label": {
+          "service": "Client Reporting",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Client Reporting",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.3523,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6224,
+        "top_service": "Order Management",
+        "assignee": "pierre.johnson@intcom.com"
+      },
+      {
+        "id": "H09",
+        "kind": "-",
+        "label": {
+          "service": "Identity & Access Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Identity & Access Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.7,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6778,
+        "top_service": "Trade Matching",
+        "assignee": "maya.kerr@intcom.com"
+      },
+      {
+        "id": "H10",
+        "kind": "-",
+        "label": {
+          "service": "Cash Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "vincent.lange@intcom.com",
+          "urgency": "Highest",
+          "impact": "High",
+          "priority": "Highest"
+        },
+        "pred": {
+          "service": "Cash Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.5427,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.7224,
+        "top_service": "Order Management",
+        "assignee": "vincent.lange@intcom.com"
+      },
+      {
+        "id": "H11",
+        "kind": "-",
+        "label": {
+          "service": "Corporate Actions",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "ursula.klassen@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Corporate Actions",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.2088,
+        "top_pattern": "P06",
+        "top_resolver": "ursula.klassen@intcom.com",
+        "top_sim": 0.677,
+        "top_service": "Corporate Actions",
+        "assignee": "ursula.klassen@intcom.com"
+      },
+      {
+        "id": "H12",
+        "kind": "-",
+        "label": {
+          "service": "Order Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "victor.hamon@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Order Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.879,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.8222,
+        "top_service": "Order Management",
+        "assignee": "victor.hamon@intcom.com"
+      },
+      {
+        "id": "H13",
+        "kind": "-",
+        "label": {
+          "service": "Order Management",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "CRM & Client Portal",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.1447,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6873,
+        "top_service": "Order Management",
+        "assignee": "carlos.ortiz@intcom.com"
+      },
+      {
+        "id": "H14",
+        "kind": "-",
+        "label": {
+          "service": "Trade Matching",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "quinn.anderson@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Trade Matching",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.9267,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.8129,
+        "top_service": "Trade Matching",
+        "assignee": "quinn.anderson@intcom.com"
+      },
+      {
+        "id": "H15",
+        "kind": "-",
+        "label": {
+          "service": "Trade Matching",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Trade Matching",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.785,
+        "top_pattern": "P08",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6794,
+        "top_service": "Order Management",
+        "assignee": "quinn.anderson@intcom.com"
+      },
+      {
+        "id": "H16",
+        "kind": "-",
+        "label": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "xena.schmidt@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.9675,
+        "top_pattern": "P14",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.7233,
+        "top_service": "Securities Settlement",
+        "assignee": "xena.schmidt@intcom.com"
+      },
+      {
+        "id": "H17",
+        "kind": "-",
+        "label": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "ursula.klassen@intcom.com",
+          "urgency": "Medium",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Securities Settlement",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.8323,
+        "top_pattern": "P15",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.6957,
+        "top_service": "Securities Settlement",
+        "assignee": "ursula.klassen@intcom.com"
+      },
+      {
+        "id": "H18",
+        "kind": "-",
+        "label": {
+          "service": "Corporate Actions",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "ursula.klassen@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Corporate Actions",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Medium",
+          "impact": "Medium",
+          "priority": "Medium"
+        },
+        "service_conf": 0.356,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6722,
+        "top_service": "Order Management",
+        "assignee": "ursula.klassen@intcom.com"
+      },
+      {
+        "id": "H19",
+        "kind": "-",
+        "label": {
+          "service": "Corporate Actions",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Corporate Actions",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.4027,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6278,
+        "top_service": "Trade Matching",
+        "assignee": "ursula.klassen@intcom.com"
+      },
+      {
+        "id": "H20",
+        "kind": "-",
+        "label": {
+          "service": "SimCorp Dimension",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "xena.schmidt@intcom.com",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "SimCorp Dimension",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.3633,
+        "top_pattern": "P17",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.7536,
+        "top_service": "SimCorp Dimension",
+        "assignee": "xena.schmidt@intcom.com"
+      },
+      {
+        "id": "H21",
+        "kind": "-",
+        "label": {
+          "service": "Portfolio Accounting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Medium",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Portfolio Accounting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Medium",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.95,
+        "top_pattern": "P03",
+        "top_resolver": "pierre.johnson@intcom.com",
+        "top_sim": 0.6274,
+        "top_service": "Client Reporting",
+        "assignee": "ulrich.fischer@intcom.com"
+      },
+      {
+        "id": "H22",
+        "kind": "-",
+        "label": {
+          "service": "Client Reporting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "pierre.johnson@intcom.com",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Client Reporting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Medium",
+          "impact": "Medium",
+          "priority": "Medium"
+        },
+        "service_conf": 0.745,
+        "top_pattern": "P03",
+        "top_resolver": "pierre.johnson@intcom.com",
+        "top_sim": 0.6513,
+        "top_service": "Client Reporting",
+        "assignee": "pierre.johnson@intcom.com"
+      },
+      {
+        "id": "H23",
+        "kind": "-",
+        "label": {
+          "service": "Client Reporting",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Client Reporting",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.3497,
+        "top_pattern": "P17",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.6344,
+        "top_service": "SimCorp Dimension",
+        "assignee": "pierre.johnson@intcom.com"
+      },
+      {
+        "id": "H24",
+        "kind": "-",
+        "label": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Medium",
+          "impact": "Medium",
+          "priority": "Medium"
+        },
+        "pred": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.8367,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6163,
+        "top_service": "Trade Matching",
+        "assignee": "gina.muller@intcom.com"
+      },
+      {
+        "id": "H25",
+        "kind": "-",
+        "label": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Rimes Data Feed",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.813,
+        "top_pattern": "P17",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.6835,
+        "top_service": "SimCorp Dimension",
+        "assignee": "gina.muller@intcom.com"
+      },
+      {
+        "id": "H26",
+        "kind": "-",
+        "label": {
+          "service": "Fund Pricing",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Medium",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Fund Pricing",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.8573,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6841,
+        "top_service": "Trade Matching",
+        "assignee": "tania.gupta@intcom.com"
+      },
+      {
+        "id": "H27",
+        "kind": "-",
+        "label": {
+          "service": "Fund Pricing",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Fund Pricing",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.459,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6217,
+        "top_service": "Trade Matching",
+        "assignee": "tania.gupta@intcom.com"
+      },
+      {
+        "id": "H28",
+        "kind": "-",
+        "label": {
+          "service": "NAV Calculation",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "NAV Calculation",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.7637,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6279,
+        "top_service": "Order Management",
+        "assignee": "irina.sokolov@intcom.com"
+      },
+      {
+        "id": "H29",
+        "kind": "-",
+        "label": {
+          "service": "NAV Calculation",
+          "work_type": "Incident",
+          "resolution": "cannot reproduce",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "NAV Calculation",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.589,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.7347,
+        "top_service": "Order Management",
+        "assignee": "irina.sokolov@intcom.com"
+      },
+      {
+        "id": "H30",
+        "kind": "-",
+        "label": {
+          "service": "Cash Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "vincent.lange@intcom.com",
+          "urgency": "Highest",
+          "impact": "High",
+          "priority": "Highest"
+        },
+        "pred": {
+          "service": "Cash Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Highest",
+          "impact": "Highest",
+          "priority": "Highest"
+        },
+        "service_conf": 0.755,
+        "top_pattern": "P01",
+        "top_resolver": "vincent.lange@intcom.com",
+        "top_sim": 0.6217,
+        "top_service": "Cash Management",
+        "assignee": "vincent.lange@intcom.com"
+      },
+      {
+        "id": "H31",
+        "kind": "-",
+        "label": {
+          "service": "Cash Management",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Cash Management",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.8207,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.645,
+        "top_service": "Trade Matching",
+        "assignee": "vincent.lange@intcom.com"
+      },
+      {
+        "id": "H32",
+        "kind": "-",
+        "label": {
+          "service": "Regulatory Reporting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": "tara.singh@intcom.com",
+          "urgency": "Highest",
+          "impact": "High",
+          "priority": "Highest"
+        },
+        "pred": {
+          "service": "Regulatory Reporting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Highest",
+          "impact": "Highest",
+          "priority": "Highest"
+        },
+        "service_conf": 0.5048,
+        "top_pattern": "P11",
+        "top_resolver": "tara.singh@intcom.com",
+        "top_sim": 0.7338,
+        "top_service": "Regulatory Reporting",
+        "assignee": "tara.singh@intcom.com"
+      },
+      {
+        "id": "H33",
+        "kind": "-",
+        "label": {
+          "service": "Regulatory Reporting",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "CRM & Client Portal",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.09,
+        "top_pattern": "P10",
+        "top_resolver": "jack.martin@intcom.com",
+        "top_sim": 0.6039,
+        "top_service": "Outlook & Email",
+        "assignee": "carlos.ortiz@intcom.com"
+      },
+      {
+        "id": "H34",
+        "kind": "-",
+        "label": {
+          "service": "Risk & Compliance Monitoring",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Risk & Compliance Monitoring",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "service_conf": 0.3353,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6788,
+        "top_service": "Order Management",
+        "assignee": "gina.muller@intcom.com"
+      },
+      {
+        "id": "H35",
+        "kind": "-",
+        "label": {
+          "service": "Risk & Compliance Monitoring",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.0215,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.7033,
+        "top_service": "Trade Matching",
+        "assignee": "nora.leclerc@intcom.com"
+      },
+      {
+        "id": "H36",
+        "kind": "-",
+        "label": {
+          "service": "Tax Reporting",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": "tania.gupta@intcom.com",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Tax Reporting",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "High",
+          "impact": "Low",
+          "priority": "Medium"
+        },
+        "service_conf": 1.0,
+        "top_pattern": "P18",
+        "top_resolver": "tania.gupta@intcom.com",
+        "top_sim": 0.6633,
+        "top_service": "Tax Reporting",
+        "assignee": "tania.gupta@intcom.com"
+      },
+      {
+        "id": "H37",
+        "kind": "-",
+        "label": {
+          "service": "Tax Reporting",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Medium",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Tax Reporting",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.8693,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6538,
+        "top_service": "Order Management",
+        "assignee": "tania.gupta@intcom.com"
+      },
+      {
+        "id": "H38",
+        "kind": "-",
+        "label": {
+          "service": "CRM & Client Portal",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "CRM & Client Portal",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.2483,
+        "top_pattern": "P08",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6408,
+        "top_service": "Order Management",
+        "assignee": "carlos.ortiz@intcom.com"
+      },
+      {
+        "id": "H39",
+        "kind": "-",
+        "label": {
+          "service": "CRM & Client Portal",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Medium",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "CRM & Client Portal",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.9843,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.5578,
+        "top_service": "Order Management",
+        "assignee": "carlos.ortiz@intcom.com"
+      },
+      {
+        "id": "H40",
+        "kind": "-",
+        "label": {
+          "service": "SharePoint & File Storage",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "SharePoint & File Storage",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.3627,
+        "top_pattern": "P19",
+        "top_resolver": "tania.gupta@intcom.com",
+        "top_sim": 0.5974,
+        "top_service": "Tax Reporting",
+        "assignee": "xena.schmidt@intcom.com"
+      },
+      {
+        "id": "H41",
+        "kind": "-",
+        "label": {
+          "service": "SharePoint & File Storage",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.0095,
+        "top_pattern": "P11",
+        "top_resolver": "tara.singh@intcom.com",
+        "top_sim": 0.7179,
+        "top_service": "Regulatory Reporting",
+        "assignee": "nora.leclerc@intcom.com"
+      },
+      {
+        "id": "H42",
+        "kind": "-",
+        "label": {
+          "service": "Outlook & Email",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": "jack.martin@intcom.com",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Outlook & Email",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.3977,
+        "top_pattern": "P20",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6213,
+        "top_service": "Trade Matching",
+        "assignee": "jack.martin@intcom.com"
+      },
+      {
+        "id": "H43",
+        "kind": "-",
+        "label": {
+          "service": "Outlook & Email",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Medium",
+          "priority": "High"
+        },
+        "pred": {
+          "service": "Outlook & Email",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.4583,
+        "top_pattern": "P21",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6037,
+        "top_service": "Trade Matching",
+        "assignee": "jack.martin@intcom.com"
+      },
+      {
+        "id": "H44",
+        "kind": "-",
+        "label": {
+          "service": "Identity & Access Management",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Low",
+          "priority": "Medium"
+        },
+        "pred": {
+          "service": "Identity & Access Management",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.8267,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.6501,
+        "top_service": "Order Management",
+        "assignee": "maya.kerr@intcom.com"
+      },
+      {
+        "id": "H45",
+        "kind": "-",
+        "label": {
+          "service": "Identity & Access Management",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "High",
+          "impact": "Low",
+          "priority": "Medium"
+        },
+        "pred": {
+          "service": "Identity & Access Management",
+          "work_type": "Incident",
+          "resolution": "clarification",
+          "urgency": "High",
+          "impact": "Low",
+          "priority": "Medium"
+        },
+        "service_conf": 0.684,
+        "top_pattern": "P21",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.615,
+        "top_service": "Trade Matching",
+        "assignee": "maya.kerr@intcom.com"
+      },
+      {
+        "id": "H46",
+        "kind": "-",
+        "label": {
+          "service": "Trading Platform",
+          "work_type": "Incident",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Highest",
+          "impact": "High",
+          "priority": "Highest"
+        },
+        "pred": {
+          "service": "Trading Platform",
+          "work_type": "Incident",
+          "resolution": "done",
+          "urgency": "High",
+          "impact": "High",
+          "priority": "High"
+        },
+        "service_conf": 0.2978,
+        "top_pattern": "P07",
+        "top_resolver": "victor.hamon@intcom.com",
+        "top_sim": 0.7259,
+        "top_service": "Order Management",
+        "assignee": "daniel.taylor@intcom.com"
+      },
+      {
+        "id": "H47",
+        "kind": "-",
+        "label": {
+          "service": "Trading Platform",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "pred": {
+          "service": "Trading Platform",
+          "work_type": "Service Request",
+          "resolution": "done",
+          "urgency": "Low",
+          "impact": "Low",
+          "priority": "Low"
+        },
+        "service_conf": 0.6753,
+        "top_pattern": "P16",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.5737,
+        "top_service": "SimCorp Dimension",
+        "assignee": "daniel.taylor@intcom.com"
+      },
+      {
+        "id": "H48",
+        "kind": "-",
+        "label": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "cancelled",
+          "assignee": null,
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Incident",
+          "resolution": "cancelled",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.7723,
+        "top_pattern": "P21",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6568,
+        "top_service": "Trade Matching",
+        "assignee": "nora.leclerc@intcom.com"
+      },
+      {
+        "id": "H49",
+        "kind": "-",
+        "label": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "cancelled",
+          "assignee": null,
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "cancelled",
+          "urgency": "Lowest",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.7837,
+        "top_pattern": "P15",
+        "top_resolver": "xena.schmidt@intcom.com",
+        "top_sim": 0.612,
+        "top_service": "Securities Settlement",
+        "assignee": "nora.leclerc@intcom.com"
+      },
+      {
+        "id": "H50",
+        "kind": "-",
+        "label": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "assignee": null,
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "pred": {
+          "service": "Emailed Support Tickets",
+          "work_type": "Service Request",
+          "resolution": "clarification",
+          "urgency": "Low",
+          "impact": "Lowest",
+          "priority": "Lowest"
+        },
+        "service_conf": 0.8993,
+        "top_pattern": "P21",
+        "top_resolver": "quinn.anderson@intcom.com",
+        "top_sim": 0.6299,
+        "top_service": "Trade Matching",
+        "assignee": "nora.leclerc@intcom.com"
+      }
+    ],
+    "evidence": [
+      5,
+      250
+    ],
+    "comments": {
+      "written": 50,
+      "errors": 0,
+      "flagged": 6
+    },
+    "completed_with_warnings": 0,
+    "service_unnamed": [
+      44,
+      50
+    ],
+    "assignee": [
+      16,
+      17
+    ],
+    "assignee_service_right": [
+      16,
+      16
+    ],
+    "assignee_service_wrong": [
+      0,
+      1
+    ],
+    "conf": {
+      "right": [
+        0.796,
+        0.5777,
+        0.863,
+        1.0,
+        0.392,
+        0.3523,
+        0.7,
+        0.5427,
+        0.2088,
+        0.879,
+        0.9267,
+        0.785,
+        0.9675,
+        0.8323,
+        0.356,
+        0.4027,
+        0.3633,
+        0.95,
+        0.745,
+        0.3497,
+        0.8367,
+        0.813,
+        0.8573,
+        0.459,
+        0.7637,
+        0.589,
+        0.755,
+        0.8207,
+        0.5048,
+        0.3353,
+        1.0,
+        0.8693,
+        0.2483,
+        0.9843,
+        0.3627,
+        0.3977,
+        0.4583,
+        0.8267,
+        0.684,
+        0.2978,
+        0.6753,
+        0.7723,
+        0.7837,
+        0.8993
+      ],
+      "wrong": [
+        0.25,
+        0.3077,
+        0.1447,
+        0.09,
+        0.0215,
+        0.0095
+      ]
+    },
+    "top_pattern": {
+      "n": 0,
+      "pattern_hit": 0,
+      "resolver_hit": 0,
+      "sim_right": [],
+      "sim_wrong": [],
+      "sim_no_pattern_service": []
+    }
+  }
+}

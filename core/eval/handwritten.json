@@ -1,148 +1,1209 @@
 {
-  "note": "Hand-written challenge-style tickets for milestone 2 sanity checks and to seed the milestone 5 dev set. Written from generic domain knowledge and the training resolution patterns; NOT derived from the challenge file. Labels are the author's judgement: service/work_type/resolution are firm, urgency/impact are soft, assignee is null where no pattern applies clearly.",
+  "note": "50 hand-written challenge-style tickets based on generic asset-management operations and the training service/resolution patterns; never derived from the challenge file. Service, work type and resolution are author labels; urgency and impact are judgment calls. Assignee is labelled only where a specific training resolution pattern supports it.",
   "records": [
     {
       "id": "H01",
       "Request type": "Machine Created Alert",
       "Summary": "Order rejects spiking for new broker",
       "Description": "Since 07:40 CET the matching adapter has rejected every block allocation booked with the newly onboarded executing broker for the Luxembourg SICAV range. The reject reason points to an unknown account on the broker side. Around 40 allocations are pending and the affirmation cut-off is 14:00.",
-      "Affected Business or IT Services": ["Order Management"],
-      "Business Entity": ["Luxembourg"],
+      "Affected Business or IT Services": [
+        "Order Management"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Medium",
       "Impact": "Low",
-      "All Comments": ["lea.moreau@intcom.com: Other brokers are affirming normally, only the new one fails."],
-      "_label": {"service": "Trade Matching", "work_type": "Incident", "resolution": "done", "assignee": "quinn.anderson@intcom.com", "urgency": "High", "impact": "High"}
+      "All Comments": [
+        "lea.moreau@intcom.com: Other brokers are affirming normally, only the new one fails."
+      ],
+      "_label": {
+        "service": "Trade Matching",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "quinn.anderson@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
     },
     {
       "id": "H02",
       "Request type": "Human Created Incident",
       "Summary": "Positions wrong in accounting this morning",
       "Description": "Front office sees yesterday's positions for all German mandates. The overnight position sync job ran for three hours and then failed with a timeout. The DBA noticed a session holding a lock on the staging table.",
-      "Affected Business or IT Services": ["Portfolio Accounting"],
-      "Business Entity": ["Germany"],
+      "Affected Business or IT Services": [
+        "Portfolio Accounting"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Low",
       "Impact": "Medium",
       "All Comments": [],
-      "_label": {"service": "SimCorp Dimension", "work_type": "Incident", "resolution": "done", "assignee": "xena.schmidt@intcom.com", "urgency": "High", "impact": "High"}
+      "_label": {
+        "service": "SimCorp Dimension",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "xena.schmidt@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
     },
     {
       "id": "H03",
       "Request type": "Email / 3rd Party Warning",
       "Summary": "FW: custodian status delay",
       "Description": "Email from our custodian in Frankfurt: their status feed is delayed by an internal incident and today's settlement status updates will arrive late. Meanwhile our side has already sent automatic fail-chasing messages to three counterparties for trades that have probably settled.",
-      "Affected Business or IT Services": ["Emailed Support Tickets"],
-      "Business Entity": ["Germany"],
+      "Affected Business or IT Services": [
+        "Emailed Support Tickets"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Low",
       "Impact": "Low",
       "All Comments": [],
-      "_label": {"service": "Securities Settlement", "work_type": "Incident", "resolution": "done", "assignee": "ursula.klassen@intcom.com", "urgency": "Medium", "impact": "High"}
+      "_label": {
+        "service": "Securities Settlement",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "ursula.klassen@intcom.com",
+        "urgency": "Medium",
+        "impact": "High"
+      }
     },
     {
       "id": "H04",
       "Request type": "Misclassified Incident Title",
       "Summary": "URGENT: email not working for new team",
       "Description": "Not an outage. The new Nordic client-servicing team starts on Monday and needs a shared mailbox and a distribution list covering its six members, with send-as rights on the shared mailbox for all of them.",
-      "Affected Business or IT Services": ["Identity & Access Management"],
-      "Business Entity": ["Nordics"],
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Highest",
       "Impact": "Medium",
       "All Comments": [],
-      "_label": {"service": "Outlook & Email", "work_type": "Service Request", "resolution": "done", "assignee": "jack.martin@intcom.com", "urgency": "Low", "impact": "Low"}
+      "_label": {
+        "service": "Outlook & Email",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": "jack.martin@intcom.com",
+        "urgency": "Low",
+        "impact": "Low"
+      }
     },
     {
       "id": "H05",
       "Request type": "Machine Created Alert",
       "Summary": "Tolerance check failed - Nordic Equity I",
       "Description": "The NAV tolerance check failed for the Nordic Equity fund, share class I: the day-over-day NAV move is 3.4% against a 1.5% threshold while the benchmark moved 0.2%. NAV publication to the transfer agent is scheduled for 16:00.",
-      "Affected Business or IT Services": ["Fund Pricing"],
-      "Business Entity": ["Nordics"],
+      "Affected Business or IT Services": [
+        "Fund Pricing"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Medium",
       "Impact": "Medium",
       "All Comments": [],
-      "_label": {"service": "NAV Calculation", "work_type": "Incident", "resolution": "done", "assignee": null, "urgency": "High", "impact": "High"}
+      "_label": {
+        "service": "NAV Calculation",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "High"
+      }
     },
     {
       "id": "H06",
       "Request type": "Machine Created Alert",
       "Summary": "Benchmark file not received",
       "Description": "Monitoring raised a 'file not received' alert for the 06:00 Rimes benchmark delivery. When checked at 06:20 the file had arrived at 06:07 and loaded successfully, and the index weights match the vendor portal. No further alerts since.",
-      "Affected Business or IT Services": ["Rimes Data Feed"],
-      "Business Entity": ["Switzerland"],
+      "Affected Business or IT Services": [
+        "Rimes Data Feed"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "High",
       "Impact": "High",
       "All Comments": [],
-      "_label": {"service": "Rimes Data Feed", "work_type": "Incident", "resolution": "cannot reproduce", "assignee": null, "urgency": "Low", "impact": "Lowest"}
+      "_label": {
+        "service": "Rimes Data Feed",
+        "work_type": "Incident",
+        "resolution": "cannot reproduce",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
     },
     {
       "id": "H07",
       "Request type": "Nonsense / Unclear Input",
       "Summary": "test test",
       "Description": "asdf ignore pls sent from phone by mistake lorem ipsum",
-      "Affected Business or IT Services": ["Client Reporting"],
-      "Business Entity": ["France"],
+      "Affected Business or IT Services": [
+        "Client Reporting"
+      ],
+      "Business Entity": [
+        "France"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Medium",
       "Impact": "Medium",
       "All Comments": [],
-      "_label": {"service": "Emailed Support Tickets", "work_type": "Service Request", "resolution": "cancelled", "assignee": null, "urgency": "Lowest", "impact": "Lowest"}
+      "_label": {
+        "service": "Emailed Support Tickets",
+        "work_type": "Service Request",
+        "resolution": "cancelled",
+        "assignee": null,
+        "urgency": "Lowest",
+        "impact": "Lowest"
+      }
     },
     {
       "id": "H08",
       "Request type": "Access to a Service",
       "Summary": "Access to report templates",
       "Description": "I need access to the client report templates for the Swiss entity ahead of quarter-end, like my colleague has. I am not sure which role I need and my manager is away, so I cannot give an approver yet.",
-      "Affected Business or IT Services": ["Identity & Access Management"],
-      "Business Entity": ["Switzerland"],
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Low",
       "Impact": "Low",
       "All Comments": [],
-      "_label": {"service": "Client Reporting", "work_type": "Service Request", "resolution": "clarification", "assignee": null, "urgency": "Low", "impact": "Low"}
+      "_label": {
+        "service": "Client Reporting",
+        "work_type": "Service Request",
+        "resolution": "clarification",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
     },
     {
       "id": "H09",
       "Request type": "Human Created Incident",
       "Summary": "Cannot log in to anything",
       "Description": "Since this morning's MFA policy change, about 30 users in the Paris office cannot complete the authenticator push when signing in to any company application through SSO; they get 'request denied'. SMS codes work for some of them as a workaround.",
-      "Affected Business or IT Services": ["Outlook & Email"],
-      "Business Entity": ["France"],
+      "Affected Business or IT Services": [
+        "Outlook & Email"
+      ],
+      "Business Entity": [
+        "France"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Low",
       "Impact": "Low",
-      "All Comments": ["noah.berger@intcom.com: Users outside Paris are not affected."],
-      "_label": {"service": "Identity & Access Management", "work_type": "Incident", "resolution": "done", "assignee": null, "urgency": "High", "impact": "Medium"}
+      "All Comments": [
+        "noah.berger@intcom.com: Users outside Paris are not affected."
+      ],
+      "_label": {
+        "service": "Identity & Access Management",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Medium"
+      }
     },
     {
       "id": "H10",
       "Request type": "Human Created Incident",
       "Summary": "Settlement failure on margin call",
       "Description": "Our margin call payment to the clearing broker failed this morning. The automated margin sweep from the fund's cash account was released after the bank's cut-off and was not executed, so the account is short by EUR 2.1m against the call.",
-      "Affected Business or IT Services": ["Securities Settlement"],
-      "Business Entity": ["Luxembourg"],
+      "Affected Business or IT Services": [
+        "Securities Settlement"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Medium",
       "Impact": "Medium",
       "All Comments": [],
-      "_label": {"service": "Cash Management", "work_type": "Incident", "resolution": "done", "assignee": "vincent.lange@intcom.com", "urgency": "Highest", "impact": "High"}
+      "_label": {
+        "service": "Cash Management",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "vincent.lange@intcom.com",
+        "urgency": "Highest",
+        "impact": "High"
+      }
     },
     {
       "id": "H11",
       "Request type": "Machine Created Alert",
       "Summary": "SimCorp job warning on dividend events",
       "Description": "After the overnight ingestion, several elective dividend events for Nordic holdings show no options in the election screen and the option codes are blank. The election deadline for the first event is tomorrow at noon.",
-      "Affected Business or IT Services": ["SimCorp Dimension"],
-      "Business Entity": ["Nordics"],
+      "Affected Business or IT Services": [
+        "SimCorp Dimension"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
       "Business Critical for Entity": [],
       "Urgency": "Low",
       "Impact": "Low",
       "All Comments": [],
-      "_label": {"service": "Corporate Actions", "work_type": "Incident", "resolution": "done", "assignee": "ursula.klassen@intcom.com", "urgency": "High", "impact": "High"}
+      "_label": {
+        "service": "Corporate Actions",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "ursula.klassen@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H12",
+      "Request type": "Human Created Incident",
+      "Summary": "Broker switch left cash orders queued",
+      "Description": "The Zurich desk changed its executing broker at 08:00. Orders entered since then remain in the routing queue with an invalid clearing account warning. A single test order on the old broker route completed; 26 new orders are waiting before the 11:30 market window.",
+      "Affected Business or IT Services": [
+        "Trade Matching"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Order Management",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "victor.hamon@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H13",
+      "Request type": "Access to a Service",
+      "Summary": "Access for a new dealer",
+      "Description": "Please add the new Paris dealer to the order entry role before next Tuesday. The manager approval is attached and the desk lead confirmed the market and account scope. Existing dealers can continue trading.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Order Management",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H14",
+      "Request type": "Machine Created Alert",
+      "Summary": "Allocation feed rejects only one broker",
+      "Description": "Allocations for the newly onboarded broker arrive at the matching adapter but fail with missing settlement instructions. The same fund allocated to two other brokers matched normally. We have 18 rejects to replay before the afternoon affirmation deadline.",
+      "Affected Business or IT Services": [
+        "Securities Settlement"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Trade Matching",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "quinn.anderson@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H15",
+      "Request type": "Machine Created Alert",
+      "Summary": "Trade matching alert cleared",
+      "Description": "Monitoring raised a matching backlog alert at 06:10. The queue drained by 06:13 without intervention; operations compared all 42 allocations with the broker confirms and found no rejects or unmatched trades.",
+      "Affected Business or IT Services": [
+        "Trade Matching"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Trade Matching",
+        "work_type": "Incident",
+        "resolution": "cannot reproduce",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H16",
+      "Request type": "Human Created Incident",
+      "Summary": "Missing custody acknowledgements",
+      "Description": "The custody dashboard shows yesterday’s 14 confirmations as pending even though the custodian portal marks them received. The outbound messages left our gateway; the inbound acknowledgement consumer has not advanced its offset since 07:20.",
+      "Affected Business or IT Services": [
+        "Corporate Actions"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Securities Settlement",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "xena.schmidt@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H17",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Custodian statuses late but no failed trades",
+      "Description": "The third-party custodian says its settlement status feed is delayed by forty minutes. Our fail-chasing robot has already sent notices for two trades shown as unsettled locally. The custodian says both settled and will resend the statuses shortly.",
+      "Affected Business or IT Services": [
+        "Emailed Support Tickets"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Securities Settlement",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "ursula.klassen@intcom.com",
+        "urgency": "Medium",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H18",
+      "Request type": "Human Created Incident",
+      "Summary": "Election choices absent from dashboard",
+      "Description": "A rights issue opened today for three Swiss funds. The event file arrived, but the election screen has no option choices for those holdings while the vendor file lists both cash and stock options. The custodian cut-off is tomorrow morning.",
+      "Affected Business or IT Services": [
+        "Securities Settlement"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Corporate Actions",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "ursula.klassen@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H19",
+      "Request type": "Access to a Service",
+      "Summary": "Need help with an event",
+      "Description": "Can someone set up the corporate event for my fund? I cannot provide the instrument, the event reference or the election deadline yet. I will ask the custodian for those details.",
+      "Affected Business or IT Services": [
+        "Corporate Actions"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Corporate Actions",
+        "work_type": "Service Request",
+        "resolution": "clarification",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H20",
+      "Request type": "Machine Created Alert",
+      "Summary": "Opening positions disagree after overnight load",
+      "Description": "The nightly portfolio position replication stopped with a database lock at 02:17. The accounting screen now shows yesterday’s holdings for all French discretionary accounts, while the upstream booking ledger is current.",
+      "Affected Business or IT Services": [
+        "Portfolio Accounting"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "SimCorp Dimension",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "xena.schmidt@intcom.com",
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H21",
+      "Request type": "Human Created Incident",
+      "Summary": "One portfolio journal is missing",
+      "Description": "The investment book contains a posted fee journal for a single Swiss mandate, but the accounting trial balance excludes it. Other journals and portfolios reconcile. The accountant can post a manual adjustment for today’s client statement.",
+      "Affected Business or IT Services": [
+        "SimCorp Dimension"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Portfolio Accounting",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Medium",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H22",
+      "Request type": "Human Created Incident",
+      "Summary": "Batch fee table blank",
+      "Description": "Client statements generated overnight for the French pension range have blank fee tables although charges appear in the underlying ledger. A preview of the same template in staging renders the table. Distribution starts at 16:00.",
+      "Affected Business or IT Services": [
+        "Portfolio Accounting"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Client Reporting",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "pierre.johnson@intcom.com",
+        "urgency": "High",
+        "impact": "Medium"
+      }
+    },
+    {
+      "id": "H23",
+      "Request type": "Access to a Service",
+      "Summary": "Quarterly client report access",
+      "Description": "A new relationship manager needs the quarterly client report template for Luxembourg funds. Their manager approved read access in the attached request; no report is currently due.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Client Reporting",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H24",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Vendor index weights differ",
+      "Description": "The 07:00 benchmark file loaded, but the weights for the Nordic ESG index sum to 98.7% while the vendor portal shows 100%. Attribution for six funds is on hold until the corrected vendor data arrives.",
+      "Affected Business or IT Services": [
+        "Fund Pricing"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Rimes Data Feed",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Medium",
+        "impact": "Medium"
+      }
+    },
+    {
+      "id": "H25",
+      "Request type": "Machine Created Alert",
+      "Summary": "Market data warning self-cleared",
+      "Description": "A file-not-received warning fired at 06:00. At 06:05 the benchmark file arrived, passed the schema check, and all index weights matched the vendor portal. The 06:20 downstream run completed.",
+      "Affected Business or IT Services": [
+        "Risk & Compliance Monitoring"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Rimes Data Feed",
+        "work_type": "Incident",
+        "resolution": "cannot reproduce",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H26",
+      "Request type": "Human Created Incident",
+      "Summary": "Price exception for one bond",
+      "Description": "The pricing batch marked one illiquid bond stale because the primary vendor supplied no closing quote. Two approved alternative quotes are available, and all other instruments priced correctly. The valuation team needs the chosen source before its normal noon review.",
+      "Affected Business or IT Services": [
+        "NAV Calculation"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Fund Pricing",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Medium",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H27",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Fund price file delivery failed",
+      "Description": "The external pricing vendor sent a warning that its European equities close file will be delayed by two hours. The morning valuation batch for four funds has not started and no alternative feed is configured.",
+      "Affected Business or IT Services": [
+        "Rimes Data Feed"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Fund Pricing",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H28",
+      "Request type": "Machine Created Alert",
+      "Summary": "NAV tolerance holds publication",
+      "Description": "The computed NAV for the Swiss balanced fund breaches its day-on-day tolerance by 4.1%. The transfer agent publication is blocked pending review, and the portfolio manager found a suspicious share-class FX rate in the input.",
+      "Affected Business or IT Services": [
+        "Fund Pricing"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "NAV Calculation",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H29",
+      "Request type": "Machine Created Alert",
+      "Summary": "NAV check recovered before deadline",
+      "Description": "Monitoring reported a tolerance failure at 09:02 for one fund. At 09:06 the calculation reran automatically with the corrected closing price; both the control dashboard and transfer-agent output show a passing NAV, with no publication delay.",
+      "Affected Business or IT Services": [
+        "NAV Calculation"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "NAV Calculation",
+        "work_type": "Incident",
+        "resolution": "cannot reproduce",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H30",
+      "Request type": "Human Created Incident",
+      "Summary": "Cash sweep missed bank cutoff",
+      "Description": "The overnight sweep for a Luxembourg money-market fund did not reach its custodian account. The internal ledger is EUR 2.3 million above the bank statement and a margin call is due by 11:00. The bank says the instruction arrived after its cutoff.",
+      "Affected Business or IT Services": [
+        "Portfolio Accounting"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Cash Management",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "vincent.lange@intcom.com",
+        "urgency": "Highest",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H31",
+      "Request type": "Access to a Service",
+      "Summary": "Treasury account request lacks details",
+      "Description": "Please set up a cash account for the new fund. I do not yet know the bank, currency, legal entity or signatories; the launch team will send the mandate once approved.",
+      "Affected Business or IT Services": [
+        "Cash Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Cash Management",
+        "work_type": "Service Request",
+        "resolution": "clarification",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H32",
+      "Request type": "Human Created Incident",
+      "Summary": "Regulatory file rejected by gateway",
+      "Description": "The monthly transaction report for the German entity was rejected by the regulator because eight counterparties have blank classification fields. The submission window closes tonight and the previous accepted file cannot be reused.",
+      "Affected Business or IT Services": [
+        "Risk & Compliance Monitoring"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Regulatory Reporting",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": "tara.singh@intcom.com",
+        "urgency": "Highest",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H33",
+      "Request type": "Misclassified Incident Title",
+      "Summary": "Add a new reporting recipient",
+      "Description": "Compliance requests that the approved quarterly report be delivered to its new internal distribution mailbox next month. The recipient address and approval are included; the current submission process is functioning.",
+      "Affected Business or IT Services": [
+        "Outlook & Email"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Regulatory Reporting",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H34",
+      "Request type": "Human Created Incident",
+      "Summary": "Monitoring rule failed to flag exposure",
+      "Description": "A pretrade concentration check allowed three proposed orders above the sector threshold for two Luxembourg funds. The orders are still held manually and no trade was executed; compliance needs the rule corrected before the next trading session.",
+      "Affected Business or IT Services": [
+        "Order Management"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Risk & Compliance Monitoring",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Medium"
+      }
+    },
+    {
+      "id": "H35",
+      "Request type": "Human Created Incident",
+      "Summary": "Unclear compliance alert",
+      "Description": "Please fix the risk warning from last week. I cannot remember the portfolio, rule name, screenshot, or whether the warning appeared in production. The monitoring team has found no corresponding alert yet.",
+      "Affected Business or IT Services": [
+        "Risk & Compliance Monitoring"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Risk & Compliance Monitoring",
+        "work_type": "Incident",
+        "resolution": "clarification",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H36",
+      "Request type": "New License",
+      "Summary": "Tax extract license for analyst",
+      "Description": "The Swiss tax lead approved the standard withholding extract license for a new analyst. The analyst can open the tax workspace but receives a missing-entitlement message when running the quarterly extract. The filing deadline is in two weeks.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Tax Reporting",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": "tania.gupta@intcom.com",
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H37",
+      "Request type": "Human Created Incident",
+      "Summary": "Tax code output differs for one class",
+      "Description": "The withholding extract lists the wrong domicile code for one French share class. The statutory file has not been submitted and the tax team can correct the code manually before Friday’s filing.",
+      "Affected Business or IT Services": [
+        "Regulatory Reporting"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Tax Reporting",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Medium",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H38",
+      "Request type": "Access to a Service",
+      "Summary": "Client portal password reset request",
+      "Description": "The named client administrator is locked out of the portal after changing phones. Identity has been confirmed through the agreed callback and the account is active; please reset the second factor for that user.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "CRM & Client Portal",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H39",
+      "Request type": "Human Created Incident",
+      "Summary": "Portal figures absent for one client",
+      "Description": "The investor portal opens normally, but a single Luxembourg client sees no performance chart for its two mandates. The internal CRM has current figures and other clients can view theirs.",
+      "Affected Business or IT Services": [
+        "Client Reporting"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "CRM & Client Portal",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Medium",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H40",
+      "Request type": "Access to a Service",
+      "Summary": "Shared drive permission for project",
+      "Description": "The French legal team asks for read access to the due-diligence folder for three named users. The folder owner approved the request, and the files are available to existing members.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "SharePoint & File Storage",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H41",
+      "Request type": "Human Created Incident",
+      "Summary": "Document library version history unavailable",
+      "Description": "Version history fails for every file in the compliance document library after yesterday’s migration. Download and upload still work, but the auditors need to inspect prior versions before their review tomorrow.",
+      "Affected Business or IT Services": [
+        "CRM & Client Portal"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "SharePoint & File Storage",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Medium"
+      }
+    },
+    {
+      "id": "H42",
+      "Request type": "Misclassified Incident Title",
+      "Summary": "Distribution list for new desk",
+      "Description": "The Nordics dealing desk starts next week. Please create a shared mailbox and distribution list for the four named traders, with send-as rights approved by the desk head. Existing mailboxes are working.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Outlook & Email",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": "jack.martin@intcom.com",
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H43",
+      "Request type": "Human Created Incident",
+      "Summary": "Meeting invites stuck in outbox",
+      "Description": "Calendar invitations sent by the Zurich operations team remain in the outbox for 23 users. Ordinary messages deliver, and external recipients have not received the settlement call invite scheduled for 13:00.",
+      "Affected Business or IT Services": [
+        "SharePoint & File Storage"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Outlook & Email",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Medium"
+      }
+    },
+    {
+      "id": "H44",
+      "Request type": "Access Removal",
+      "Summary": "Former contractor access removal",
+      "Description": "Remove the former contractor’s SSO account and application access today. HR supplied the departure record and the manager approved the offboarding. The account is still active but no suspicious login is known.",
+      "Affected Business or IT Services": [
+        "Outlook & Email"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Identity & Access Management",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H45",
+      "Request type": "Human Created Incident",
+      "Summary": "Service login loops for one user",
+      "Description": "A single analyst is redirected back to the SSO sign-in page after entering the correct password for several internal applications. Colleagues in the same roles can sign in; the analyst has a regulatory review at 15:00.",
+      "Affected Business or IT Services": [
+        "Trading Platform"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Identity & Access Management",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "High",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H46",
+      "Request type": "Human Created Incident",
+      "Summary": "Trading screen froze after market open",
+      "Description": "The browser order blotter stopped updating for all Swiss equities traders at 09:03, although the order gateway continues to acknowledge messages. Traders have no usable alternative screen and the desk has stopped submitting new orders.",
+      "Affected Business or IT Services": [
+        "Order Management"
+      ],
+      "Business Entity": [
+        "Switzerland"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Trading Platform",
+        "work_type": "Incident",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Highest",
+        "impact": "High"
+      }
+    },
+    {
+      "id": "H47",
+      "Request type": "Access to a Service",
+      "Summary": "New terminal access before rotation",
+      "Description": "Two named traders need access to the execution terminal when they join the evening shift next month. The trading head signed the access form and listed the required market permissions.",
+      "Affected Business or IT Services": [
+        "Identity & Access Management"
+      ],
+      "Business Entity": [
+        "Luxembourg"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Trading Platform",
+        "work_type": "Service Request",
+        "resolution": "done",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Low"
+      }
+    },
+    {
+      "id": "H48",
+      "Request type": "Nonsense / Unclear Input",
+      "Summary": "Blank forwarded email",
+      "Description": "The forwarded message has no body, attachment, sender context, system name, or stated problem. The reporter confirms it was forwarded to the queue by mistake and asks us to ignore it.",
+      "Affected Business or IT Services": [
+        "Tax Reporting"
+      ],
+      "Business Entity": [
+        "France"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Emailed Support Tickets",
+        "work_type": "Service Request",
+        "resolution": "cancelled",
+        "assignee": null,
+        "urgency": "Lowest",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H49",
+      "Request type": "Nonsense / Unclear Input",
+      "Summary": "Please call me about something",
+      "Description": "Can someone call me? There is no callback number, application, account, incident time, or description of a problem. A reply requesting details received no response after the standard follow-up window.",
+      "Affected Business or IT Services": [
+        "Client Reporting"
+      ],
+      "Business Entity": [
+        "Germany"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Emailed Support Tickets",
+        "work_type": "Service Request",
+        "resolution": "cancelled",
+        "assignee": null,
+        "urgency": "Lowest",
+        "impact": "Lowest"
+      }
+    },
+    {
+      "id": "H50",
+      "Request type": "Email / 3rd Party Warning",
+      "Summary": "Third-party status notice without impact",
+      "Description": "The external provider sent a generic maintenance notice for a service that is not identified in the message. No affected workflow, time window, contact, or action is specified and the forwarded email contains no attachment.",
+      "Affected Business or IT Services": [
+        "Emailed Support Tickets"
+      ],
+      "Business Entity": [
+        "Nordics"
+      ],
+      "Business Critical for Entity": [],
+      "Urgency": "Medium",
+      "Impact": "Medium",
+      "All Comments": [],
+      "_label": {
+        "service": "Emailed Support Tickets",
+        "work_type": "Service Request",
+        "resolution": "clarification",
+        "assignee": null,
+        "urgency": "Low",
+        "impact": "Lowest"
+      }
     }
   ]
 }

@@ -3,6 +3,7 @@
     python eval/evaluate.py [--file eval/devset.json] [--samples 3] [--evidence]
 """
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -21,6 +22,7 @@ def main() -> None:
     ap.add_argument("--comment", action="store_true", help="generate the draft resolution comment")
     ap.add_argument("--concurrency", type=int, default=config.LLM_CONCURRENCY)
     ap.add_argument("--limit", type=int, default=None, help="run only the first N labelled tickets")
+    ap.add_argument("--results-file", type=Path, help="also save a stable comparison artifact at this path")
     args = ap.parse_args()
     decisions, metrics, report = evaluate_file(args.file, n_samples=args.samples, evidence=args.evidence,
                                                comment=args.comment, concurrency=args.concurrency,
@@ -35,11 +37,16 @@ def main() -> None:
     if config.LLM_PROVIDER == "openai":
         settings.update(reasoning_effort=config.OPENAI_REASONING_EFFORT,
                         reasoning_mode=config.OPENAI_REASONING_MODE)
-    report_path.write_text(json.dumps({
+    result = {
         "file": args.file, "provider": config.LLM_PROVIDER, "versions": decisions.versions.model_dump(),
+        "dataset_sha256": hashlib.sha256(Path(args.file).read_bytes()).hexdigest(),
         "settings": settings,
         "report": report, "metrics": metrics,
-    }, indent=2, ensure_ascii=False), encoding="utf-8")
+    }
+    report_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+    if args.results_file:
+        args.results_file.parent.mkdir(parents=True, exist_ok=True)
+        args.results_file.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"Versions: {decisions.versions.model_dump()}\nSaved {out.relative_to(config.ROOT)} and "
           f"{report_path.relative_to(config.ROOT)}")
 

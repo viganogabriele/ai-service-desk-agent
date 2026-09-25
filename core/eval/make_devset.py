@@ -7,9 +7,11 @@ resolution from the scenario; work type/urgency/impact are the generator's own a
 
     python eval/make_devset.py            # writes eval/devset.json (cached, reproducible)
 """
+import argparse
 import json
 import random
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Literal
 
@@ -156,20 +158,28 @@ def _record(tid: str, t: DevTicket, reported: str, rng: random.Random, label: di
     }
 
 
-def build_devset(catalog: dict, cards: dict, seed: int = 7) -> list[dict]:
+def build_devset(catalog: dict, cards: dict, seed: int = 7, checkpoint: Path | None = None,
+                 concurrency: int = 8) -> list[dict]:
     """Every ticket draws from its own RNG (seeded by its id), so editing one scenario
     never changes the generation seeds - and the cache hits - of the others."""
     fallback = {s: v["assignee"] for s, v in catalog["fallback_assignee"].items()}
-    records = []
+    specs = []
+    saved = json.loads(checkpoint.read_text(encoding="utf-8")) if checkpoint and checkpoint.exists() else []
 
-    def add(kind, svc, reported, label, pattern=None, misleading=False, prompt=None):
-        tid = f"D{len(records) + 1:03d}"
+    def add(kind, svc, reported, label, pattern=None, misleading=False, prompt=None, angle=None):
+        tid = f"D{len(specs) + 1:03d}"
+        specs.append((tid, kind, svc, reported, label, pattern, misleading, prompt, angle))
+
+    def generate_one(spec):
+        tid, kind, svc, reported, label, pattern, misleading, prompt, angle = spec
         rng = random.Random(f"{seed}-{tid}")
         user = prompt or _scenario_prompt(kind, svc, _card(cards, svc), pattern, misleading)
+        if angle:
+            user += f"\nMake this scenario distinct: {angle}."
         avoid = [s for s in (svc, reported) if s and s != config.CATCH_ALL_SERVICE and kind != "nonsense"]
         t = _generate(user, rng, avoid)
-        records.append(_record(tid, t, reported, rng, {**label, "kind": kind}, bool(svc) and _names_service(t, svc),
-                               misleading))
+        return _record(tid, t, reported, rng, {**label, "kind": kind}, bool(svc) and _names_service(t, svc),
+                       misleading)
 
     # Variant 0 of each scenario: wrong (adjacent) reported service + a title misleading about the
     # work type, with an accurate description (as in the README). Variant 1: plain.
@@ -199,19 +209,80 @@ def build_devset(catalog: dict, cards: dict, seed: int = 7) -> list[dict]:
         add("nonsense", None, pick.choice(config.SERVICES),
             {"service": config.CATCH_ALL_SERVICE, "resolution": "cancelled", "assignee": None, "assignee_source": None,
              "source_pattern": None}, prompt=NONSENSE_PROMPT)
+
+    # Additional independent phrasings of known resolution patterns and card scopes.
+    angles = ("an individual user's early-morning workflow", "a same-day cut-off affecting several funds",
+              "an overnight batch with a clear error message", "a handoff between two offices")
+    for p in catalog["patterns"]:
+        svc = p["service"]
+        label = {"service": svc, "resolution": "done", "assignee": p["resolver"],
+                 "assignee_source": "pattern_match", "source_pattern": p["id"]}
+        pick = random.Random(f"{seed}-extra-{p['id']}")
+        for variant in range(2):
+            add("pattern", svc, _adjacent(pick, svc, catalog) if variant == 0 else svc,
+                label, pattern=p, misleading=variant == 0, angle=angles[variant])
+    for svc in no_pattern:
+        label = {"service": svc, "resolution": "done", "assignee": fallback[svc],
+                 "assignee_source": "fallback", "source_pattern": None}
+        pick = random.Random(f"{seed}-extra-{svc}")
+        for variant in range(2):
+            add("card", svc, _adjacent(pick, svc, catalog) if variant == 0 else svc,
+                label, misleading=variant == 0, angle=angles[variant + 2])
+
+    # Six more cases for each named service: actionable issues, incomplete requests,
+    # and alerts that cleared. Their labels are grounded in the scenario rather than
+    # in the reported service or the generator's wording.
+    for svc in candidates:
+        pick = random.Random(f"{seed}-coverage-{svc}")
+        for variant, kind in enumerate(("card", "card", "clarification", "clarification",
+                                         "cannot_reproduce", "cannot_reproduce")):
+            resolution = {"card": "done", "clarification": "clarification",
+                          "cannot_reproduce": "cannot reproduce"}[kind]
+            label = {"service": svc, "resolution": resolution, "assignee": None,
+                     "assignee_source": None, "source_pattern": None}
+            reported = _adjacent(pick, svc, catalog) if variant % 2 == 0 else svc
+            add(kind, svc, reported, label, misleading=variant == 0,
+                angle=f"{angles[variant % len(angles)]}; variant {variant + 1} for {svc}")
+    for variant in range(7):
+        add("nonsense", None, pick.choice(config.SERVICES),
+            {"service": config.CATCH_ALL_SERVICE, "resolution": "cancelled", "assignee": None,
+             "assignee_source": None, "source_pattern": None},
+            prompt=NONSENSE_PROMPT, angle=f"accidental message style {variant + 1}")
+    if len(saved) > len(specs):
+        raise ValueError("Checkpoint has more tickets than the scenario plan")
+    for i, record in enumerate(saved):
+        if record["id"] != specs[i][0]:
+            raise ValueError(f"Checkpoint has an unexpected ID at {specs[i][0]}")
+    records = list(saved)
+    with ThreadPoolExecutor(max_workers=concurrency) as pool:
+        while len(records) < len(specs):
+            batch = specs[len(records):len(records) + concurrency]
+            records.extend(pool.map(generate_one, batch))
+            if checkpoint:
+                checkpoint.write_text(json.dumps(records, ensure_ascii=False, indent=1), encoding="utf-8")
+            print(f"Generated {len(records)}/{len(specs)} tickets", flush=True)
     return records
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--checkpoint", default="eval/devset.partial.json")
+    ap.add_argument("--concurrency", type=int, default=8)
+    args = ap.parse_args()
     catalog, cards = load_catalog(), load_service_cards()
-    records = build_devset(catalog, cards)
+    checkpoint = config.ROOT / args.checkpoint
+    records = build_devset(catalog, cards, checkpoint=checkpoint, concurrency=args.concurrency)
     OUT_PATH.write_text(json.dumps({
         "note": "LLM-generated dev set (eval/make_devset.py) from the KB only, never from the challenge. "
-                "service/assignee/resolution labels are firm; work_type/urgency/impact are the generator's (soft). "
+                "Service and resolution labels follow the source scenario; pattern-derived assignees are firm, "
+                "fallback assignees and generator-provided work_type/urgency/impact are soft. "
                 "Optimistic: the same model writes and solves these tickets.",
         "model": config.TRIAGE_MODEL,
+        "reasoning_effort": config.OPENAI_REASONING_EFFORT if config.LLM_PROVIDER == "openai" else None,
+        "reasoning_mode": config.OPENAI_REASONING_MODE if config.LLM_PROVIDER == "openai" else None,
         "records": records,
     }, indent=1, ensure_ascii=False), encoding="utf-8")
+    checkpoint.unlink(missing_ok=True)
     kinds = {}
     for r in records:
         kinds[r["_label"]["kind"]] = kinds.get(r["_label"]["kind"], 0) + 1
