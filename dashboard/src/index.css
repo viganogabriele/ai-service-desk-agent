@@ -277,6 +277,8 @@
   /* A simulated ticket drops into the queue, waits for the AI, then lights up once classified. */
   --animate-arrive: arrive 420ms var(--ease-out);
   --animate-pulse: pulse 1.4s ease-in-out infinite;
+  /* "Classified" rises in next to Upcoming, holds, then fades as the ticket joins the queue. */
+  --animate-done: done 2.4s var(--ease-out) forwards;
 
   @keyframes spin {
     to {
@@ -361,6 +363,20 @@
   @keyframes pulse {
     50% {
       opacity: 0.45;
+    }
+  }
+  @keyframes done {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    12%,
+    75% {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
     }
   }
 

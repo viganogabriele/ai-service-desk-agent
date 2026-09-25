@@ -42,6 +42,7 @@ import type { TicketRow } from "./tickets";
 import { TicketTable } from "./table";
 import { TicketPagination } from "./pagination";
 import { Menu } from "./ui";
+import { classifiedSince, isPending } from "../lib/notifications";
 import { cn } from "../lib/utils";
 import { Dot } from "./ui/badge";
 import { Button, buttonVariants } from "./ui/button";
@@ -128,6 +129,42 @@ function useNow() {
   return now;
 }
 
+// How long "classified" stays next to Upcoming after the AI finishes a ticket.
+const DONE_MS = 2400;
+
+/** The tickets the AI finished since the last render, said for a moment so the queue visibly moves. */
+function useJustClassified(rows: TicketRow[]) {
+  const pendingKeys = rows.flatMap((row) => (isPending(row) ? [row.id] : [])).join(",");
+  const [seen, setSeen] = useState(pendingKeys);
+  const [done, setDone] = useState<{ text: string; keys: string } | null>(null);
+
+  // Handled while rendering, as the notifications bell does, so the text shows with the change.
+  if (seen !== pendingKeys) {
+    const finished = classifiedSince(new Set(seen.split(",")), rows);
+
+    setSeen(pendingKeys);
+
+    if (finished.length)
+      setDone({
+        text:
+          finished.length === 1
+            ? `${finished[0].key} classified`
+            : `${finished.length} tickets classified`,
+        keys: finished.map((notification) => notification.key).join(","),
+      });
+  }
+
+  useEffect(() => {
+    if (!done) return;
+
+    const timer = window.setTimeout(() => setDone(null), DONE_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [done]);
+
+  return done;
+}
+
 /** A titled row of cards that scrolls sideways when there are more than fit. */
 function Lane({
   id,
@@ -135,6 +172,7 @@ function Lane({
   count,
   first,
   thin = false,
+  status,
   empty,
   children,
 }: {
@@ -144,6 +182,8 @@ function Lane({
   // The key of the first card, so the strip can go back to it when the order changes.
   first: string | undefined;
   thin?: boolean;
+  // Said next to the title, like a ticket the lane just let go.
+  status?: ReactNode;
   empty: ReactNode;
   children: ReactNode;
 }) {
@@ -156,6 +196,7 @@ function Lane({
           {title}
           <SectionCount>{count}</SectionCount>
         </SectionTitle>
+        {status}
         {count > RECENT_LIMIT && (
           <Link
             to="/tickets"
@@ -219,6 +260,7 @@ function Lane({
 export function PriorityView({ rows, pageRows }: { rows: TicketRow[]; pageRows: TicketRow[] }) {
   const { classifying } = useDashboard();
   const now = useNow();
+  const done = useJustClassified(rows);
 
   if (rows.length === 0) return <Empty>No tickets match these filters.</Empty>;
 
@@ -242,6 +284,16 @@ export function PriorityView({ rows, pageRows }: { rows: TicketRow[]; pageRows: 
           count={upcoming.length}
           first={upcoming[0]?.id}
           thin
+          status={
+            <span role="status" className="text-sm font-medium text-success">
+              {done && (
+                <span key={done.keys} className="inline-flex animate-done items-center gap-1">
+                  <CircleCheck size={13} strokeWidth={2.25} />
+                  {done.text}
+                </span>
+              )}
+            </span>
+          }
           empty={
             <p className="text-base text-muted">
               New Jira tickets appear here while the AI classifies them.
