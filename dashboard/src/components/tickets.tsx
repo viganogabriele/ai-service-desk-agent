@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Flag, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
 import { cn } from "../lib/utils";
@@ -30,7 +30,7 @@ export interface TicketFilters {
   view: "table" | "board" | "priority";
 }
 
-const DEFAULT_FILTERS: TicketFilters = {
+export const DEFAULT_FILTERS: TicketFilters = {
   query: "",
   status: "all",
   service: "all",
@@ -79,6 +79,29 @@ export interface TicketRow {
 }
 
 export const isOpen = (status: Status) => OPEN_STATUSES.includes(status);
+
+/** Whether anything narrows the queue beyond the chosen view. */
+export const isFiltered = (filters: TicketFilters) =>
+  filters.query !== DEFAULT_FILTERS.query ||
+  filters.status !== DEFAULT_FILTERS.status ||
+  filters.service !== DEFAULT_FILTERS.service ||
+  filters.rating !== DEFAULT_FILTERS.rating ||
+  filters.change !== DEFAULT_FILTERS.change;
+
+/**
+ * A plain click on a row or card itself: not on a control inside it, not from a menu it portals
+ * out (React bubbles those through the tree), without modifier keys, and not the mouse-up that
+ * ends a text selection.
+ */
+export function opensOnClick(event: MouseEvent<HTMLElement>) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+    return false;
+
+  if (!(event.target instanceof Element) || !event.currentTarget.contains(event.target))
+    return false;
+
+  return !event.target.closest("a, button, input, label") && !window.getSelection()?.toString();
+}
 
 export function useTicketRows() {
   const { data, review, proposalFor, idOf } = useDashboard();
@@ -311,6 +334,7 @@ export function StatusFilter() {
       label="Status"
       hideLabel
       className={FILTER_CLASS}
+      active={filters.status !== "all"}
       value={filters.status}
       onChange={(status) => setFilters({ status })}
       options={[
@@ -341,6 +365,7 @@ export function FilterSelects() {
         label="Service"
         hideLabel
         className={FILTER_CLASS}
+        active={filters.service !== "all"}
         value={filters.service}
         onChange={(service) => setFilters({ service })}
         options={[
@@ -352,6 +377,7 @@ export function FilterSelects() {
         label="Service rating"
         hideLabel
         className={FILTER_CLASS}
+        active={filters.rating !== "all"}
         value={filters.rating}
         onChange={(rating) => setFilters({ rating })}
         options={[
@@ -365,6 +391,7 @@ export function FilterSelects() {
           label="AI changes"
           hideLabel
           className={FILTER_CLASS}
+          active={filters.change !== "all"}
           value={filters.change}
           onChange={(change) => setFilters({ change })}
           options={[

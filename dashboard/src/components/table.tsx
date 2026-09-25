@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { serviceInfo } from "../domain";
-import { Initials, PriorityBadge, StatusPill, isOpen, personName } from "./tickets";
+import { Initials, PriorityBadge, StatusPill, isOpen, opensOnClick, personName } from "./tickets";
 import type { TicketRow } from "./tickets";
 import { cn } from "../lib/utils";
 import { buttonVariants } from "./ui/button";
@@ -108,7 +108,9 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
         "group/row cursor-pointer max-md:grid max-md:items-center max-md:gap-x-3 max-md:gap-y-2 max-md:border-t max-md:border-divider max-md:px-card-pad max-md:py-3.5",
         place.row,
       )}
-      onClick={open}
+      onClick={(event) => {
+        if (opensOnClick(event)) open();
+      }}
     >
       {selection && (
         <td
@@ -116,7 +118,6 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
             td,
             "w-10 pr-0 max-md:col-start-1 max-md:row-start-1 max-md:self-start max-md:pt-0.5",
           )}
-          onClick={(event) => event.stopPropagation()}
         >
           <CheckHit>
             <Checkbox
@@ -133,7 +134,6 @@ function TableRow({ row, selection }: { row: TicketRow; selection?: Selection })
           to="/tickets/$ticketId"
           params={{ ticketId: id }}
           className="block max-w-130 truncate font-display text-md font-medium text-foreground transition-colors duration-150 ease-soft group-hover/row:text-primary-text max-md:line-clamp-2 max-md:max-w-none max-md:leading-snug max-md:whitespace-normal"
-          onClick={(event) => event.stopPropagation()}
         >
           {ticket.Summary}
         </Link>

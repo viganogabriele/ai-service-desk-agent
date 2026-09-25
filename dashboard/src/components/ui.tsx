@@ -1,13 +1,26 @@
-import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { useRef } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown, MoreHorizontal, X } from "lucide-react";
 import { OUTCOMES, OUTCOME_LABELS } from "../domain";
 import type { Outcome } from "../domain";
 import { personName } from "./tickets";
 import { cn } from "../lib/utils";
+import { popoverClass } from "./select";
 import { Button } from "./ui/button";
-import { Field, Textarea, fieldClass } from "./ui/form";
+import { Field, Kbd, Textarea, fieldClass } from "./ui/form";
 
+const MOD_LABEL = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl";
+
+/** Ctrl+Enter (⌘+Enter on a Mac) inside a textarea, so a comment can be sent without leaving the keyboard. */
+const isSubmitKey = (event: KeyboardEvent) =>
+  event.key === "Enter" && (event.metaKey || event.ctrlKey);
+
+/**
+ * Modal dialog on Radix: focus is trapped inside, the page behind stops scrolling, Escape and a
+ * click that starts on the backdrop close it, and focus returns to the trigger afterwards.
+ */
 export function Dialog({
   title,
   description,
@@ -21,56 +34,60 @@ export function Dialog({
   children: ReactNode;
   footer: ReactNode;
 }) {
-  const panel = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const previous = document.activeElement;
-    const focusable = panel.current?.querySelector<HTMLElement>("textarea, input, button");
-    focusable?.focus();
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    window.addEventListener("keydown", onKey);
-
-    return () => {
-      window.removeEventListener("keydown", onKey);
-
-      if (previous instanceof HTMLElement) previous.focus();
-    };
-  }, [onClose]);
+  const content = useRef<HTMLDivElement>(null);
 
   return (
-    <div
-      className="fixed inset-0 z-10 grid animate-fade-in place-items-center bg-overlay p-5 max-sm:items-end max-sm:justify-items-stretch max-sm:p-0"
-      role="presentation"
-      onClick={onClose}
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
     >
-      <div
-        ref={panel}
-        className="max-h-dialog w-160 max-w-full animate-dialog-in overflow-auto rounded-float bg-surface p-6 shadow-popover max-sm:max-h-sheet max-sm:w-full max-sm:rounded-b-none max-sm:px-4 max-sm:pt-5 max-sm:pb-sheet-b"
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="font-display text-lg leading-5 font-semibold">{title}</h2>
-            {description && <p className="mt-1 text-sm text-muted">{description}</p>}
-          </div>
-          <Button size="icon" onClick={onClose} aria-label="Close">
-            <X size={16} strokeWidth={1.75} />
-          </Button>
-        </div>
-        <div className="grid gap-4">{children}</div>
-        <div className="mt-5 flex items-center justify-end gap-2 max-sm:flex-wrap">{footer}</div>
-      </div>
-    </div>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-10 grid animate-fade-in place-items-center overflow-y-auto bg-overlay p-5 max-sm:items-end max-sm:justify-items-stretch max-sm:p-0">
+          <DialogPrimitive.Content
+            ref={content}
+            className="max-h-dialog w-160 max-w-full animate-dialog-in overflow-auto rounded-float bg-surface p-6 shadow-popover outline-none max-sm:max-h-sheet max-sm:w-full max-sm:rounded-b-none max-sm:px-4 max-sm:pt-5 max-sm:pb-sheet-b"
+            // Radix expects a description; without one it must not point at a missing element.
+            {...(description ? {} : { "aria-describedby": undefined })}
+            // The first field is where typing starts; a dialog without one opens on its first button.
+            onOpenAutoFocus={(event) => {
+              const field = content.current?.querySelector<HTMLElement>("textarea, input");
+
+              if (!field) return;
+              event.preventDefault();
+              field.focus();
+            }}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <DialogPrimitive.Title className="font-display text-lg leading-5 font-semibold">
+                  {title}
+                </DialogPrimitive.Title>
+                {description && (
+                  <DialogPrimitive.Description className="mt-1 text-sm text-muted">
+                    {description}
+                  </DialogPrimitive.Description>
+                )}
+              </div>
+              <DialogPrimitive.Close asChild>
+                <Button size="icon" aria-label="Close">
+                  <X size={16} strokeWidth={1.75} />
+                </Button>
+              </DialogPrimitive.Close>
+            </div>
+            <div className="grid gap-4">{children}</div>
+            <div className="mt-5 flex items-center justify-end gap-2 max-sm:flex-wrap">
+              {footer}
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Overlay>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
+/** Overflow menu on Radix: arrow keys and type-ahead move through the items, Escape and a choice return focus to the trigger. */
 export function Menu({
   label,
   items,
@@ -81,65 +98,51 @@ export function Menu({
   // Applied to the trigger button.
   className?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const root = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const onPointer = (event: PointerEvent) => {
-      if (event.target instanceof Node && !root.current?.contains(event.target)) setOpen(false);
-    };
-
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("pointerdown", onPointer);
-    document.addEventListener("keydown", onKey);
-
-    return () => {
-      document.removeEventListener("pointerdown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   return (
-    <div className="relative" ref={root}>
-      <Button
-        size="icon"
-        className={className}
-        aria-label={label}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        <MoreHorizontal size={16} strokeWidth={1.75} />
-      </Button>
-      {open && (
-        <div
-          className="absolute top-full right-0 z-20 mt-1.5 grid min-w-55 origin-top-right animate-pop-in rounded-tile bg-tooltip p-1 shadow-popover"
-          role="menu"
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <Button size="icon" className={className} aria-label={label}>
+          <MoreHorizontal size={16} strokeWidth={1.75} />
+        </Button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          collisionPadding={12}
+          className={cn(
+            "z-20 grid min-w-55 origin-(--radix-dropdown-menu-content-transform-origin) p-1 data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in",
+            popoverClass,
+          )}
         >
           {items.map((item) => (
-            <button
+            <DropdownMenu.Item
               key={item.label}
-              role="menuitem"
               className={cn(
-                "h-8.5 rounded-option px-2.5 text-left text-base text-foreground hover:bg-active focus-visible:bg-active pointer-coarse:min-h-10",
+                "flex h-8.5 cursor-pointer items-center rounded-option px-2.5 text-base text-foreground outline-none select-none data-highlighted:bg-active pointer-coarse:min-h-10",
                 item.danger && "text-danger",
               )}
-              onClick={() => {
-                setOpen(false);
-                item.onSelect();
-              }}
+              onSelect={item.onSelect}
             >
               {item.label}
-            </button>
+            </DropdownMenu.Item>
           ))}
-        </div>
-      )}
-    </div>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+/** The shortcut that submits a comment editor, shown next to its primary button. */
+export function SubmitHint() {
+  return (
+    <span
+      className="inline-flex gap-0.75 max-md:hidden touch:hidden"
+      data-tip={`${MOD_LABEL} + Enter submits`}
+    >
+      <Kbd>{MOD_LABEL}</Kbd>
+      <Kbd>↵</Kbd>
+    </span>
   );
 }
 
@@ -152,6 +155,7 @@ export function CommentEditor({
   placeholder,
   rows = 6,
   draft = false,
+  onSubmit,
 }: {
   author: string;
   value: string;
@@ -161,6 +165,8 @@ export function CommentEditor({
   rows?: number;
   // An AI draft stays yellow until it is approved or edited.
   draft?: boolean;
+  // Runs on Ctrl/⌘+Enter; leave it out while the action is not available.
+  onSubmit?: () => void;
 }) {
   return (
     <Field>
@@ -181,6 +187,12 @@ export function CommentEditor({
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (onSubmit && isSubmitKey(event)) {
+              event.preventDefault();
+              onSubmit();
+            }
+          }}
         />
       </span>
     </Field>

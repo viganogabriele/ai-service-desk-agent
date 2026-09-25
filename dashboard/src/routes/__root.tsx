@@ -1,8 +1,10 @@
 import { Link, Outlet, createRootRoute, useMatchRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChartColumn, Gem, Rows3, SquareKanban, Undo2, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { DashboardProvider, useDashboard } from "../state";
+import type { Notice } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
 import { ThemeToggle } from "../components/theme";
@@ -129,15 +131,37 @@ function ViewSwitch({ active }: { active: TicketFilters["view"] | null }) {
   );
 }
 
+const TOAST_MS = 8000;
+
 function Toast() {
   const { notice, dismissNotice } = useDashboard();
 
   if (!notice) return null;
 
+  return <ToastCard notice={notice} onDismiss={dismissNotice} />;
+}
+
+/** Dismisses itself after a while, but not while the pointer or keyboard focus is on it, so Undo stays reachable. */
+function ToastCard({ notice, onDismiss }: { notice: Notice; onDismiss: () => void }) {
+  const [held, setHeld] = useState(false);
+
+  useEffect(() => {
+    if (held) return;
+    const timer = window.setTimeout(onDismiss, TOAST_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [notice, held, onDismiss]);
+
   return (
     <div
-      className="fixed right-6 bottom-6 z-30 flex max-w-toast animate-toast-in items-center gap-2 rounded-tile bg-tooltip py-2 pr-2 pl-4 shadow-popover max-sm:right-safe-r max-sm:bottom-safe-b max-sm:left-safe-l max-sm:max-w-none"
+      className="fixed right-6 bottom-6 z-30 flex max-w-toast animate-toast-in items-center gap-2 rounded-tile bg-popover py-2 pr-2 pl-4 shadow-popover max-sm:right-safe-r max-sm:bottom-safe-b max-sm:left-safe-l max-sm:max-w-none"
       role="status"
+      onPointerEnter={() => setHeld(true)}
+      onPointerLeave={() => setHeld(false)}
+      onFocus={() => setHeld(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setHeld(false);
+      }}
     >
       <span className="flex-1">{notice.message}</span>
       {notice.undo && (
@@ -145,14 +169,14 @@ function Toast() {
           variant="ghost"
           onClick={() => {
             notice.undo?.();
-            dismissNotice();
+            onDismiss();
           }}
         >
           <Undo2 size={14} strokeWidth={1.75} />
           Undo
         </Button>
       )}
-      <Button size="icon" aria-label="Dismiss" onClick={dismissNotice}>
+      <Button size="icon" aria-label="Dismiss" onClick={onDismiss}>
         <X size={14} strokeWidth={1.75} />
       </Button>
     </div>

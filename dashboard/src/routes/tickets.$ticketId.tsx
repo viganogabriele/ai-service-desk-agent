@@ -39,7 +39,7 @@ import {
   ReasonTooltip,
 } from "../components/classification";
 import type { TagKind } from "../components/classification";
-import { CommentEditor, Dialog, Fold, OutcomePicker } from "../components/ui";
+import { CommentEditor, Dialog, Fold, OutcomePicker, SubmitHint } from "../components/ui";
 import { Button, buttonVariants, linkButtonClass } from "../components/ui/button";
 import { Card, CardSection, CardTitle, Empty } from "../components/ui/card";
 import { Kbd } from "../components/ui/form";
@@ -232,6 +232,8 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
 
   const closed = current.status === "resolved";
   const decided = current.status !== "new" && current.status !== "in_progress";
+  const canResolve = Boolean(triage.assignee) && current.reply.trim().length > 0;
+  const canAsk = Boolean(triage.assignee) && current.question.trim().length > 0;
 
   const choices: { value: Step; title: string; help: string; icon: typeof Send }[] = [
     {
@@ -443,6 +445,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     value={current.reply}
                     onChange={(reply) => update(index, { reply })}
                     draft={draft === "ai"}
+                    onSubmit={canResolve ? () => resolve(index) : undefined}
                   />
                   {draft && proposal && (
                     <div className="-mt-1.5 flex flex-wrap items-center gap-3">
@@ -553,10 +556,11 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     {!triage.assignee && (
                       <span className="mr-auto text-sm text-muted">Choose an assignee first.</span>
                     )}
+                    <SubmitHint />
                     <Button
                       variant="primary"
                       size="large"
-                      disabled={!triage.assignee || !current.reply.trim()}
+                      disabled={!canResolve}
                       onClick={() => resolve(index)}
                     >
                       <CircleCheck size={16} strokeWidth={2} />
@@ -575,15 +579,17 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                     rows={4}
                     value={current.question}
                     onChange={(question) => update(index, { question })}
+                    onSubmit={canAsk ? () => askReporter(index) : undefined}
                   />
                   <div className={stepActionsClass}>
                     {!triage.assignee && (
                       <span className="mr-auto text-sm text-muted">Choose an assignee first.</span>
                     )}
+                    <SubmitHint />
                     <Button
                       variant="primary"
                       size="large"
-                      disabled={!triage.assignee || !current.question.trim()}
+                      disabled={!canAsk}
                       onClick={() => askReporter(index)}
                     >
                       <Send size={16} strokeWidth={2} />

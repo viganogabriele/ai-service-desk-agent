@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
@@ -211,7 +211,7 @@ const reasonPopClass = cn(
   "origin-(--radix-tooltip-content-transform-origin) px-3.5 py-3 data-[state=delayed-open]:animate-pop-in",
 );
 
-const arrowClass = "fill-tooltip";
+const arrowClass = "fill-popover";
 
 export function ReasonHead({
   icon,
@@ -311,6 +311,44 @@ export function ReasonTooltip({
   );
 }
 
+/** Arrow keys walk the options; from the first one, ArrowUp goes back to the search field. */
+function moveOptionFocus(event: KeyboardEvent<HTMLDivElement>) {
+  const inField = event.target instanceof HTMLInputElement;
+
+  const step =
+    event.key === "ArrowDown"
+      ? 1
+      : event.key === "ArrowUp"
+        ? -1
+        : event.key === "Home" && !inField
+          ? "first"
+          : event.key === "End" && !inField
+            ? "last"
+            : null;
+
+  if (step === null) return;
+  const options = [...event.currentTarget.querySelectorAll<HTMLElement>("[role=option]")];
+
+  if (options.length === 0) return;
+  event.preventDefault();
+  const current = options.findIndex((option) => option === document.activeElement);
+
+  if (step === -1 && current === 0) {
+    event.currentTarget.querySelector("input")?.focus();
+
+    return;
+  }
+
+  const next =
+    step === "first"
+      ? 0
+      : step === "last"
+        ? options.length - 1
+        : Math.min(options.length - 1, Math.max(0, current + step));
+
+  options[next].focus();
+}
+
 function OptionList({
   label,
   options,
@@ -335,7 +373,7 @@ function OptionList({
     : options;
 
   return (
-    <>
+    <div className="contents" onKeyDown={moveOptionFocus}>
       {searchable && (
         <label className={optionSearchClass}>
           <Search size={14} strokeWidth={1.75} />
@@ -387,7 +425,7 @@ function OptionList({
         ))}
         {shown.length === 0 && <li className={optionEmptyClass}>No matches</li>}
       </ul>
-    </>
+    </div>
   );
 }
 
@@ -421,6 +459,10 @@ function ProposedTag({
       <button
         className={tagChip({ kind })}
         aria-label={`${label}: ${display(field, value)}, ${KIND_LABELS[kind]}`}
+        // The reason card follows keyboard focus only; focus handed back by the picker must not reopen it.
+        onFocus={(event) => {
+          if (!event.currentTarget.matches(":focus-visible")) event.preventDefault();
+        }}
       >
         <KindIcon kind={kind} className={KIND_COLORS[kind]} />
         <span className="truncate">{display(field, value)}</span>

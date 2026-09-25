@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { Bundle, Outcome, Proposal, Status, Triage, TriageField } from "./domain";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -304,13 +304,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const [saved, setSaved] = useState<SavedState>(loadSaved);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const timer = useRef<number | undefined>(undefined);
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [saved]);
-
-  useEffect(() => () => window.clearTimeout(timer.current), []);
 
   if (query.isPending) return <div className="loading">Loading tickets…</div>;
 
@@ -347,11 +345,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const proposalFor = (index: number) => proposalAt(index, review(index).version);
 
-  const show = (value: Notice) => {
-    window.clearTimeout(timer.current);
-    setNotice(value);
-    timer.current = window.setTimeout(() => setNotice(null), 8000);
-  };
+  // The toast dismisses itself; see `Toast` in the root route.
+  const show = (value: Notice) => setNotice(value);
 
   const write = (index: number, next: Review | null, entry?: Action) =>
     setSaved((state) => {
@@ -652,7 +647,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           model: health.data?.model ?? null,
         },
         notice,
-        dismissNotice: () => setNotice(null),
+        dismissNotice,
         idOf,
         review,
         proposalFor,
