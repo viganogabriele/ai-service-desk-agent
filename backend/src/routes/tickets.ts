@@ -10,7 +10,7 @@ import { ticketPatchBodySchema } from "../services/ticket-patch";
 import { storedTicketExport } from "../services/tickets";
 import { SESSION_COOKIE } from "./auth";
 
-/** With sign-in configured, writes act as the signed-in user; otherwise as JIRA_API_TOKEN. */
+/** Writes act as the signed-in Atlassian user, else as the shared JIRA_API_TOKEN account. */
 export function createTicketsRoute(
 	jira: JiraClient,
 	sql: SQL,
@@ -31,11 +31,8 @@ export function createTicketsRoute(
 				}
 			}),
 			async (c) => {
-				const writer = auth ? auth.jira(getCookie(c, SESSION_COOKIE)) : jira;
-				if (!writer)
-					throw new HTTPException(401, {
-						message: "Sign in with Atlassian to change tickets",
-					});
+				// Signing in is optional, so a demo audience can use the shared account.
+				const writer = auth?.jira(getCookie(c, SESSION_COOKIE)) ?? jira;
 				const results = await writeToJira(
 					writer,
 					sql,

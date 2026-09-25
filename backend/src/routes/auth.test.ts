@@ -104,14 +104,15 @@ describe("sign in with Atlassian", () => {
 		);
 	});
 
-	it("refuses writes without a session", async () => {
-		const { app } = await setup();
+	it("writes as the shared account without a session", async () => {
+		const { app, calls } = await setup();
 		const res = await app.request("/tickets", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ Key: "SUP-1", Urgency: "High" }),
 		});
-		expect(res.status).toBe(401);
+		expect(res.status).toBe(200);
+		expect(calls).toEqual([]);
 	});
 
 	it("rejects a callback whose state does not match", async () => {

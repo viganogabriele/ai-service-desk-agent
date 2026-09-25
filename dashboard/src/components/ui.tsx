@@ -186,7 +186,7 @@ export function CommentEditor({
             ? "Choose an assignee to post as"
             : signIn?.user
               ? `Posted by ${signIn.user.name} · ${signIn.user.email}`
-              : `Posted as ${personName(author)} · ${author}`}
+              : `Posted by the shared account, signed ${personName(author)} · ${author}`}
         </span>
         <Textarea
           className="border-0 bg-transparent focus-visible:ring-0"

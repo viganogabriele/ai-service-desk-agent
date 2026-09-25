@@ -377,7 +377,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
             <p className="mt-0.5 text-sm text-muted">
               {signIn?.user
                 ? `Comments are posted to Jira by ${signIn.user.name}.`
-                : `Comments are posted to Jira as ${personName(triage.assignee) || "the assignee"}.`}
+                : `Comments are posted to Jira by the shared account, signed ${personName(triage.assignee) || "by the assignee"}.`}
             </p>
           </div>
         </div>
