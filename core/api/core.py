@@ -2,6 +2,7 @@
 Every decision and every state rule comes from triage/ (run_ticket, state, lanes)."""
 import hashlib
 import json
+from functools import cached_property
 
 from triage import config, usage
 from triage.schemas import RunRecord
@@ -19,6 +20,70 @@ def content_hash(fields: dict) -> str:
 
 def _not_found(kind: str, id_: str) -> StateError:
     return StateError(404, "not_found", f"unknown {kind} {id_}", {kind: id_})
+
+
+def _comment_record(row: dict | None, overrides: list[dict]):
+    """The stored comment, marked stale when a later override touched a field it depends on."""
+    if row is None:
+        return None
+    stale = any(o["field"] in STALES_COMMENT and o["seq"] > row["seq"] for o in overrides)
+    return row["record"].model_copy(update={"stale": stale})
+
+
+class _Facts:
+    """Per-ticket state for the list endpoints, read one table at a time instead of several
+    queries per ticket. Every table is loaded on first use and reused for the whole request."""
+
+    def __init__(self, core: "Core"):
+        self._core, self._db = core, core.db
+        self._state: dict[str, tuple] = {}
+
+    @cached_property
+    def tickets(self) -> list[dict]:
+        return self._db.tickets_all()
+
+    @cached_property
+    def snapshots(self) -> dict[str, dict]:
+        return self._db.latest_snapshots()
+
+    @cached_property
+    def runs(self) -> dict:
+        return self._db.latest_live_runs()
+
+    @cached_property
+    def run_status(self) -> dict[str, str]:
+        return self._db.latest_run_status()
+
+    @cached_property
+    def run_rows(self) -> dict[str, list[dict]]:
+        return self._db.runs_all()
+
+    @cached_property
+    def overrides(self) -> dict[str, list[dict]]:
+        return self._db.overrides_all()
+
+    @cached_property
+    def acceptances(self) -> dict[str, list[dict]]:
+        return self._db.acceptances_all()
+
+    @cached_property
+    def comments(self) -> dict[str, dict]:
+        return self._db.latest_comments()
+
+    @cached_property
+    def conflicts(self) -> dict[str, list[dict]]:
+        return self._db.conflicts_all()
+
+    @cached_property
+    def closures(self) -> dict[str, list[dict]]:
+        return self._db.closures_all()
+
+    def state(self, ticket_id: str) -> tuple:
+        """(latest live run, effective decisions, effective comment), as Core.effective."""
+        if ticket_id not in self._state:
+            self._state[ticket_id] = self._core._effective_from(
+                self.runs.get(ticket_id), self.overrides.get(ticket_id, []), self.comments.get(ticket_id))
+        return self._state[ticket_id]
 
 
 class Core:
@@ -46,9 +111,8 @@ class Core:
         ticket_id = ticket["ticket_id"] if ticket else self.db.create_ticket(external_key)
         existing = self.db.snapshot_by_hash(ticket_id, h)
         if existing:
-            live = [r for r in self.db.runs_for(ticket_id) if r["mode"] == "live"]
             return 200, {"ticket_id": ticket_id, "snapshot_id": existing["snapshot_id"],
-                         "run_id": live[-1]["run_id"] if live else None, "status": "unchanged"}
+                         "run_id": self.db.latest_live_run_id(ticket_id), "status": "unchanged"}
         snapshot_id = self.db.add_snapshot(ticket_id, h, fields)
         self.db.append_event("ticket.imported", {"external_key": external_key, "snapshot_id": snapshot_id},
                              ticket_id=ticket_id)
@@ -143,19 +207,18 @@ class Core:
         run = self.db.latest_live_run(ticket_id)
         if run is None:
             return None, None, None
-        overrides = self.db.overrides_for(ticket_id)
+        return self._effective_from(run, self.db.overrides_for(ticket_id), self.db.latest_comment(ticket_id))
+
+    def _effective_from(self, run: RunRecord | None, overrides: list[dict], comment_row: dict | None):
+        """Effective state from already loaded rows: the run's decisions with overrides pinned
+        on top, and the comment flagged stale when an override outdated it."""
+        if run is None:
+            return None, None, None
         eff = effective_decisions(run, overrides, self.catalog)
-        comment = self._comment(ticket_id, overrides)
+        comment = _comment_record(comment_row, overrides)
         if comment is not None and comment.stale and "stale_comment" not in eff["resolution"].flags:
             eff["resolution"] = eff["resolution"].model_copy(update={"flags": eff["resolution"].flags + ["stale_comment"]})
         return run, eff, comment
-
-    def _comment(self, ticket_id: str, overrides: list[dict]):
-        row = self.db.latest_comment(ticket_id)
-        if row is None:
-            return None
-        stale = any(o["field"] in STALES_COMMENT and o["seq"] > row["seq"] for o in overrides)
-        return row["record"].model_copy(update={"stale": stale})
 
     def _effective_values(self, ticket_id: str) -> dict | None:
         run, eff, _ = self.effective(ticket_id)
@@ -163,18 +226,25 @@ class Core:
 
     def ticket_view(self, ticket_id: str) -> dict:
         ticket, snap = self.db.ticket(ticket_id), self._snapshot(ticket_id)
-        run, eff, comment = self.effective(ticket_id)
+        run, overrides = self.db.latest_live_run(ticket_id), self.db.overrides_for(ticket_id)
+        state = self._effective_from(run, overrides, self.db.latest_comment(ticket_id) if run else None)
+        return self._view(ticket, snap, state, self.db.runs_for(ticket_id), overrides,
+                          self.db.acceptances_for(ticket_id), self.db.conflicts_for(ticket_id))
+
+    @staticmethod
+    def _view(ticket: dict, snap: dict, state: tuple, runs: list[dict], overrides: list[dict],
+              acceptances: list[dict], conflicts: list[dict]) -> dict:
+        run, eff, comment = state
         history = (
             [{"type": "run", "at": r["created_at"], "run_id": r["run_id"], "status": r["status"], "mode": r["mode"]}
-             for r in self.db.runs_for(ticket_id)]
-            + [{"type": "override", "at": o["created_at"], **o} for o in self.db.overrides_for(ticket_id)]
-            + [{"type": "acceptance", "at": a["created_at"], **a} for a in self.db.acceptances_for(ticket_id)]
-            + [{"type": "conflict", "at": e["occurred_at"], "run_id": e["run_id"], **e["payload"]}
-               for e in self.db.events_for(ticket_id) if e["type"] == "decision.conflict"]
+             for r in runs]
+            + [{"type": "override", "at": o["created_at"], **o} for o in overrides]
+            + [{"type": "acceptance", "at": a["created_at"], **a} for a in acceptances]
+            + [{"type": "conflict", "at": e["occurred_at"], "run_id": e["run_id"], **e["payload"]} for e in conflicts]
         )
         history.sort(key=lambda h: h["at"])
         return {
-            "ticket_id": ticket_id, "external_key": ticket["external_key"],
+            "ticket_id": ticket["ticket_id"], "external_key": ticket["external_key"],
             "snapshot": {k: snap[k] for k in ("snapshot_id", "content_hash", "received_at", "fields")},
             "effective_state": {f: d.model_dump() for f, d in eff.items()} if eff else None,
             "latest_run": run.model_dump() if run else None,
@@ -185,10 +255,16 @@ class Core:
         }
 
     def summary(self, ticket_id: str) -> dict:
-        run, eff, _ = self.effective(ticket_id)
+        ticket = self.db.ticket(ticket_id)
+        if ticket is None:
+            raise _not_found("ticket", ticket_id)
         runs = self.db.runs_for(ticket_id)
-        row = {"ticket_id": ticket_id, "external_key": self.db.ticket(ticket_id)["external_key"],
-               "run_status": runs[-1]["status"] if runs else None, "lane": run.lane if run else None}
+        return self._summary(ticket, self.effective(ticket_id), runs[-1]["status"] if runs else None)
+
+    def _summary(self, ticket: dict, state: tuple, run_status: str | None) -> dict:
+        run, eff, _ = state
+        row = {"ticket_id": ticket["ticket_id"], "external_key": ticket["external_key"],
+               "run_status": run_status, "lane": run.lane if run else None}
         if eff:
             row.update({f: d.effective_value for f, d in eff.items()})
             row["min_confidence"] = min(d.confidence for d in eff.values())
@@ -196,11 +272,33 @@ class Core:
             row["risk"] = self._risk(eff)
         return row
 
-    def list_tickets(self, lane=None, service=None, flag=None, status=None) -> list[dict]:
-        rows = [self.summary(t) for t in self.db.ticket_ids()]
+    def _summaries(self, facts: _Facts, only: set[str] | None = None) -> list[dict]:
+        """One summary row per ticket (in ticket order), from the bulk-loaded facts."""
+        tickets = facts.tickets if only is None else [t for t in facts.tickets if t["ticket_id"] in only]
+        return [self._summary(t, facts.state(t["ticket_id"]), facts.run_status.get(t["ticket_id"])) for t in tickets]
+
+    @staticmethod
+    def _filter(rows: list[dict], lane=None, service=None, flag=None, status=None) -> list[dict]:
         return [r for r in rows
                 if (lane is None or r["lane"] == lane) and (service is None or r.get("service") == service)
                 and (flag is None or flag in r.get("flags", [])) and (status is None or r["run_status"] == status)]
+
+    def list_tickets(self, lane=None, service=None, flag=None, status=None, expand=None) -> list[dict]:
+        """Summaries, filtered; `expand="view"` adds each ticket's view (as GET /tickets/{id})
+        under `view`, so a client needs one request for the whole board instead of one per ticket."""
+        if expand not in (None, "view"):
+            raise StateError(422, "invalid_expand", "expand must be 'view'", {"expand": expand})
+        facts = _Facts(self)
+        rows = self._filter(self._summaries(facts), lane, service, flag, status)
+        if expand == "view":
+            tickets = {t["ticket_id"]: t for t in facts.tickets}
+            for row in rows:
+                tid = row["ticket_id"]
+                snap = facts.snapshots.get(tid)
+                row["view"] = self._view(tickets[tid], snap, facts.state(tid), facts.run_rows.get(tid, []),
+                                         facts.overrides.get(tid, []), facts.acceptances.get(tid, []),
+                                         facts.conflicts.get(tid, [])) if snap else None
+        return rows
 
     def _risk(self, eff: dict) -> float:
         crit = config.CRITICALITY.get(eff["service"].effective_value, "Non-Critical")
@@ -211,11 +309,12 @@ class Core:
     def queue(self, lane: str = "needs_review", sort: str = "risk") -> list[dict]:
         """Tickets whose latest live run is in `lane` and has not been reviewed yet
         (no acceptance of, and no override based on, that run)."""
-        out = []
-        for row in self.list_tickets(lane=lane):
-            run = self.db.latest_live_run(row["ticket_id"])
-            reviewed = any(a["run_id"] == run.run_id for a in self.db.acceptances_for(row["ticket_id"])) or \
-                any(o["base_run_id"] == run.run_id for o in self.db.overrides_for(row["ticket_id"]))
+        facts, out = _Facts(self), []
+        for row in self._filter(self._summaries(facts), lane=lane):
+            tid = row["ticket_id"]
+            run = facts.state(tid)[0]
+            reviewed = any(a["run_id"] == run.run_id for a in facts.acceptances.get(tid, [])) or \
+                any(o["base_run_id"] == run.run_id for o in facts.overrides.get(tid, []))
             if not reviewed:
                 out.append(row)
         if sort == "risk":
@@ -308,7 +407,7 @@ class Core:
         batch = self.db.batch(batch_id)
         if not batch:
             raise _not_found("batch", batch_id)
-        rows = [self.summary(t) for t in batch["ticket_ids"]]
+        rows = self._summaries(_Facts(self), only=set(batch["ticket_ids"]))
         count = lambda key: {v: sum(r[key] == v for r in rows) for v in {r[key] for r in rows}}  # noqa: E731
         return {"batch_id": batch_id, "total": len(rows), "by_status": count("run_status"), "by_lane": count("lane"),
                 "ticket_ids": batch["ticket_ids"]}
@@ -439,11 +538,11 @@ class Core:
         a proposal (once per group; a rejected group returns only with more support)."""
         from triage.kb import PROPOSAL_MIN_SUPPORT, override_groups, proposal_from_group
 
-        overrides = []
-        for tid in self.db.ticket_ids():
-            ov = self.db.overrides_for(tid)
+        facts, overrides = _Facts(self), []
+        for t in facts.tickets:
+            ov = facts.overrides.get(t["ticket_id"])
             if ov:
-                _, eff, _ = self.effective(tid)
+                _, eff, _ = facts.state(t["ticket_id"])
                 overrides += [{**o, "service": eff["service"].effective_value} for o in ov]
         existing = {}
         for p in self.db.proposals():
@@ -504,36 +603,27 @@ class Core:
 
     # -- audit & metrics -------------------------------------------------------------------
     def audit(self, ticket_id=None, actor=None, type_prefix=None, since=None, until=None, limit=200) -> list[dict]:
-        out = []
-        for e in self.db.events_all():
-            if ticket_id and e["ticket_id"] != ticket_id or type_prefix and not e["type"].startswith(type_prefix):
-                continue
-            if actor and e["payload"].get("actor") != actor or since and e["occurred_at"] < since \
-                    or until and e["occurred_at"] > until:
-                continue
-            out.append(e)
-        return out[-limit:]
+        return self.db.search_events(ticket_id, actor, type_prefix, since, until, limit)
 
     def metric(self, name: str, since=None, until=None, service=None) -> dict:
         from triage import metrics
 
         if name not in metrics.METRICS:
             raise StateError(404, "unknown_metric", f"unknown metric {name}", {"available": list(metrics.METRICS)})
-        facts = []
-        for tid in self.db.ticket_ids():
-            run, eff, _ = self.effective(tid)
+        loaded, completed, facts = _Facts(self), self.db.completed_live_runs(), []
+        for t in loaded.tickets:
+            tid = t["ticket_id"]
+            _, eff, _ = loaded.state(tid)
             if service and (not eff or eff["service"].effective_value != service):
                 continue
-            runs = [self.db.run(r["run_id"]) for r in self.db.runs_for(tid)
-                    if r["mode"] == "live" and r["status"] == "completed"]
-            runs = [r for r in runs if (not since or (r.completed_at or "") >= since)
+            runs = [r for r in completed.get(tid, []) if (not since or (r.completed_at or "") >= since)
                     and (not until or (r.completed_at or "") <= until)]
-            facts.append({"ticket_id": tid, "runs": runs, "overrides": self.db.overrides_for(tid),
-                          "acceptances": self.db.acceptances_for(tid), "closures": self.db.closures(tid),
+            facts.append({"ticket_id": tid, "runs": runs, "overrides": loaded.overrides.get(tid, []),
+                          "acceptances": loaded.acceptances.get(tid, []), "closures": loaded.closures.get(tid, []),
                           "effective": eff if runs else None})
         from triage.retrieval import ticket_text
 
-        text_of = lambda tid: ticket_text(self.db.latest_snapshot(tid)["fields"])  # noqa: E731
+        text_of = lambda tid: ticket_text(loaded.snapshots[tid]["fields"])  # noqa: E731
         value = metrics.compute(name, [f for f in facts if f["runs"] or name == "resolver_load"], self.catalog,
                                 embed=self.engine.embed, text_of=text_of)
         return {"metric": name, "from": since, "to": until, "service": service, "value": value}
@@ -560,15 +650,32 @@ class Core:
             labels[o["field"]] = o["new_value"]
         return labels
 
-    def _gold(self) -> list[str]:
-        return [t for t in self.db.ticket_ids() if self.db.acceptances_for(t) or self.db.overrides_for(t)]
+    def human_labels_all(self, ticket_ids: list[str]) -> dict[str, dict[str, str]]:
+        """human_labels for many tickets, from one read per table."""
+        acceptances, overrides = self.db.acceptances_all(), self.db.overrides_all()
+        runs = self.db.runs_by_id({a["run_id"] for tid in ticket_ids for a in acceptances.get(tid, [])})
+        out = {}
+        for tid in ticket_ids:
+            labels = {}
+            for a in acceptances.get(tid, []):
+                run = runs[a["run_id"]]
+                labels.update({f: run.decisions[f].value for f in a["fields"] if f in run.decisions})
+            for o in overrides.get(tid, []):
+                labels[o["field"]] = o["new_value"]
+            out[tid] = labels
+        return out
 
-    def _recent(self, days: int) -> list[str]:
+    def _gold(self) -> list[str]:
+        return self.db.reviewed_ticket_ids()
+
+    def _recent(self, days: int, latest: dict[str, RunRecord] | None = None) -> list[str]:
+        """Tickets whose latest live run completed in the last `days`, in ticket order."""
         import datetime as dt
 
         cutoff = (dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=days)).isoformat(timespec="seconds")
+        latest = self.db.latest_live_runs() if latest is None else latest
         return [t for t in self.db.ticket_ids()
-                if (r := self.db.latest_live_run(t)) is not None and (r.completed_at or "") >= cutoff]
+                if (r := latest.get(t)) is not None and (r.completed_at or "") >= cutoff]
 
     def create_evaluation(self, body: dict) -> dict:
         """Queue a shadow evaluation: replay a ticket set under other versions. Shadow runs
@@ -672,13 +779,15 @@ class Core:
 
         current = self.policy()
         proposed = validate_policy({**current["content"], **content})
-        recent, gold = self._recent(days), set(self._gold())
+        latest = self.db.latest_live_runs()
+        recent, gold = self._recent(days, latest), set(self._gold())
+        labels_of = self.human_labels_all([tid for tid in recent if tid in gold])
 
         def estimate(policy: dict) -> dict:
             auto = errors = gold_auto = 0
             lanes = {}
             for tid in recent:
-                run = self.db.latest_live_run(tid)
+                run = latest[tid]
                 decisions = recalibrate(run.decisions, policy["calibration"])
                 lane, _, _ = assign_lane(decisions, run.run_id, policy)
                 lanes[tid] = lane
@@ -687,7 +796,7 @@ class Core:
                 auto += 1
                 if tid in gold:
                     gold_auto += 1
-                    labels = self.human_labels(tid)
+                    labels = labels_of[tid]
                     errors += any(labels.get(f, d.value) != d.value for f, d in run.decisions.items())
             n = len(recent)
             return {"tickets": n, "auto_applied": auto, "auto_apply_rate": round(auto / n, 4) if n else None,

@@ -298,6 +298,46 @@ describe("effective-state writes", () => {
 	});
 });
 
+describe("event paging", () => {
+	it("consumes every page in one pass and checkpoints the cursor per page", async () => {
+		const { core, jira, sql } = await setup();
+		core.emit({ type: "run.started", ticket_id: "t-1", payload: {} });
+		core.emit({ type: "run.started", ticket_id: "t-2", payload: {} });
+		override(core);
+		const list = core.listEvents;
+		const pages: number[] = [];
+		core.listEvents = async (after) => {
+			pages.push(after);
+			return (await list(after)).slice(0, 1);
+		};
+		const summary = await consumeCoreEvents(core, jira, sql);
+		expect(summary).toEqual({ processed: 3, writebacks: 1 });
+		expect(await getCursor(sql, CORE_EVENT_CURSOR)).toBe("3");
+		// Three pages of one event, the empty page that ends the pass, and the
+		// supersede check after the export (which starts after the checked page).
+		expect(pages).toEqual([0, 1, 2, 3, 3]);
+		expect((await jira.getIssue("SUP-1", [])).fields.summary).toBe(
+			"Core decision",
+		);
+	});
+
+	it("skips an event superseded within its own page without asking the Core", async () => {
+		const { core, jira, sql } = await setup();
+		override(core);
+		override(core);
+		const exports: string[] = [];
+		const exportTicket = core.exportTicket;
+		core.exportTicket = async (id) => {
+			exports.push(id);
+			return exportTicket(id);
+		};
+		await consumeCoreEvents(core, jira, sql);
+		expect(exports).toEqual(["t-1"]);
+		const rows = await sql`SELECT core_event_seq::int AS seq FROM writebacks`;
+		expect([...rows]).toEqual([{ seq: 2 }]);
+	});
+});
+
 describe("superseded Core events", () => {
 	it.each(["needs_review", "human_only"])(
 		"does not apply a newer %s run through an old auto event",

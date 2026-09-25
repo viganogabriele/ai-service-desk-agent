@@ -84,9 +84,9 @@ function toStored(row: TicketRow): StoredTicket {
 	};
 }
 
-export async function loadTickets(
+async function selectTickets(
 	sql: SQL,
-	key?: string,
+	where: SQL.Query<unknown>,
 ): Promise<StoredTicket[]> {
 	const rows: TicketRow[] = await sql`
 		SELECT t.external_key, t.work_type, t.request_type, t.summary, t.description,
@@ -99,9 +99,35 @@ export async function loadTickets(
 		                 FROM ticket_comments c
 		                 WHERE c.external_key = t.external_key AND c.is_public), '{}') AS comments
 		FROM tickets t
-		WHERE ${key ?? null}::text IS NULL OR t.external_key = ${key ?? null}
+		${where}
 		ORDER BY t.created_date NULLS LAST, t.jira_id::bigint`;
 	return rows.map(toStored);
+}
+
+/** Every ticket, or the one with `key`. */
+export function loadTickets(sql: SQL, key?: string): Promise<StoredTicket[]> {
+	return selectTickets(
+		sql,
+		key === undefined ? sql`` : sql`WHERE t.external_key = ${key}`,
+	);
+}
+
+/** Open tickets whose current content the Core has not received (CORE_API §6.A). */
+export function ticketsPendingCoreImport(sql: SQL): Promise<StoredTicket[]> {
+	return selectTickets(
+		sql,
+		sql`WHERE t.status <> 'done'
+		      AND t.core_content_hash IS DISTINCT FROM t.content_hash`,
+	);
+}
+
+/** Tickets the Core knows that Jira resolved as done: closure candidates (CORE_API §6C.2). */
+export function ticketsResolvedAsDone(sql: SQL): Promise<StoredTicket[]> {
+	return selectTickets(
+		sql,
+		sql`WHERE t.core_ticket_id IS NOT NULL
+		      AND t.status = 'done' AND t.resolution = 'done'`,
+	);
 }
 
 export async function upsertSnapshot(
@@ -160,16 +186,22 @@ export async function upsertSnapshot(
 		await tx`
 			DELETE FROM ticket_comments
 			WHERE external_key = ${r.Key} AND NOT (jira_comment_id = ANY(${text(ids)}))`;
-		for (const c of s.comments) {
-			await tx`
-				INSERT INTO ticket_comments
-					(jira_comment_id, external_key, author, body, is_public, created_at, updated_at)
-				VALUES (${c.id}, ${r.Key}, ${c.author}, ${c.body}, ${c.isPublic},
-				        ${c.createdAt}, ${c.updatedAt})
-				ON CONFLICT (jira_comment_id) DO UPDATE SET
-					author = EXCLUDED.author, body = EXCLUDED.body,
-					is_public = EXCLUDED.is_public, updated_at = EXCLUDED.updated_at`;
-		}
+		if (s.comments.length === 0) return;
+		// One statement for the whole comment list, not one round trip per comment.
+		const rows = s.comments.map((c) => ({
+			jira_comment_id: c.id,
+			external_key: r.Key,
+			author: c.author,
+			body: c.body,
+			is_public: c.isPublic,
+			created_at: c.createdAt,
+			updated_at: c.updatedAt,
+		}));
+		await tx`
+			INSERT INTO ticket_comments ${tx(rows)}
+			ON CONFLICT (jira_comment_id) DO UPDATE SET
+				author = EXCLUDED.author, body = EXCLUDED.body,
+				is_public = EXCLUDED.is_public, updated_at = EXCLUDED.updated_at`;
 	});
 }
 
