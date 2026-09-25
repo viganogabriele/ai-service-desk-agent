@@ -6,6 +6,7 @@ import {
   HttpError,
   REASON_CODES,
   UNREACHABLE,
+  classificationOf,
   coreActor,
   createBackendClient,
   levelOf,
@@ -15,7 +16,7 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type { CoreChange, SignedInUser, TicketPatch } from "./lib/backend";
+import type { Classification, CoreChange, SignedInUser, TicketPatch } from "./lib/backend";
 import {
   LEVELS,
   OUTCOMES,
@@ -79,9 +80,15 @@ interface DashboardContextValue {
   stronger: StrongerModel;
   notice: Notice | null;
   dismissNotice: () => void;
+  /** Show a notice unless one is up already, so it never replaces an Undo. */
+  announce: (notice: Notice) => void;
   idOf: (index: number) => string;
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
+  /** Where the AI is with a ticket that has no suggestion yet; null otherwise. */
+  classification: (index: number) => Classification | null;
+  /** The Core is connected, so new tickets are classified as they arrive. */
+  classifying: boolean;
   update: (index: number, changes: Editable) => void;
   verify: (index: number, fields: Verifiable[], on: boolean) => void;
   assign: (index: number, changes?: Editable) => void;
@@ -293,10 +300,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // AI proposals from the Core. Without it the dashboard still works on Jira data alone.
   const core = useQuery({
     queryKey: ["core-proposals"],
-    queryFn: ({ signal }) => backend.coreProposals(signal),
+    queryFn: ({ signal }) => backend.coreState(signal),
     // Offline there is no backend to proxy the Core.
     enabled: query.data?.offline === false,
-    refetchInterval: 15_000,
+    // Sooner while a ticket is being classified, so it leaves Upcoming soon after the AI is done.
+    refetchInterval: (state) =>
+      query.data?.bundle.challenge.some((ticket) =>
+        classificationOf(ticket, state.state.data ?? null),
+      )
+        ? 5_000
+        : 15_000,
     retry: false,
   });
 
@@ -326,6 +339,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<SavedState>(loadSaved);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const announce = useCallback((value: Notice) => setNotice((current) => current ?? value), []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
@@ -337,15 +351,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const { bundle, offline } = query.data;
 
+  const coreState = offline ? null : (core.data ?? null);
+
   // Online, the Core's proposals replace the bundle's (live bundles carry none).
-  const data =
-    !offline && core.data?.size
-      ? {
-          ...bundle,
-          proposals: bundle.challenge.map((ticket) => core.data.get(ticket.Key) ?? null),
-          proposal_source: { kind: "core" as const, path: null },
-        }
-      : bundle;
+  const data = coreState?.proposals.size
+    ? {
+        ...bundle,
+        proposals: bundle.challenge.map((ticket) => coreState.proposals.get(ticket.Key) ?? null),
+        proposal_source: { kind: "core" as const, path: null },
+      }
+    : bundle;
 
   const idOf = (index: number) => data.challenge[index].Key;
 
@@ -695,9 +710,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         },
         notice,
         dismissNotice,
+        announce,
         idOf,
         review,
         proposalFor,
+        classification: (index) => classificationOf(data.challenge[index], coreState),
+        classifying: coreState !== null,
         update,
         verify,
         assign: (index, changes) =>

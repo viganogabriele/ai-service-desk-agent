@@ -12,10 +12,11 @@ import {
   STATUS_DOTS,
   STATUS_HELP,
   STATUS_LABELS,
-  priority,
   serviceInfo,
+  triageLevel,
 } from "../domain";
-import type { IncomingTicket, Level, Proposal, Status, Triage } from "../domain";
+import type { Level, Status, Triage } from "../domain";
+import type { QueueItem } from "../lib/queue";
 import { Select } from "./select";
 import { Badge, Dot, avatarVariants } from "./ui/badge";
 import type { BadgeTone } from "./ui/badge";
@@ -88,11 +89,9 @@ export function useTicketFilters() {
   return context;
 }
 
-export interface TicketRow {
+export interface TicketRow extends QueueItem {
   index: number;
   id: string;
-  ticket: IncomingTicket;
-  proposal: Proposal | null;
   current: Review;
 }
 
@@ -127,7 +126,7 @@ const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "bas
 const SORT_VALUES: Record<SortKey, (row: TicketRow) => string | null> = {
   ticket: (row) => row.id,
   priority: (row) => {
-    const level = levelOf(row.current.triage);
+    const level = triageLevel(row.current.triage);
 
     return level ? String(LEVELS.indexOf(level)) : null;
   },
@@ -153,7 +152,7 @@ const byQueue = (a: TicketRow, b: TicketRow) =>
   a.index - b.index;
 
 export function useTicketRows() {
-  const { data, review, proposalFor, idOf } = useDashboard();
+  const { data, review, proposalFor, idOf, classification } = useDashboard();
   const { filters } = useTicketFilters();
   const needle = filters.query.trim().toLowerCase();
   // The board has no column headers to show a sort, so it keeps the queue order.
@@ -165,6 +164,7 @@ export function useTicketRows() {
     ticket,
     proposal: proposalFor(index),
     current: review(index),
+    classification: classification(index),
   }));
 
   const visible = rows
@@ -227,12 +227,8 @@ export function StatusPill({ status }: { status: Status }) {
   );
 }
 
-// Tickets without urgency or impact in Jira keep the priority Jira holds.
-export const levelOf = (triage: Triage) =>
-  priority(triage.urgency, triage.impact) ?? triage.priority;
-
 const priorityRank = (triage: Triage) => {
-  const level = levelOf(triage);
+  const level = triageLevel(triage);
 
   return level ? LEVELS.indexOf(level) : LEVELS.length;
 };
@@ -247,7 +243,7 @@ const LEVEL_TONES: Record<Level, BadgeTone> = {
 
 /** Priority is never free input: it is the matrix value of urgency × impact. */
 export function PriorityBadge({ triage }: { triage: Triage }) {
-  const level = levelOf(triage);
+  const level = triageLevel(triage);
   const basis = `Urgency ${triage.urgency ?? "unknown"} × Impact ${triage.impact ?? "unknown"}`;
 
   return (

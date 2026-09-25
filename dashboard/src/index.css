@@ -163,6 +163,8 @@
   --spacing-textarea: calc(3lh + 24px);
   /* A priority card in the sideways strip: the Figma width, narrower on a phone. */
   --spacing-strip-card: min(377px, 88vw);
+  /* A ticket the AI is still classifying: a thin card, narrower than the ones you act on. */
+  --spacing-upcoming-card: min(340px, 80vw);
   /* One of the three segments of the view switch, inside its 4px padding. */
   --spacing-thumb: calc((100% - 8px) / 3);
   /* Distance from a screen edge that clears notches and the home indicator. */
@@ -184,6 +186,7 @@
   --grid-template-columns-correction: 80px minmax(0, 1fr) auto;
   --grid-template-columns-queue-row: 20px minmax(0, 1fr) auto;
   --grid-template-columns-queue-row-plain: minmax(0, 1fr) auto;
+  --grid-template-columns-notification: 28px minmax(0, 1fr) 8px;
 
   --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   --font-display: Poppins, "Inter Variable", ui-sans-serif, system-ui, sans-serif;
@@ -513,6 +516,27 @@
   }
   &[data-more-after] {
     --fade-after: transparent;
+  }
+}
+
+/* A light band that sweeps across a card while its content is still being worked out. */
+@utility loading-sweep {
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 25%, var(--color-hover) 50%, transparent 75%);
+    transform: translateX(-100%);
+    animation: sweep 1.8s var(--ease-soft) infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes sweep {
+  to {
+    transform: translateX(100%);
   }
 }
 
