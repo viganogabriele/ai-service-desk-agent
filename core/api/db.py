@@ -1,5 +1,5 @@
 """SQLite store (data/core.db): tickets, snapshots, runs, overrides, acceptances, comments,
-batches and the append-only event log. JSON columns for records. Thread-safe via one lock."""
+batches, the append-only event log and the LLM usage ledger. JSON columns for records. Thread-safe via one lock."""
 import json
 import sqlite3
 import threading
@@ -47,6 +47,13 @@ CREATE TABLE IF NOT EXISTS evaluations (
 CREATE TABLE IF NOT EXISTS policies (
   policy_version TEXT PRIMARY KEY, content TEXT NOT NULL, parent_version TEXT, created_at TEXT NOT NULL,
   actor TEXT, changelog TEXT NOT NULL, n INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS llm_calls (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT, occurred_at TEXT NOT NULL, provider TEXT NOT NULL, model TEXT NOT NULL,
+  stage TEXT NOT NULL, purpose TEXT NOT NULL, outcome TEXT NOT NULL, ticket_id TEXT, run_id TEXT,
+  input_tokens INTEGER NOT NULL, cached_input_tokens INTEGER NOT NULL, output_tokens INTEGER NOT NULL,
+  reasoning_tokens INTEGER NOT NULL, latency_ms INTEGER, cost REAL NOT NULL, saved REAL NOT NULL,
+  priced INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS llm_calls_time ON llm_calls (occurred_at);
 CREATE INDEX IF NOT EXISTS runs_ticket_idx ON runs (ticket_id);
 CREATE INDEX IF NOT EXISTS overrides_ticket_idx ON overrides (ticket_id, seq);
 CREATE INDEX IF NOT EXISTS acceptances_ticket_idx ON acceptances (ticket_id);
@@ -54,6 +61,10 @@ CREATE INDEX IF NOT EXISTS comments_ticket_idx ON comments (ticket_id, seq);
 CREATE INDEX IF NOT EXISTS events_ticket_idx ON events (ticket_id, seq);
 CREATE INDEX IF NOT EXISTS closures_ticket_idx ON closures (ticket_id);
 """
+
+LLM_CALL_COLUMNS = ("occurred_at", "provider", "model", "stage", "purpose", "outcome", "ticket_id", "run_id",
+                    "input_tokens", "cached_input_tokens", "output_tokens", "reasoning_tokens", "latency_ms",
+                    "cost", "saved", "priced")
 
 
 def new_id(prefix: str) -> str:
@@ -418,6 +429,15 @@ class Database:
             self.conn.execute("INSERT INTO policies VALUES (?, ?, ?, ?, ?, ?, ?)",
                               (f"p{n}", json.dumps(content), parent, utc_now(), actor, json.dumps(changelog), n))
         return self.latest_policy()
+
+    # -- LLM usage ledger ---------------------------------------------------------------
+    def add_llm_call(self, call: dict) -> None:
+        row = {"occurred_at": utc_now(), **call, "priced": int(call["priced"])}
+        self._write(f"INSERT INTO llm_calls ({', '.join(LLM_CALL_COLUMNS)}) VALUES ({', '.join('?' * len(LLM_CALL_COLUMNS))})",
+                    tuple(row[c] for c in LLM_CALL_COLUMNS))
+
+    def llm_calls_since(self, since: str) -> list[dict]:
+        return [dict(r) for r in self._all("SELECT * FROM llm_calls WHERE occurred_at >= ? ORDER BY seq", (since,))]
 
     # -- evaluations (shadow) ---------------------------------------------------------
     def add_evaluation(self, request: dict, versions: dict, ticket_ids: list[str]) -> str:

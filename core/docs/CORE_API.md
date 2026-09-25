@@ -238,6 +238,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 | POST | `/policy/pause` / `/resume` | Kill switch | 2 |
 | GET | `/metrics/{name}` | See §9 | 2 |
 | GET | `/audit` | Search decisions, overrides and KB/policy changes | 2 |
+| GET | `/usage?window=` | LLM tokens and estimated cost, see §9 | usage |
 | POST/GET | `/evaluations`, `/evaluations/{id}` | Shadow evaluation | 3 |
 | POST | `/demo/tickets` | Write a new challenge-style ticket for a demo; stores nothing | demo |
 | POST | `/policy/preview` | Estimated impact of a policy change | 3 |
@@ -273,6 +274,8 @@ All metrics are computed on request from runs, overrides, acceptances and audits
 - `audit_error_estimate`: error rate on audit-sampled tickets.
 - `resolver_load`: open tickets per resolver, and pattern classes that have a single resolver.
 - `emerging_issues` (step 3): clusters of recent tickets with weak best matches.
+
+**LLM usage (`GET /usage?window=24h|7d|30d|90d`, default `30d`).** Every structured LLM call the API makes is written to the `llm_calls` ledger: provider, model, stage (from the output schema: `decision`, `self_consistency`, `evidence`, `resolution_note`, `demo_ticket`, `service_card`), purpose (`triage`, `comment`, `evaluation`, `demo`, `kb_build`), ticket and run, token counts, latency and outcome. Each attempt is its own row: `ok`; `retry` (billed, then rejected as invalid or truncated); `error` (no response); `cache_hit` (answered from the disk cache, so nothing was billed). Cost is priced when the call happens from `LLM_PRICES` in `config.py` (CHF per million tokens, overridable with the `LLM_PRICES` environment variable). The prices are estimates, not invoices. Cached input tokens are billed at the cached rate; the difference is the prompt-cache saving. A cache hit saves what the original call cost. The response has `totals` (cost, savings split into `saved_prompt_cache` and `saved_response_cache`, calls, cache hits, retries and their cost, input, cached input, output and reasoning tokens, mean latency, `cost_per_triage_run`), a zero-filled `series` (hourly for `24h`, daily otherwise, UTC), and a `breakdown` by `model`, `provider`, `stage` and `purpose`, where each row has its share of the cost. The CLI does not record usage.
 
 ## 10. Concurrency, idempotency, storage
 - **Imports** are idempotent on `external_key` + `content_hash`.

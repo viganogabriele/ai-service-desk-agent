@@ -258,6 +258,168 @@ export function ForecastChart({ points }: { points: ForecastPoint[] }) {
   );
 }
 
+/**
+ * A smooth path through the points that never overshoots them (monotone cubic interpolation), so a
+ * quiet day between two busy ones stays at zero instead of dipping below the axis.
+ */
+function monotonePath(points: [number, number][]) {
+  if (points.length < 2) return points.length ? `M${points[0][0]},${points[0][1]}` : "";
+  const dx = points.slice(1).map(([x], index) => x - points[index][0]);
+  const slopes = points.slice(1).map(([, y], index) => (y - points[index][1]) / dx[index]);
+
+  const tangents = points.map((_, index) => {
+    if (index === 0) return slopes[0];
+
+    if (index === points.length - 1) return slopes[index - 1];
+    const [before, after] = [slopes[index - 1], slopes[index]];
+
+    if (before * after <= 0) return 0;
+    const [left, right] = [dx[index - 1], dx[index]];
+
+    return (3 * (left + right)) / ((2 * right + left) / before + (right + 2 * left) / after);
+  });
+
+  const curves = points.slice(1).map(([x, y], index) => {
+    const [x0, y0] = points[index];
+    const third = dx[index] / 3;
+
+    return `C${x0 + third},${y0 + third * tangents[index]} ${x - third},${y - third * tangents[index + 1]} ${x},${y}`;
+  });
+
+  return `M${points[0][0]},${points[0][1]} ${curves.join(" ")}`;
+}
+
+export interface AreaPoint {
+  label: string;
+  value: number;
+  /** A second line in the tooltip, such as the calls behind the value. */
+  note?: string;
+}
+
+/** One series over time as a filled, smoothed line, with a hover readout per point. */
+export function AreaChart({
+  points,
+  format,
+  label,
+}: {
+  points: AreaPoint[];
+  format: (value: number) => string;
+  label: string;
+}) {
+  const { ref, width } = useWidth();
+  const [hover, setHover] = useState<number | null>(null);
+  const height = 240;
+  const pad = { top: 12, right: 12, bottom: 28, left: 64 };
+  const plotWidth = Math.max(0, width - pad.left - pad.right);
+  const plotHeight = height - pad.top - pad.bottom;
+  const ticks = niceTicks(0, Math.max(...points.map((point) => point.value), 0) || 1, 3);
+  const yMax = ticks[ticks.length - 1];
+  const x = (index: number) => pad.left + (index / Math.max(1, points.length - 1)) * plotWidth;
+  const y = (value: number) => pad.top + (1 - value / yMax) * plotHeight;
+  const coords = points.map((point, index): [number, number] => [x(index), y(point.value)]);
+  const line = monotonePath(coords);
+  const baseline = y(0);
+
+  const area = coords.length
+    ? `${line} L${x(points.length - 1)},${baseline} L${x(0)},${baseline} Z`
+    : "";
+
+  const labelEvery = Math.ceil(points.length / Math.max(2, Math.floor(plotWidth / 80)));
+  const active = hover === null ? null : points[hover];
+
+  return (
+    <div className="relative w-full" ref={ref}>
+      {width > 0 && (
+        <svg
+          className="block overflow-visible"
+          width={width}
+          height={height}
+          role="img"
+          aria-label={label}
+          onPointerMove={(event) => {
+            const box = event.currentTarget.getBoundingClientRect();
+            const ratio = (event.clientX - box.left - pad.left) / plotWidth;
+            setHover(
+              Math.max(0, Math.min(points.length - 1, Math.round(ratio * (points.length - 1)))),
+            );
+          }}
+          onPointerLeave={() => setHover(null)}
+        >
+          {ticks.map((tick) => (
+            <g key={tick}>
+              <line
+                className="stroke-divider"
+                x1={pad.left}
+                x2={width - pad.right}
+                y1={y(tick)}
+                y2={y(tick)}
+              />
+              <text
+                className="fill-muted text-xs tabular-nums"
+                x={pad.left - 8}
+                y={y(tick)}
+                dy="0.32em"
+                textAnchor="end"
+              >
+                {tick === 0 ? "0" : format(tick)}
+              </text>
+            </g>
+          ))}
+          {points.map((point, index) =>
+            index % labelEvery === 0 ? (
+              <text
+                key={`${point.label}-${index}`}
+                className="fill-muted text-xs tabular-nums"
+                x={x(index)}
+                y={height - 8}
+                textAnchor={index === 0 ? "start" : "middle"}
+              >
+                {point.label}
+              </text>
+            ) : null,
+          )}
+          <path className="fill-primary opacity-12" d={area} />
+          <path
+            className="fill-none stroke-primary"
+            d={line}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          {active && hover !== null && (
+            <>
+              <line
+                className="stroke-border-hover"
+                x1={x(hover)}
+                x2={x(hover)}
+                y1={pad.top}
+                y2={pad.top + plotHeight}
+              />
+              <circle
+                className="fill-primary stroke-surface"
+                cx={x(hover)}
+                cy={y(active.value)}
+                r={4}
+                strokeWidth={2}
+              />
+            </>
+          )}
+        </svg>
+      )}
+      {active && hover !== null && (
+        <Tooltip x={Math.min(x(hover) + 12, width - 190)} y={8}>
+          <span className={cn(tooltipLine, "text-xs text-muted")}>{active.label}</span>
+          <span className={tooltipLine}>
+            <Key tone="accent" />
+            <b className={tooltipValue}>{format(active.value)}</b>
+          </span>
+          {active.note && <span className={cn(tooltipLine, "text-muted")}>{active.note}</span>}
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
 const fillTones = {
   neutral: "bg-chart-3",
   accent: "bg-primary",

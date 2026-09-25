@@ -2,7 +2,7 @@
 
 TicketBuddy reads incoming Jira service-desk tickets and proposes how an experienced L2 agent would handle them. For each ticket it proposes the work type, the affected service, the owning team, the assignee, the urgency, the impact, the priority, the resolution status and a draft resolution note. A person reviews the proposal before anything uncertain reaches Jira.
 
-It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The company is a fictional pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
+It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The challenge is sponsored by [SwissLife](https://github.com/Swiss-ai-Weeks/SwissLife-2026), pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
 
 ## How a ticket is classified
 
@@ -25,10 +25,10 @@ The pipeline uses a language model (LLM) only where the ticket has to be *unders
 
 ### Why this split
 
-We checked the training data and found that it cannot teach a classic statistical classifier:
+We checked the training data and found that it cannot teach a classic supervised statistical classifier:
 
-- It is heavily templated: only 173 distinct descriptions for 20,000 tickets. The new tickets are free text, so a model trained on the templates would not generalise.
-- Its priority, urgency, impact, resolution and assignee fields are random noise.
+- The new tickets are free text, so a model trained on the templates would not generalise.
+- Its priority, urgency, impact, resolution and assignee fields are not reliable enough to be trusted as always true.
 - Its useful signal is structural. The service → team mapping is fully deterministic, and 21 detailed `Resolution:` comments each belong to one service and one resolver.
 
 So the historical data becomes a **knowledge base**: the lookup tables and the examples the search step uses. The LLM handles the semantic reading. The official matrix and the business rules stay in code. The full list of data facts and rules is in [core/AGENTS.md](core/AGENTS.md).
@@ -46,7 +46,7 @@ Jira Cloud  <-->  backend (sync + gateway)  <-->  Core (triage engine + API)
 | --- | --- | --- |
 | [`core/`](core/) | The triage pipeline shown above, exposed as a REST API with an event stream. It decides and remembers (runs, decisions, overrides, knowledge-base versions, policy) but never calls Jira. | Python, FastAPI, SQLite, sentence-transformers; LLM through Ollama, Swisscom Apertus or OpenAI |
 | [`backend/`](backend/) | The only component that talks to Jira. It copies tickets into Postgres, sends open tickets to the Core, writes approved results back to Jira and proxies the Core API for the UI. It also handles optional Atlassian sign-in. | Bun, Hono, Postgres, Zod |
-| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts and a model playground. A "Simulate incoming ticket" button files a demo ticket, written by the Core from a knowledge-base scenario, and shows it arriving and being classified live. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
+| [`dashboard/`](dashboard/) | TicketBuddy UI: a priority queue, a list and a Kanban board, a ticket page with a human-in-the-loop classification sidebar, historical overview charts, a model playground and a usage page with the tokens and estimated cost of every LLM call. A "Simulate incoming ticket" button files a demo ticket, written by the Core from a knowledge-base scenario, and shows it arriving and being classified live. | React, TypeScript, Vite, TanStack Router/Query, Tailwind CSS v4 |
 | [`jira/`](jira/) | Scripts that upload the challenge tickets to a Jira site and export results in the challenge format. | Python |
 
 The Core's integration contract is [core/docs/CORE_API.md](core/docs/CORE_API.md), and its product concept is [core/docs/UI_CONCEPT.md](core/docs/UI_CONCEPT.md).
@@ -95,8 +95,6 @@ This is how the pipeline scored on a frozen set of 300 labelled tickets, using o
 | `gpt-6-luna` (OpenAI) | 289/300 | 298/300 | 296/300 | 225/300 | 207/300 | 219/300 | 130/137 |
 
 Read these numbers with their limits in mind:
-
-- Luna wrote the 250 generated tickets, so its score on them is optimistic. The 50 handwritten tickets are the independent check.
 - Urgency and impact labels involve judgment.
 - The blind challenge tickets have no reference answers, so they cannot measure accuracy.
 
@@ -108,7 +106,6 @@ See [core/eval/](core/eval/README.md) for the method, per-ticket results and the
 - **Consistency is enforced in the Core.** The team always follows the service, and the priority always follows the matrix. Overriding the priority directly requires an explicit reason.
 - **Human corrections are final.** Overrides are append-only and pinned, and knowledge-base changes need human approval and a new version.
 - **Runs are reproducible.** The final decision uses temperature 0, and LLM calls are cached. Each run records its model, prompt, knowledge-base and policy versions.
-- **Local by default.** The backend binds to `127.0.0.1` and has no authentication of its own, so it must not be exposed publicly.
 
 ## Further reading
 

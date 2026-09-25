@@ -597,8 +597,8 @@ function Results({
             <Empty>No per-ticket timing available yet.</Empty>
           )}
           <p className="mt-5 border-t pt-4 text-xs text-secondary">
-            Timings are observations from this run, not a hardware benchmark. Token use and cost are
-            not recorded.
+            Timings are observations from this run, not a hardware benchmark. Token use and cost of
+            every evaluation are on the Usage page.
           </p>
         </Card>
       </div>

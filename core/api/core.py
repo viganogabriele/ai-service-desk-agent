@@ -4,7 +4,7 @@ import hashlib
 import json
 from functools import cached_property
 
-from triage import config
+from triage import config, usage
 from triage.schemas import RunRecord
 from triage.state import STALES_COMMENT, StateError, apply_changes, effective_decisions, effective_record
 from triage.triage import utc_now
@@ -153,8 +153,9 @@ class Core:
         self.db.append_event("run.started", {"mode": row["mode"]}, ticket_id=ticket_id, run_id=run_id)
         policy = self.policy()
         try:
-            record = self.engine.run(fields, ticket_id, run_id, policy=policy["content"],
-                                     policy_version=policy["policy_version"])
+            with usage.tagged(purpose="triage", ticket_id=ticket_id, run_id=run_id):
+                record = self.engine.run(fields, ticket_id, run_id, policy=policy["content"],
+                                         policy_version=policy["policy_version"])
         except Exception as e:  # noqa: BLE001 - e.g. the LLM backend is down: failed, retryable
             record = RunRecord(run_id=run_id, ticket_id=ticket_id, snapshot_id=row["snapshot_id"], status="failed",
                                versions=self.engine.versions, started_at=utc_now(), completed_at=utc_now(),
@@ -373,7 +374,8 @@ class Core:
     def process_comment(self, ticket_id: str) -> None:
         run, eff, _ = self.effective(ticket_id)
         try:
-            record = self.engine.regenerate_comment(self.db.latest_snapshot(ticket_id)["fields"], eff)
+            with usage.tagged(purpose="comment", ticket_id=ticket_id, run_id=run.run_id):
+                record = self.engine.regenerate_comment(self.db.latest_snapshot(ticket_id)["fields"], eff)
         except Exception as e:  # noqa: BLE001
             self.db.append_event("run.failed", {"mode": "comment", "error": f"{type(e).__name__}: {e}"},
                                  ticket_id=ticket_id)
@@ -469,7 +471,8 @@ class Core:
         from triage.catalog import build_catalog
 
         catalog = build_catalog()
-        cards = self.engine.generate_cards(catalog)
+        with usage.tagged(purpose="kb_build"):
+            cards = self.engine.generate_cards(catalog)
         m = self.kb.create_draft(catalog, cards, parent=None, actor=actor, created_at=utc_now(),
                                  changelog=["bootstrap: catalog mined from the training corpus, draft service cards"])
         self.db.append_event("kb.version.drafted", {"kb_version": m["kb_version"], "actor": actor})
@@ -625,6 +628,16 @@ class Core:
                                 embed=self.engine.embed, text_of=text_of)
         return {"metric": name, "from": since, "to": until, "service": service, "value": value}
 
+    def usage_summary(self, window: str) -> dict:
+        import datetime as dt
+
+        now = dt.datetime.now(dt.timezone.utc)
+        try:
+            since, _ = usage.window_bounds(window, now)
+        except ValueError as e:
+            raise StateError(422, "invalid_window", str(e), {"available": list(usage.WINDOWS)}) from e
+        return usage.summarize(self.db.llm_calls_since(since), window, now)
+
     # -- human labels, shadow evaluations, policy preview (step 3) -----------------------
     def human_labels(self, ticket_id: str) -> dict[str, str]:
         """Human-confirmed values per field: the latest override (derived ones included),
@@ -708,8 +721,9 @@ class Core:
             snap = self.db.latest_snapshot(tid)
             run_id = self.db.create_run(tid, snap["snapshot_id"], mode="shadow")
             try:
-                record = engine.run(snap["fields"], tid, run_id, policy=policy["content"],
-                                    policy_version=policy["policy_version"])
+                with usage.tagged(purpose="evaluation", ticket_id=tid, run_id=run_id):
+                    record = engine.run(snap["fields"], tid, run_id, policy=policy["content"],
+                                        policy_version=policy["policy_version"])
             except Exception as e:  # noqa: BLE001
                 record = RunRecord(run_id=run_id, ticket_id=tid, snapshot_id=snap["snapshot_id"], status="failed",
                                    versions=engine.versions, started_at=utc_now(), error=f"{type(e).__name__}: {e}")
