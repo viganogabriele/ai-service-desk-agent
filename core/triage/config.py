@@ -1,4 +1,5 @@
 """Central configuration: paths, model, thresholds, vocabularies, README tables."""
+import json
 import os
 from pathlib import Path
 
@@ -45,6 +46,18 @@ LLM_MAX_RETRIES = 2  # extra attempts after a validation failure, truncation or 
 MAX_TOKENS = {"TriageOutput": 400, "TriageSample": 80, "TriageEvidence": 400, "ServiceScope": 200,
               "DevTicket": 700, "ResolutionComment": 200}
 MAX_TOKENS_DEFAULT = 600
+
+# Usage ledger prices in CHF per million tokens, keyed "provider/model" or "provider/*".
+# Estimates, not invoices: check the provider's current rate card and override with
+# LLM_PRICES (JSON, same shape). A model without a price is recorded at 0 and flagged.
+# Output prices apply to reasoning tokens too, since the providers bill them as output.
+USAGE_CURRENCY = "CHF"
+LLM_PRICES: dict[str, dict[str, float]] = {
+    "ollama/*": {"input": 0.0, "cached_input": 0.0, "output": 0.0},  # self-hosted Mac mini
+    "openai/gpt-6-luna": {"input": 1.00, "cached_input": 0.10, "output": 8.00},
+    "swisscom/swiss-ai/Apertus-v1.5-70B": {"input": 0.60, "cached_input": 0.60, "output": 1.80},
+    **json.loads(os.getenv("LLM_PRICES", "{}")),
+}
 
 # The Mac mini's Ollama serves one request at a time (measured); 2 client threads
 # overlap client-side work and keep the server busy. Raise with OLLAMA_NUM_PARALLEL.

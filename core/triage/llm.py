@@ -9,7 +9,7 @@ from typing import TypeVar
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from triage import config
+from triage import config, usage
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -160,8 +160,11 @@ def chat_structured(
         max_tokens = max(2048, max_tokens * 6)
     path = _cache_path(key, cache_dir)
 
+    schema_name = output_model.__name__
     if use_cache and path.exists():
         cached = json.loads(path.read_text(encoding="utf-8"))
+        # entries written before the ledger carry only the provider's raw usage
+        usage.record(provider, model, schema_name, "cache_hit", cached.get("tokens") or usage.tokens(provider, cached))
         return output_model.model_validate_json(cached["content"])
 
     if provider == "ollama":
@@ -170,6 +173,7 @@ def chat_structured(
     last_error: Exception | None = None
     for attempt in range(1 + config.LLM_MAX_RETRIES):
         call_options = {**options, "seed": options["seed"] + 1000 * attempt, "num_predict": max_tokens}
+        started = time.monotonic()
         try:
             if provider == "ollama":
                 response = client.chat(model=model, messages=convo, format=schema, options=call_options,
@@ -179,6 +183,7 @@ def chat_structured(
             else:
                 response = _openai_chat(model, convo, schema, call_options)
         except Exception as e:  # noqa: BLE001 - timeouts / transient backend errors are retried
+            usage.record(provider, model, schema_name, "error", latency_ms=_ms_since(started))
             if not _is_transient(e):
                 raise
             last_error = e
@@ -186,7 +191,9 @@ def chat_structured(
                 time.sleep(min(float(e.response.headers.get("retry-after", "5")), 60))
             continue
         content = response["message"]["content"]
+        counts, latency = usage.tokens(provider, response), _ms_since(started)
         if _field(response, "done_reason") == "length":
+            usage.record(provider, model, schema_name, "retry", counts, latency)
             last_error = RuntimeError(f"output hit the {max_tokens}-token cap")
             continue  # truncated JSON: retry with the shifted seed, do not feed the garbage back
         if provider in ("swisscom", "openai"):
@@ -199,26 +206,28 @@ def chat_structured(
         try:
             result = output_model.model_validate_json(content)
         except ValidationError as e:
+            usage.record(provider, model, schema_name, "retry", counts, latency)
             last_error = e
             convo = convo + [
                 {"role": "assistant", "content": content[:2000]},
                 {"role": "user", "content": f"That output failed validation:\n{e}\nReturn corrected JSON only."},
             ]
             continue
+        usage.record(provider, model, schema_name, "ok", counts, latency)
         if use_cache:
             cache_dir.mkdir(parents=True, exist_ok=True)
             path.write_text(
                 json.dumps(
                     {"provider": provider, "model": model, "attempts": attempt + 1,
-                     "schema": output_model.__name__, "content": content,
-                     "usage": _field(response, "usage"), "elapsed_s": _field(response, "elapsed_s")},
+                     "schema": schema_name, "content": content, "usage": _field(response, "usage"),
+                     "tokens": counts, "elapsed_s": _field(response, "elapsed_s")},
                     ensure_ascii=False,
                     indent=1,
                 ),
                 encoding="utf-8",
             )
         return result
-    raise RuntimeError(f"{output_model.__name__} failed after {1 + config.LLM_MAX_RETRIES} attempts: {last_error}") from last_error
+    raise RuntimeError(f"{schema_name} failed after {1 + config.LLM_MAX_RETRIES} attempts: {last_error}") from last_error
 
 
 def _field(response, name: str):
@@ -226,6 +235,10 @@ def _field(response, name: str):
         return response[name]
     except (KeyError, AttributeError, TypeError):
         return None
+
+
+def _ms_since(started: float) -> int:
+    return round((time.monotonic() - started) * 1000)
 
 
 def _is_transient(e: Exception) -> bool:
