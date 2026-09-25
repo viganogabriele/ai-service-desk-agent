@@ -11,11 +11,12 @@ import {
 	getCursor,
 	hasWriteback,
 	keyForCoreTicket,
-	loadTickets,
 	markCoreClosure,
 	markCoreContent,
 	recordWriteback,
 	setCursor,
+	ticketsPendingCoreImport,
+	ticketsResolvedAsDone,
 	type WritebackTrigger,
 } from "../db/store";
 import { isRetryableStatus } from "../lib/errors";
@@ -34,9 +35,8 @@ export async function pushToCore(
 	core: CoreClient,
 	sql: SQL,
 ): Promise<{ pushed: number }> {
-	const pending = (await loadTickets(sql)).filter(
-		(t) => t.record.Status !== "done" && t.coreContentHash !== t.contentHash,
-	);
+	const pending = await ticketsPendingCoreImport(sql);
+	// In order, one at a time: the Core triages in import order, oldest ticket first.
 	for (const ticket of pending) {
 		const { Key, ...fields } = ticket.record;
 		const { ticketId } = await core.importTicket({
@@ -77,10 +77,9 @@ export async function sendClosures(
 	sql: SQL,
 ): Promise<{ closed: number }> {
 	let closed = 0;
-	for (const ticket of await loadTickets(sql)) {
+	for (const ticket of await ticketsResolvedAsDone(sql)) {
 		const { Key, ...fields } = ticket.record;
-		if (!ticket.coreTicketId || fields.Status !== "done") continue;
-		if (fields.Resolution !== "done") continue;
+		if (!ticket.coreTicketId) continue;
 		const closure = closureOf(ticket.record);
 		const closureKey = createHash("sha256")
 			.update(JSON.stringify([closure.resolutionNote, closure.resolver]))
@@ -146,21 +145,26 @@ const STATE_EVENTS = new Set([
 	"comment.updated",
 ]);
 
-/** Check after exporting: even events published during the export invalidate an older write. */
+function supersedes(later: CoreEvent, event: CoreEvent): boolean {
+	return (
+		later.seq > event.seq &&
+		later.ticket_id === event.ticket_id &&
+		STATE_EVENTS.has(later.type)
+	);
+}
+
+/**
+ * Check after exporting: even events published during the export invalidate an older
+ * write. Events up to `after` were already checked locally, so paging starts there.
+ */
 async function isSuperseded(
 	core: CoreClient,
 	event: CoreEvent,
+	after: number,
 ): Promise<boolean> {
-	let after = event.seq;
 	for (;;) {
 		const page = await core.listEvents(after);
-		if (
-			page.some(
-				(next) =>
-					next.ticket_id === event.ticket_id && STATE_EVENTS.has(next.type),
-			)
-		)
-			return true;
+		if (page.some((next) => supersedes(next, event))) return true;
 		const last = page.at(-1);
 		if (!last) return false;
 		if (last.seq <= after)
@@ -176,6 +180,7 @@ async function writeBack(
 	event: CoreEvent,
 	coreTicketId: string,
 	trigger: WritebackTrigger,
+	checkedUpTo: number,
 ): Promise<boolean> {
 	const key = await keyForCoreTicket(sql, coreTicketId);
 	if (!key) {
@@ -200,7 +205,7 @@ async function writeBack(
 
 	try {
 		const exported = await core.exportTicket(coreTicketId);
-		if (await isSuperseded(core, event)) return false;
+		if (await isSuperseded(core, event, checkedUpTo)) return false;
 		// The status is Jira's workflow; the Core's snapshot of it may be stale.
 		const { Status: _status, ...record } = exported;
 		const patch = ticketPatchSchema.safeParse({ ...record, Key: key });
@@ -229,22 +234,51 @@ async function writeBack(
 	}
 }
 
-/** Reads new Core events and writes effective state back to Jira where the contract says so. */
+/**
+ * Reads every new Core event, page by page, and writes effective state back to Jira where
+ * the contract says so. An event already superseded within its page is skipped without
+ * asking the Core. The cursor advances once per page, to the last event fully handled, so
+ * a retryable failure resumes from that event.
+ */
 export async function consumeCoreEvents(
 	core: CoreClient,
 	jira: JiraClient,
 	sql: SQL,
 ): Promise<{ processed: number; writebacks: number }> {
-	const after = Number((await getCursor(sql, EVENT_CURSOR)) ?? 0);
-	const events = await core.listEvents(after);
+	let after = Number((await getCursor(sql, EVENT_CURSOR)) ?? 0);
+	let processed = 0;
 	let writebacks = 0;
-	for (const event of events) {
-		const trigger = writebackTrigger(event);
-		if (trigger && event.ticket_id) {
-			if (await writeBack(core, jira, sql, event, event.ticket_id, trigger))
-				writebacks++;
+	for (;;) {
+		const events = await core.listEvents(after);
+		const last = events.at(-1);
+		if (!last) return { processed, writebacks };
+		if (last.seq <= after)
+			throw new Error("Core event pagination did not advance");
+		let done = after;
+		try {
+			for (const event of events) {
+				const trigger = writebackTrigger(event);
+				if (
+					trigger &&
+					event.ticket_id &&
+					!events.some((next) => supersedes(next, event)) &&
+					(await writeBack(
+						core,
+						jira,
+						sql,
+						event,
+						event.ticket_id,
+						trigger,
+						last.seq,
+					))
+				)
+					writebacks++;
+				done = event.seq;
+				processed++;
+			}
+		} finally {
+			if (done > after) await setCursor(sql, EVENT_CURSOR, String(done));
 		}
-		await setCursor(sql, EVENT_CURSOR, String(event.seq));
+		after = last.seq;
 	}
-	return { processed: events.length, writebacks };
 }

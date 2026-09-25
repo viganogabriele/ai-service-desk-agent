@@ -51,6 +51,9 @@ export type JiraClientConfig =
 	| { baseUrl: string; accessToken: string };
 
 const MAX_ATTEMPTS = 6;
+// /search/jql allows more, but Jira caps heavy field sets lower; 100 halves the round
+// trips of a full sync compared with the default 50.
+const SEARCH_PAGE_SIZE = 100;
 
 export function createRealJiraClient(config: JiraClientConfig): JiraClient {
 	const base = config.baseUrl.replace(/\/+$/, "");
@@ -101,7 +104,7 @@ export function createRealJiraClient(config: JiraClientConfig): JiraClient {
 				const params: Record<string, string> = {
 					jql,
 					fields: fields.join(","),
-					maxResults: "50",
+					maxResults: String(SEARCH_PAGE_SIZE),
 				};
 				if (nextPageToken) params.nextPageToken = nextPageToken;
 				const data = (await call("GET", "/rest/api/3/search/jql", {

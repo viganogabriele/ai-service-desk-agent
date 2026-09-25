@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS evaluations (
 CREATE TABLE IF NOT EXISTS policies (
   policy_version TEXT PRIMARY KEY, content TEXT NOT NULL, parent_version TEXT, created_at TEXT NOT NULL,
   actor TEXT, changelog TEXT NOT NULL, n INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS runs_ticket_idx ON runs (ticket_id);
+CREATE INDEX IF NOT EXISTS overrides_ticket_idx ON overrides (ticket_id, seq);
+CREATE INDEX IF NOT EXISTS acceptances_ticket_idx ON acceptances (ticket_id);
+CREATE INDEX IF NOT EXISTS comments_ticket_idx ON comments (ticket_id, seq);
+CREATE INDEX IF NOT EXISTS events_ticket_idx ON events (ticket_id, seq);
+CREATE INDEX IF NOT EXISTS closures_ticket_idx ON closures (ticket_id);
 """
 
 
@@ -101,6 +107,15 @@ class Database:
     def ticket_ids(self) -> list[str]:
         return [r[0] for r in self._all("SELECT ticket_id FROM tickets ORDER BY created_at, ticket_id")]
 
+    def tickets_all(self) -> list[dict]:
+        return [dict(r) for r in self._all("SELECT * FROM tickets ORDER BY created_at, ticket_id")]
+
+    def reviewed_ticket_ids(self) -> list[str]:
+        """Tickets with at least one acceptance or override, in ticket order."""
+        return [r[0] for r in self._all(
+            "SELECT ticket_id FROM tickets WHERE ticket_id IN "
+            "(SELECT ticket_id FROM acceptances UNION SELECT ticket_id FROM overrides) ORDER BY created_at, ticket_id")]
+
     def snapshot_by_hash(self, ticket_id: str, content_hash: str) -> dict | None:
         row = self._one("SELECT * FROM snapshots WHERE ticket_id = ? AND content_hash = ?", (ticket_id, content_hash))
         return self._snapshot(row)
@@ -117,6 +132,11 @@ class Database:
 
     def snapshot(self, snapshot_id: str) -> dict | None:
         return self._snapshot(self._one("SELECT * FROM snapshots WHERE snapshot_id = ?", (snapshot_id,)))
+
+    def latest_snapshots(self) -> dict[str, dict]:
+        """The latest snapshot of every ticket, by ticket_id."""
+        rows = self._all("SELECT * FROM snapshots WHERE rowid IN (SELECT MAX(rowid) FROM snapshots GROUP BY ticket_id)")
+        return {r["ticket_id"]: self._snapshot(r) for r in rows}
 
     @staticmethod
     def _snapshot(row) -> dict | None:
@@ -145,14 +165,57 @@ class Database:
         row = self._one("SELECT record FROM runs WHERE run_id = ?", (run_id,))
         return RunRecord.model_validate_json(row[0]) if row and row[0] else None
 
+    RUN_COLUMNS = "run_id, ticket_id, snapshot_id, mode, status, created_at"
+
     def runs_for(self, ticket_id: str) -> list[dict]:
-        return [dict(r) for r in self._all("SELECT * FROM runs WHERE ticket_id = ? ORDER BY rowid", (ticket_id,))]
+        """The ticket's runs, oldest first, without the record blob (history rows)."""
+        return [dict(r) for r in self._all(f"SELECT {self.RUN_COLUMNS} FROM runs WHERE ticket_id = ? ORDER BY rowid",
+                                           (ticket_id,))]
+
+    def runs_all(self) -> dict[str, list[dict]]:
+        """Every ticket's runs (history rows, oldest first), by ticket_id."""
+        out: dict[str, list[dict]] = {}
+        for r in self._all(f"SELECT {self.RUN_COLUMNS} FROM runs ORDER BY rowid"):
+            out.setdefault(r["ticket_id"], []).append(dict(r))
+        return out
+
+    def latest_live_run_id(self, ticket_id: str) -> str | None:
+        """The latest live run of any status."""
+        row = self._one("SELECT run_id FROM runs WHERE ticket_id = ? AND mode = 'live' ORDER BY rowid DESC LIMIT 1",
+                        (ticket_id,))
+        return row[0] if row else None
 
     def latest_live_run(self, ticket_id: str) -> RunRecord | None:
         """The latest completed live run: the base of the effective state."""
         row = self._one("SELECT record FROM runs WHERE ticket_id = ? AND mode = 'live' AND status = 'completed' "
                         "ORDER BY rowid DESC LIMIT 1", (ticket_id,))
         return RunRecord.model_validate_json(row[0]) if row else None
+
+    def latest_live_runs(self) -> dict[str, RunRecord]:
+        """The latest completed live run of every ticket that has one, by ticket_id."""
+        rows = self._all("SELECT ticket_id, record FROM runs WHERE rowid IN "
+                         "(SELECT MAX(rowid) FROM runs WHERE mode = 'live' AND status = 'completed' GROUP BY ticket_id)")
+        return {r["ticket_id"]: RunRecord.model_validate_json(r["record"]) for r in rows}
+
+    def completed_live_runs(self) -> dict[str, list[RunRecord]]:
+        """Every completed live run (oldest first), by ticket_id: the input of the metrics."""
+        out: dict[str, list[RunRecord]] = {}
+        for r in self._all("SELECT ticket_id, record FROM runs WHERE mode = 'live' AND status = 'completed' ORDER BY rowid"):
+            out.setdefault(r["ticket_id"], []).append(RunRecord.model_validate_json(r["record"]))
+        return out
+
+    def latest_run_status(self) -> dict[str, str]:
+        """The status of every ticket's most recent run of any mode, by ticket_id."""
+        rows = self._all("SELECT ticket_id, status FROM runs WHERE rowid IN (SELECT MAX(rowid) FROM runs GROUP BY ticket_id)")
+        return {r["ticket_id"]: r["status"] for r in rows}
+
+    def runs_by_id(self, run_ids) -> dict[str, RunRecord]:
+        ids = list(run_ids)
+        if not ids:
+            return {}
+        rows = self._all(f"SELECT run_id, record FROM runs WHERE run_id IN ({','.join('?' * len(ids))}) AND record IS NOT NULL",
+                         tuple(ids))
+        return {r["run_id"]: RunRecord.model_validate_json(r["record"]) for r in rows}
 
     def queue_depth(self) -> int:
         return self._one("SELECT COUNT(*) FROM runs WHERE status IN ('queued', 'running')")[0]
@@ -176,6 +239,13 @@ class Database:
     def overrides_for(self, ticket_id: str) -> list[dict]:
         return [dict(r) for r in self._all("SELECT * FROM overrides WHERE ticket_id = ? ORDER BY seq", (ticket_id,))]
 
+    def overrides_all(self) -> dict[str, list[dict]]:
+        """Every override in creation order, by ticket_id (only tickets that have any)."""
+        out: dict[str, list[dict]] = {}
+        for r in self._all("SELECT * FROM overrides ORDER BY seq"):
+            out.setdefault(r["ticket_id"], []).append(dict(r))
+        return out
+
     def add_acceptance(self, ticket_id: str, run_id: str, fields: list[str], actor: str) -> dict:
         aid, now = new_id("a"), utc_now()
         self._write("INSERT INTO acceptances VALUES (?, ?, ?, ?, ?, ?)", (aid, ticket_id, run_id, json.dumps(fields), actor, now))
@@ -185,6 +255,12 @@ class Database:
     def acceptances_for(self, ticket_id: str) -> list[dict]:
         return [{**dict(r), "fields": json.loads(r["fields"])}
                 for r in self._all("SELECT * FROM acceptances WHERE ticket_id = ? ORDER BY rowid", (ticket_id,))]
+
+    def acceptances_all(self) -> dict[str, list[dict]]:
+        out: dict[str, list[dict]] = {}
+        for r in self._all("SELECT * FROM acceptances ORDER BY rowid"):
+            out.setdefault(r["ticket_id"], []).append({**dict(r), "fields": json.loads(r["fields"])})
+        return out
 
     def add_comment(self, ticket_id: str, record: ResolutionCommentRecord, origin: str, run_id: str | None = None,
                     actor: str | None = None) -> dict:
@@ -197,8 +273,15 @@ class Database:
 
     def latest_comment(self, ticket_id: str) -> dict | None:
         row = self._one("SELECT * FROM comments WHERE ticket_id = ? ORDER BY seq DESC LIMIT 1", (ticket_id,))
-        if not row:
-            return None
+        return self._comment(row) if row else None
+
+    def latest_comments(self) -> dict[str, dict]:
+        """The latest comment of every ticket that has one, by ticket_id."""
+        rows = self._all("SELECT * FROM comments WHERE seq IN (SELECT MAX(seq) FROM comments GROUP BY ticket_id)")
+        return {r["ticket_id"]: self._comment(r) for r in rows}
+
+    @staticmethod
+    def _comment(row) -> dict:
         return {**dict(row), "record": ResolutionCommentRecord.model_validate_json(row["record"])}
 
     # -- batches --------------------------------------------------------------
@@ -226,7 +309,44 @@ class Database:
 
     def events_for(self, ticket_id: str) -> list[dict]:
         rows = self._all("SELECT * FROM events WHERE ticket_id = ? ORDER BY seq", (ticket_id,))
-        return [{**dict(r), "payload": json.loads(r["payload"])} for r in rows]
+        return [self._event(r) for r in rows]
+
+    def conflicts_for(self, ticket_id: str) -> list[dict]:
+        rows = self._all("SELECT * FROM events WHERE ticket_id = ? AND type = 'decision.conflict' ORDER BY seq", (ticket_id,))
+        return [self._event(r) for r in rows]
+
+    def conflicts_all(self) -> dict[str, list[dict]]:
+        out: dict[str, list[dict]] = {}
+        for r in self._all("SELECT * FROM events WHERE type = 'decision.conflict' ORDER BY seq"):
+            out.setdefault(r["ticket_id"], []).append(self._event(r))
+        return out
+
+    def search_events(self, ticket_id: str | None = None, actor: str | None = None, type_prefix: str | None = None,
+                      since: str | None = None, until: str | None = None, limit: int = 200) -> list[dict]:
+        """The last `limit` events matching every given filter, oldest first (the audit trail)."""
+        where, args = [], []
+        if ticket_id:
+            where.append("ticket_id = ?")
+            args.append(ticket_id)
+        if type_prefix:
+            where.append("substr(type, 1, ?) = ?")
+            args += [len(type_prefix), type_prefix]
+        if actor:
+            where.append("json_extract(payload, '$.actor') = ?")
+            args.append(actor)
+        if since:
+            where.append("occurred_at >= ?")
+            args.append(since)
+        if until:
+            where.append("occurred_at <= ?")
+            args.append(until)
+        sql = "SELECT * FROM events" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY seq DESC LIMIT ?"
+        rows = self._all(sql, (*args, limit))
+        return [self._event(r) for r in reversed(rows)]
+
+    @staticmethod
+    def _event(row) -> dict:
+        return {**dict(row), "payload": json.loads(row["payload"])}
 
     # -- closures & proposals (KB lifecycle) ------------------------------------------
     def add_closure(self, ticket_id: str, fields: dict, note: str | None, resolver: str | None, actor: str | None,
@@ -241,7 +361,17 @@ class Database:
     def closures(self, ticket_id: str | None = None) -> list[dict]:
         sql, args = ("SELECT * FROM closures WHERE ticket_id = ? ORDER BY rowid", (ticket_id,)) if ticket_id \
             else ("SELECT * FROM closures ORDER BY rowid", ())
-        return [{**dict(r), "fields": json.loads(r["fields"]), "score": json.loads(r["score"])} for r in self._all(sql, args)]
+        return [self._closure(r) for r in self._all(sql, args)]
+
+    def closures_all(self) -> dict[str, list[dict]]:
+        out: dict[str, list[dict]] = {}
+        for r in self._all("SELECT * FROM closures ORDER BY rowid"):
+            out.setdefault(r["ticket_id"], []).append(self._closure(r))
+        return out
+
+    @staticmethod
+    def _closure(row) -> dict:
+        return {**dict(row), "fields": json.loads(row["fields"]), "score": json.loads(row["score"])}
 
     def add_proposal(self, type_: str, payload: dict, evidence: dict, signature: str | None = None) -> dict:
         pid, now = new_id("pr"), utc_now()
@@ -288,9 +418,6 @@ class Database:
             self.conn.execute("INSERT INTO policies VALUES (?, ?, ?, ?, ?, ?, ?)",
                               (f"p{n}", json.dumps(content), parent, utc_now(), actor, json.dumps(changelog), n))
         return self.latest_policy()
-
-    def events_all(self) -> list[dict]:
-        return [{**dict(r), "payload": json.loads(r["payload"])} for r in self._all("SELECT * FROM events ORDER BY seq")]
 
     # -- evaluations (shadow) ---------------------------------------------------------
     def add_evaluation(self, request: dict, versions: dict, ticket_ids: list[str]) -> str:

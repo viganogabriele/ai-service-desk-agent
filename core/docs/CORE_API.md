@@ -214,7 +214,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 | POST | `/tickets` | Import or update a ticket snapshot; queues a run | 1 |
 | POST | `/batches` | Import a challenge-format file; returns `batch_id` and ticket IDs | 1 |
 | GET | `/batches/{id}` / `/batches/{id}/export` | Batch progress / export in challenge format | 1 |
-| GET | `/tickets` | List with filters (lane, service, flag, status) | 1 |
+| GET | `/tickets` | List with filters (lane, service, flag, status); `?expand=view` adds each ticket's view (§4) under `view`, so a board needs one request | 1 |
 | GET | `/tickets/{id}` | Ticket view (§4) | 1 |
 | POST | `/tickets/{id}/retriage` | Queue a new live run | 1 |
 | GET | `/runs/{id}` | Run detail | 1 |

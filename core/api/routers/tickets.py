@@ -41,8 +41,9 @@ def export_batch(batch_id: str, request: Request):
 
 @router.get("/tickets")
 def list_tickets(request: Request, lane: str | None = None, service: str | None = None, flag: str | None = None,
-                 status: str | None = None):
-    return {"tickets": core(request).list_tickets(lane, service, flag, status)}
+                 status: str | None = None, expand: str | None = None):
+    """`expand=view` adds each ticket's view (GET /tickets/{id}) under `view`."""
+    return {"tickets": core(request).list_tickets(lane, service, flag, status, expand=expand)}
 
 
 @router.get("/tickets/{ticket_id}")
