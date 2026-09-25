@@ -30,13 +30,16 @@ const OVERLAP_MINUTES = 5;
 // Upserts of different tickets are independent; this leaves pool connections for requests.
 const UPSERT_CONCURRENCY = 5;
 
-/** Copies tickets changed since the last sync (all of them the first time) into Postgres. */
+/**
+ * Copies tickets changed since the last sync into Postgres: all of them the first time,
+ * or when `full` asks to re-read everything.
+ */
 export async function syncFromJira(
 	jira: JiraClient,
 	sql: SQL,
-	now = new Date(),
+	{ full = false, now = new Date() } = {},
 ): Promise<{ upserted: number }> {
-	const last = await getCursor(sql, CURSOR);
+	const last = full ? null : await getCursor(sql, CURSOR);
 	let jql = TICKETS_JQL;
 	if (last) {
 		// Relative dates avoid depending on the Jira user's time zone.

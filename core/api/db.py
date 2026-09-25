@@ -115,6 +115,15 @@ class Database:
         self._write("INSERT INTO tickets VALUES (?, ?, ?)", (tid, external_key, utc_now()))
         return tid
 
+    # Everything that describes the ticket. The event log and the LLM usage ledger stay: they are history.
+    TICKET_STATE_TABLES = ("snapshots", "runs", "overrides", "acceptances", "comments", "closures", "tickets")
+
+    def delete_ticket(self, ticket_id: str) -> dict[str, int]:
+        """Remove a ticket and its state in one transaction; returns the rows deleted per table."""
+        with self.lock, self.conn:
+            return {t: self.conn.execute(f"DELETE FROM {t} WHERE ticket_id = ?", (ticket_id,)).rowcount
+                    for t in self.TICKET_STATE_TABLES}
+
     def ticket_ids(self) -> list[str]:
         return [r[0] for r in self._all("SELECT ticket_id FROM tickets ORDER BY created_at, ticket_id")]
 
@@ -163,10 +172,13 @@ class Database:
         self._write("UPDATE runs SET status = ? WHERE run_id = ? AND status NOT IN ('completed', 'failed')",
                     (status, run_id))
 
-    def finish_run(self, record: RunRecord) -> None:
-        """Store the final record once; a finished run is never modified again."""
-        self._write("UPDATE runs SET status = ?, record = ? WHERE run_id = ? AND status NOT IN ('completed', 'failed')",
-                    (record.status, record.model_dump_json(), record.run_id))
+    def finish_run(self, record: RunRecord) -> bool:
+        """Store the final record once; a finished run is never modified again. False when the
+        run is gone (its ticket was deleted while it ran)."""
+        with self.lock, self.conn:
+            return self.conn.execute(
+                "UPDATE runs SET status = ?, record = ? WHERE run_id = ? AND status NOT IN ('completed', 'failed')",
+                (record.status, record.model_dump_json(), record.run_id)).rowcount == 1
 
     def run_row(self, run_id: str) -> dict | None:
         row = self._one("SELECT * FROM runs WHERE run_id = ?", (run_id,))
@@ -227,6 +239,11 @@ class Database:
         rows = self._all(f"SELECT run_id, record FROM runs WHERE run_id IN ({','.join('?' * len(ids))}) AND record IS NOT NULL",
                          tuple(ids))
         return {r["run_id"]: RunRecord.model_validate_json(r["record"]) for r in rows}
+
+    def pending_live_run_ids(self) -> list[str]:
+        """Live runs not finished yet, oldest first: the worker queue lives in memory only."""
+        return [r[0] for r in self._all(
+            "SELECT run_id FROM runs WHERE mode = 'live' AND status IN ('queued', 'running') ORDER BY rowid")]
 
     def queue_depth(self) -> int:
         return self._one("SELECT COUNT(*) FROM runs WHERE status IN ('queued', 'running')")[0]

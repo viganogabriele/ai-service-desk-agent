@@ -218,6 +218,43 @@ def test_failed_run_is_retryable(api):
     assert r.status_code == 202 and api.get(f"/runs/{r.json()['run_id']}").json()["status"] == "completed"
 
 
+def test_deleted_ticket_leaves_every_list_and_keeps_its_history(api):
+    gone, kept = post(api, key="A"), post(api, key="B")
+    api.post(f"/tickets/{gone['ticket_id']}/accept", json={"run_id": gone["run_id"], "actor": "lead@x"})
+    r = api.delete(f"/tickets/{gone['ticket_id']}")
+    assert r.status_code == 200 and r.json()["external_key"] == "A"
+    assert r.json()["deleted"]["runs"] == 1 and r.json()["deleted"]["acceptances"] == 1
+    assert [t["ticket_id"] for t in api.get("/tickets").json()["tickets"]] == [kept["ticket_id"]]
+    assert [t["ticket_id"] for t in api.get("/queue").json()["tickets"]] == [kept["ticket_id"]]
+    assert api.get(f"/tickets/{gone['ticket_id']}").status_code == 404
+    assert api.delete(f"/tickets/{gone['ticket_id']}").status_code == 404
+    assert types(api)[-1] == "ticket.deleted" and "decision.accepted" in types(api)
+    again = post(api, key="A")
+    assert again["status"] == "queued" and again["ticket_id"] != gone["ticket_id"]
+
+
+def test_work_queued_for_a_deleted_ticket_is_skipped(api):
+    out = post(api)
+    core = api.app.state.core
+    run_id = core.db.create_run(out["ticket_id"], view(api, out["ticket_id"])["latest_run"]["snapshot_id"])
+    api.delete(f"/tickets/{out['ticket_id']}")
+    calls = api.engine.calls
+    assert core.process_run(run_id) is None and core.process_comment(out["ticket_id"]) is None
+    assert api.engine.calls == calls and types(api)[-1] == "ticket.deleted"
+
+
+def test_runs_queued_before_a_restart_are_resumed(tmp_path):
+    from api.db import Database
+
+    db = Database(tmp_path / "core.db")
+    tid = db.create_ticket("A")
+    run_id = db.create_run(tid, db.add_snapshot(tid, "h", fields()))
+    db.conn.close()
+    with TestClient(create_app(tmp_path / "core.db", engine=FakeEngine(tmp_path / "kb"), workers=0)) as client:
+        assert client.get(f"/runs/{run_id}").json()["status"] == "completed"
+        assert client.get("/health").json()["queue_depth"] == 0
+
+
 def test_queue_risk_sort_and_accept(api):
     api.engine.plan["Critical outage"] = {"service": "NAV Calculation", "urgency": "High", "impact": "High", "conf": 0.4}
     low = post(api, key="A")

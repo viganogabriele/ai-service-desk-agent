@@ -4,9 +4,15 @@ import type { JiraClient } from "../clients/jira/jira-client";
 import { log } from "../lib/log";
 import { consumeCoreEvents, pushToCore, sendClosures } from "./core-sync";
 import { syncFromJira } from "./jira-sync";
+import { reconcileWithJira } from "./reconcile";
+
+// Checking every stored ticket against Jira lists the whole project, so not on every pass.
+const RECONCILE_MS = 5 * 60_000;
 
 export type SyncSummary = {
 	jira: { upserted: number };
+	/** Tickets removed because Jira no longer has them; null when this pass did not check. */
+	removed: { postgres: number; core: number } | null;
 	core:
 		| { configured: false }
 		| {
@@ -19,8 +25,11 @@ export type SyncSummary = {
 };
 
 export type Syncer = {
-	/** One full pass: Jira -> Postgres -> Core (snapshots, closures), then Core events -> Jira. */
-	syncNow(): Promise<SyncSummary>;
+	/**
+	 * One pass: Jira -> Postgres -> Core (deletions, snapshots, closures), then Core events ->
+	 * Jira. `full` re-reads every ticket and checks for deletions now, not every few minutes.
+	 */
+	syncNow(options?: { full?: boolean }): Promise<SyncSummary>;
 	/** Runs syncNow on an interval until the returned function is called. */
 	start(everySeconds: number): () => void;
 };
@@ -32,21 +41,29 @@ export function createSyncer(
 	sql: SQL,
 ): Syncer {
 	let queue: Promise<unknown> = Promise.resolve();
+	// The first pass after startup checks for deletions.
+	let reconciledAt = Number.NEGATIVE_INFINITY;
 
-	async function pass(): Promise<SyncSummary> {
-		const fromJira = await syncFromJira(jira, sql);
-		if (!core) return { jira: fromJira, core: { configured: false } };
+	async function pass(full: boolean): Promise<SyncSummary> {
+		const fromJira = await syncFromJira(jira, sql, { full });
+		let removed: SyncSummary["removed"] = null;
+		if (full || Date.now() - reconciledAt >= RECONCILE_MS) {
+			removed = await reconcileWithJira(jira, core, sql);
+			reconciledAt = Date.now();
+		}
+		if (!core) return { jira: fromJira, removed, core: { configured: false } };
 		const { pushed } = await pushToCore(core, sql);
 		const { closed } = await sendClosures(core, sql);
 		const events = await consumeCoreEvents(core, jira, sql);
 		return {
 			jira: fromJira,
+			removed,
 			core: { configured: true, pushed, closed, ...events },
 		};
 	}
 
-	function syncNow(): Promise<SyncSummary> {
-		const run = queue.then(pass);
+	function syncNow({ full = false } = {}): Promise<SyncSummary> {
+		const run = queue.then(() => pass(full));
 		queue = run.catch(() => undefined);
 		return run;
 	}

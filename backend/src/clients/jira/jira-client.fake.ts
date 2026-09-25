@@ -134,16 +134,23 @@ export function fakeIssue(
 	};
 }
 
+export type FakeJira = JiraClient & {
+	/** Deletes an issue, as someone could in Jira. */
+	remove(key: string): void;
+};
+
 /** In-memory Jira for tests and local dev. Resolves option ids like Jira does. */
 export function createFakeJiraClient(
 	seed: JiraIssue[] = [fakeIssue("SUP-1")],
-): JiraClient {
+): FakeJira {
 	const issues = new Map(
 		seed.map((issue) => [issue.key, structuredClone(issue)]),
 	);
 
+	// Jira takes an issue id wherever it takes a key.
 	function get(key: string, path: string): JiraIssue {
-		const issue = issues.get(key);
+		const issue =
+			issues.get(key) ?? [...issues.values()].find((i) => i.id === key);
 		if (!issue)
 			throw new JiraApiError(404, "GET", path, "Issue does not exist");
 		return issue;
@@ -178,6 +185,10 @@ export function createFakeJiraClient(
 	}
 
 	return {
+		remove(key) {
+			issues.delete(key);
+		},
+
 		async searchIssues() {
 			return [...issues.values()].map((issue) => structuredClone(issue));
 		},

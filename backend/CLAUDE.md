@@ -7,6 +7,13 @@ Follow `CORE_API.md` for every interaction with the Core; it is binding.
 
 - **Jira → Postgres:** every sync pass copies changed tickets, mapped to the
   challenge-record format (`src/services/tickets.ts`, `src/db/store.ts`).
+- **Deletions:** incremental syncs never see a deleted issue, so every 5
+  minutes (and on `POST /sync?full=true`, which also re-reads every ticket)
+  `src/services/reconcile.ts` lists the project's keys. A stored ticket
+  missing from the list is looked up by its Jira id, since the search index
+  lags. A 404, a move to another project or a non-ticket type removes it
+  from the Core (`DELETE /tickets/{id}`) and then from Postgres. Core tickets
+  Postgres doesn't have are removed too.
 - **Postgres → Core:** open tickets whose `content_hash` the Core doesn't have
   go to the Core's `POST /tickets` with `Idempotency-Key: <key><core hash>`,
   where the hash is the Core's own (`coreContentHash`, core/AGENTS.md).
@@ -28,7 +35,8 @@ Follow `CORE_API.md` for every interaction with the Core; it is binding.
   it and starts a sync pass so the Core triages it like any other ticket.
 - **UI → Core:** `/core/*` proxies the Core API unchanged, except the
   ingestion endpoints (`POST /tickets`, `POST /batches`, `POST
-  /tickets/{id}/closure`), which belong to this backend.
+  /tickets/{id}/closure`, `DELETE /tickets/{id}`), which belong to this
+  backend.
 
 Follow these rules when working in this directory.
 

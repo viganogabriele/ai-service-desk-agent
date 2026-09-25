@@ -51,6 +51,12 @@ def ticket_view(ticket_id: str, request: Request):
     return core(request).ticket_view(ticket_id)
 
 
+@router.delete("/tickets/{ticket_id}")
+def delete_ticket(ticket_id: str, request: Request):
+    """The ticket is gone from the source (e.g. deleted in Jira): drop it and its state."""
+    return core(request).delete_ticket(ticket_id)
+
+
 @router.post("/tickets/{ticket_id}/retriage", status_code=202)
 def retriage(ticket_id: str, request: Request):
     return core(request).retriage(ticket_id)

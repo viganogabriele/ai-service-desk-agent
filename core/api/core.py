@@ -133,6 +133,17 @@ class Core:
         batch_id = self.db.create_batch(meta, [r["ticket_id"] for r in results])
         return {"batch_id": batch_id, "tickets": results}
 
+    def delete_ticket(self, ticket_id: str) -> dict:
+        """The ticket no longer exists at the source: drop it and its state. The event log and
+        the usage ledger keep its history; queued work for it is skipped."""
+        ticket = self.db.ticket(ticket_id)
+        if not ticket:
+            raise _not_found("ticket", ticket_id)
+        deleted = self.db.delete_ticket(ticket_id)
+        self.db.append_event("ticket.deleted", {"external_key": ticket["external_key"]}, ticket_id=ticket_id)
+        return {"ticket_id": ticket_id, "external_key": ticket["external_key"], "status": "deleted",
+                "deleted": deleted}
+
     # -- runs -------------------------------------------------------------------------
     def enqueue_run(self, ticket_id: str, snapshot_id: str, priority: int = 1) -> str:
         run_id = self.db.create_run(ticket_id, snapshot_id)
@@ -143,9 +154,12 @@ class Core:
         snap = self._snapshot(ticket_id)
         return {"ticket_id": ticket_id, "run_id": self.enqueue_run(ticket_id, snap["snapshot_id"], priority=0)}
 
-    def process_run(self, run_id: str) -> RunRecord:
-        """Worker entry point: run the engine, pin-check against overrides, store, emit."""
+    def process_run(self, run_id: str) -> RunRecord | None:
+        """Worker entry point: run the engine, pin-check against overrides, store, emit.
+        None when the ticket was deleted before the run started."""
         row = self.db.run_row(run_id)
+        if row is None:
+            return None
         ticket_id = row["ticket_id"]
         fields = self.db.snapshot(row["snapshot_id"])["fields"]
         previous = self._effective_values(ticket_id)
@@ -164,7 +178,8 @@ class Core:
         conflicts = []
         if record.status == "completed":
             record, conflicts = self._flag_conflicts(ticket_id, record)
-        self.db.finish_run(record)
+        if not self.db.finish_run(record):  # deleted while it ran: store and emit nothing
+            return record
         if record.status != "completed":
             self.db.append_event("run.failed", {"mode": row["mode"], "error": record.error},
                                  ticket_id=ticket_id, run_id=run_id)
@@ -372,6 +387,8 @@ class Core:
         return {"ticket_id": ticket_id, "status": "queued"}
 
     def process_comment(self, ticket_id: str) -> None:
+        if not self.db.ticket(ticket_id):  # deleted after the comment was requested
+            return
         run, eff, _ = self.effective(ticket_id)
         try:
             with usage.tagged(purpose="comment", ticket_id=ticket_id, run_id=run.run_id):

@@ -10,6 +10,7 @@ import {
 export type FakeCore = CoreClient & {
 	imports: CoreImport[];
 	closures: (CoreClosure & { ticketId: string })[];
+	deleted: string[];
 	/** Sets the effective state the Core would export for a ticket. */
 	setEffectiveState(ticketId: string, record: Record<string, unknown>): void;
 	/** What demoTicket returns next. */
@@ -22,7 +23,9 @@ export type FakeCore = CoreClient & {
 export function createFakeCoreClient(): FakeCore {
 	const imports: CoreImport[] = [];
 	const closures: FakeCore["closures"] = [];
+	const deleted: string[] = [];
 	const ticketIds = new Map<string, string>();
+	let lastTicket = 0;
 	const seenHashes = new Set<string>();
 	const effective = new Map<string, Record<string, unknown>>();
 	const events: CoreEvent[] = [];
@@ -30,6 +33,7 @@ export function createFakeCoreClient(): FakeCore {
 	return {
 		imports,
 		closures,
+		deleted,
 		// The shape of a challenge record, as the Core writes it.
 		demoRecord: {
 			"Work type": "Incident",
@@ -72,8 +76,7 @@ export function createFakeCoreClient(): FakeCore {
 		},
 
 		async importTicket(input) {
-			const ticketId =
-				ticketIds.get(input.externalKey) ?? `t-${ticketIds.size + 1}`;
+			const ticketId = ticketIds.get(input.externalKey) ?? `t-${++lastTicket}`;
 			ticketIds.set(input.externalKey, ticketId);
 			const idempotencyKey = coreIdempotencyKey(
 				input.externalKey,
@@ -99,6 +102,21 @@ export function createFakeCoreClient(): FakeCore {
 
 		async demoTicket() {
 			return structuredClone(this.demoRecord);
+		},
+
+		async listTickets() {
+			return [...ticketIds].map(([externalKey, ticketId]) => ({
+				ticketId,
+				externalKey,
+			}));
+		},
+
+		async deleteTicket(ticketId) {
+			const entry = [...ticketIds].find(([, id]) => id === ticketId);
+			if (!entry)
+				throw new CoreApiError(404, "DELETE", `/tickets/${ticketId}`, "");
+			ticketIds.delete(entry[0]);
+			deleted.push(ticketId);
 		},
 
 		async closeTicket(ticketId, closure) {

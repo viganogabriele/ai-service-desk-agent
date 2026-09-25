@@ -6,6 +6,7 @@ import {
 import { loadTickets } from "../db/store";
 import { testBackend } from "../db/test-db";
 import { DASHBOARD_ACTOR } from "./core-sync";
+import { createSyncer } from "./sync";
 
 function resolvedIssue(key: string) {
 	return fakeIssue(key, {
@@ -23,7 +24,7 @@ async function setup() {
 	const backend = await testBackend({ jira });
 	const core = backend.core;
 	if (!core) throw new Error("fake Core missing");
-	return { ...backend, core };
+	return { ...backend, core, jira };
 }
 
 async function stored(
@@ -167,6 +168,84 @@ describe("closures -> Core", () => {
 
 		expect(summary.core).toMatchObject({ closed: 0 });
 		expect(core.closures).toEqual([]);
+	});
+});
+
+describe("deletions in Jira", () => {
+	async function keys(sql: Awaited<ReturnType<typeof setup>>["sql"]) {
+		return (await loadTickets(sql)).map((t) => t.record.Key);
+	}
+
+	it("removes a ticket deleted in Jira from Postgres and the Core", async () => {
+		const { syncer, core, jira, sql, app } = await setup();
+		await syncer.syncNow();
+		const { coreTicketId } = await stored(sql, "SUP-1");
+
+		jira.remove("SUP-1");
+		const summary = await syncer.syncNow({ full: true });
+
+		expect(summary.removed).toEqual({ postgres: 1, core: 1 });
+		expect(core.deleted).toEqual([coreTicketId]);
+		expect(await keys(sql)).toEqual(["SUP-2", "SUP-3"]);
+		const exported = await (await app.request("/tickets")).text();
+		expect(exported).not.toContain('"SUP-1"');
+	});
+
+	it("checks on the first pass, then every few minutes or when asked", async () => {
+		const { syncer, jira, sql } = await setup();
+		expect((await syncer.syncNow()).removed).toEqual({ postgres: 0, core: 0 });
+
+		jira.remove("SUP-3");
+		expect((await syncer.syncNow()).removed).toBeNull();
+		expect(await keys(sql)).toContain("SUP-3");
+		expect((await syncer.syncNow({ full: true })).removed).toMatchObject({
+			postgres: 1,
+		});
+	});
+
+	it("keeps a ticket the search has not indexed yet", async () => {
+		const { syncer, jira, sql, core } = await setup();
+		await syncer.syncNow();
+		const lagging = {
+			...jira,
+			searchIssues: async (jql: string, fields: readonly string[]) =>
+				(await jira.searchIssues(jql, fields)).filter(
+					(issue) => issue.key !== "SUP-2",
+				),
+		};
+		const summary = await createSyncer(lagging, core, sql).syncNow({
+			full: true,
+		});
+
+		expect(summary.removed).toEqual({ postgres: 0, core: 0 });
+		expect(await keys(sql)).toEqual(["SUP-1", "SUP-2", "SUP-3"]);
+	});
+
+	it("keeps everything when Jira returns no tickets at all", async () => {
+		const { syncer, jira, sql, core } = await setup();
+		await syncer.syncNow();
+		for (const key of ["SUP-1", "SUP-2", "SUP-3"]) jira.remove(key);
+
+		const summary = await syncer.syncNow({ full: true });
+
+		expect(summary.removed).toEqual({ postgres: 0, core: 0 });
+		expect(await keys(sql)).toHaveLength(3);
+		expect(core.deleted).toEqual([]);
+	});
+
+	it("removes Core tickets that Postgres does not have", async () => {
+		const { syncer, core } = await setup();
+		await syncer.syncNow();
+		const { ticketId } = await core.importTicket({
+			externalKey: "SUP-99",
+			contentHash: "stale",
+			fields: {},
+		});
+
+		const summary = await syncer.syncNow({ full: true });
+
+		expect(summary.removed).toEqual({ postgres: 0, core: 1 });
+		expect(core.deleted).toEqual([ticketId]);
 	});
 });
 

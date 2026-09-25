@@ -101,6 +101,10 @@ describe("/core proxy", () => {
 			const res = await app.request(path, { method: "POST", body: "{}" });
 			expect(res.status).toBe(403);
 		}
+		const deletion = await app.request("/core/tickets/t-1", {
+			method: "DELETE",
+		});
+		expect(deletion.status).toBe(403);
 		expect(requests).toEqual([]);
 	});
 

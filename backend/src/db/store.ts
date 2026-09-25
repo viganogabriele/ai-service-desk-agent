@@ -218,6 +218,32 @@ export async function upsertSnapshot(
 	});
 }
 
+export type StoredTicketRef = {
+	key: string;
+	jiraId: string;
+	coreTicketId: string | null;
+};
+
+/** Every stored ticket's identifiers, without its record. */
+export async function storedTicketRefs(sql: SQL): Promise<StoredTicketRef[]> {
+	const rows: {
+		key: string;
+		jira_id: string;
+		core_ticket_id: string | null;
+	}[] =
+		await sql`SELECT external_key AS key, jira_id, core_ticket_id FROM tickets`;
+	return rows.map((r) => ({
+		key: r.key,
+		jiraId: r.jira_id,
+		coreTicketId: r.core_ticket_id,
+	}));
+}
+
+/** Drops a ticket Jira no longer has; its comments go with it, the write-back log stays. */
+export async function deleteTicket(sql: SQL, key: string): Promise<void> {
+	await sql`DELETE FROM tickets WHERE external_key = ${key}`;
+}
+
 /** Records that the Core now holds this content (sent to it, or produced by it). */
 export async function markCoreContent(
 	sql: SQL,

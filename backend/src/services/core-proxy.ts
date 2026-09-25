@@ -4,6 +4,7 @@ const INGESTION: ReadonlyArray<readonly [string, RegExp]> = [
 	["POST", /^\/tickets\/?$/],
 	["POST", /^\/batches\/?$/],
 	["POST", /^\/tickets\/[^/]+\/closure\/?$/],
+	["DELETE", /^\/tickets\/[^/]+\/?$/],
 ];
 
 export function isIngestion(method: string, path: string): boolean {

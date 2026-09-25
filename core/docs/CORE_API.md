@@ -151,7 +151,10 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 5. **Re-triage on a new snapshot:**
    - Pinned fields keep their override values.
    - If the new run's value differs from a pinned value, set the `conflict_with_override` flag on that decision and emit `decision.conflict`.
-6. **Demo tickets:** `POST /demo/tickets` returns `{fields}`, a new open ticket in the challenge format that the model writes from a random live-KB scenario (never from the challenge file). The Core stores nothing; the sync layer files it in Jira, and it arrives through step 1 like any other ticket.
+6. **Deleted tickets:** when the source no longer has a ticket (deleted in Jira, moved out of the project), the sync layer calls `DELETE /tickets/{id}`.
+   - The Core removes the ticket with its snapshots, runs, overrides, acceptances, comments and closures, and emits `ticket.deleted`. Queued work for it is skipped.
+   - The event log and the LLM usage ledger keep its history. A later `POST /tickets` with the same `external_key` starts a new ticket.
+7. **Demo tickets:** `POST /demo/tickets` returns `{fields}`, a new open ticket in the challenge format that the model writes from a random live-KB scenario (never from the challenge file). The Core stores nothing; the sync layer files it in Jira, and it arrives through step 1 like any other ticket.
 
 ### B. Review and override
 - **Queue:** `GET /queue?lane=needs_review&sort=risk`, where risk = (1 − min confidence) × priority weight × criticality weight.
@@ -216,6 +219,7 @@ After the lane is assigned, a random `audit_sample_rate` share of `auto_applied`
 | GET | `/batches/{id}` / `/batches/{id}/export` | Batch progress / export in challenge format | 1 |
 | GET | `/tickets` | List with filters (lane, service, flag, status); `?expand=view` adds each ticket's view (§4) under `view`, so a board needs one request | 1 |
 | GET | `/tickets/{id}` | Ticket view (§4) | 1 |
+| DELETE | `/tickets/{id}` | Remove a ticket the source no longer has (§6.A step 6) | 1 |
 | POST | `/tickets/{id}/retriage` | Queue a new live run | 1 |
 | GET | `/runs/{id}` | Run detail | 1 |
 | GET | `/queue` | Risk-sorted review queue | 1 |
@@ -251,6 +255,7 @@ The envelope is `{seq, event_id, type, occurred_at, ticket_id?, run_id?, payload
 | Type | Payload (key fields) | Main consumer |
 |---|---|---|
 | `ticket.imported` | `external_key`, `snapshot_id` | UI |
+| `ticket.deleted` | `external_key` | UI |
 | `run.started` / `run.failed` | `mode`, `error?` | UI |
 | `run.completed` | `lane`, `lane_reasons`, `changed_fields`, `audit_sampled` | Sync (auto-apply), UI, notifier |
 | `decision.accepted` | `fields`, `actor` | UI, metrics |
@@ -280,7 +285,7 @@ All metrics are computed on request from runs, overrides, acceptances and audits
 ## 10. Concurrency, idempotency, storage
 - **Imports** are idempotent on `external_key` + `content_hash`.
 - **Overrides** use optimistic concurrency through `base_run_id`; KB and policy changes carry their parent version.
-- **The worker queue** runs 1–2 concurrent LLM runs and processes them first in, first out, with `priority_hint` for re-triage requested by a human.
+- **The worker queue** runs 1–2 concurrent LLM runs and processes them first in, first out, with `priority_hint` for re-triage requested by a human. The queue lives in memory; at startup the Core re-queues every live run still `queued` or `running`.
 - **Storage:** SQLite `data/core.db`. JSON columns for decisions and evidence. An append-only `events` table. Embeddings stored per KB version under `artifacts/kb/<version>/`.
 - **Migration from the CLI:** `POST /batches` with the challenge file must produce the same effective state as `python run.py triage` given the same versions and a warm cache.
 

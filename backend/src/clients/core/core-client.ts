@@ -78,13 +78,32 @@ export interface CoreClient {
 	): Promise<{ outcome: string }>;
 	/** POST /demo/tickets: a new challenge-format ticket written by the Core, not stored. */
 	demoTicket(): Promise<Record<string, unknown>>;
+	/** GET /tickets: every ticket the Core holds. */
+	listTickets(): Promise<CoreTicketRef[]>;
+	/** DELETE /tickets/{id}: the ticket is gone from Jira. 404 when the Core has no such ticket. */
+	deleteTicket(ticketId: string): Promise<void>;
 }
+
+export type CoreTicketRef = { ticketId: string; externalKey: string };
 
 const importResponse = z.object({ ticket_id: z.string() });
 
 const closureResponse = z.object({ outcome: z.string() });
 
 const demoResponse = z.object({ fields: z.record(z.string(), z.unknown()) });
+
+const ticketsResponse = z
+	.object({
+		tickets: z.array(
+			z.object({ ticket_id: z.string(), external_key: z.string() }),
+		),
+	})
+	.transform((r) =>
+		r.tickets.map((t) => ({
+			ticketId: t.ticket_id,
+			externalKey: t.external_key,
+		})),
+	);
 
 const eventSchema = z.object({
 	seq: z.number().int(),
@@ -173,6 +192,14 @@ export function createRealCoreClient(baseUrl: string): CoreClient {
 		async demoTicket() {
 			const data = await call("POST", "/demo/tickets");
 			return demoResponse.parse(data).fields;
+		},
+
+		async listTickets() {
+			return ticketsResponse.parse(await call("GET", "/tickets"));
+		},
+
+		async deleteTicket(ticketId) {
+			await call("DELETE", `/tickets/${encodeURIComponent(ticketId)}`);
 		},
 	};
 }

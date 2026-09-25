@@ -25,6 +25,8 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
         pool = WorkerPool(core, workers)
         usage.set_sink(core.db.add_llm_call)
         pool.start()
+        for run_id in core.db.pending_live_run_ids():  # queued or interrupted before a restart
+            pool.submit("run", 1, run_id=run_id)
         app.state.core, app.state.pool = core, pool
         yield
         pool.stop()
