@@ -144,6 +144,7 @@ function useStrip(count: number) {
 export function PriorityView({ rows }: { rows: TicketRow[] }) {
   const { sort } = useTicketFilters().filters;
   const urgent = rows.flatMap((row) => score(row) ?? []).sort(byRank);
+  const hasCore = rows.some((row) => row.proposal?.core);
   const { attach, atStart, atEnd, page } = useStrip(urgent.length);
 
   if (rows.length === 0) return <Empty>No tickets match these filters.</Empty>;
@@ -156,6 +157,11 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             Action Required
             <SectionCount>{urgent.length}</SectionCount>
           </SectionTitle>
+          <SectionText>
+            {hasCore
+              ? "Core review lanes ordered by risk; high-priority tickets without a Core run follow."
+              : "High-priority open tickets, plus medium priority on critical services. No Core review lane is available."}
+          </SectionText>
           {!(atStart && atEnd) && (
             // Touch screens swipe the card strip, so its arrows are only for a mouse.
             <span className="ml-auto inline-flex gap-2 touch:hidden max-sm:hidden">
