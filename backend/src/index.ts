@@ -32,6 +32,8 @@ const auth =
 					redirectUri: env.OAUTH_REDIRECT_URI,
 				}),
 				env.JIRA_BASE_URL,
+				(baseUrl, accessToken) =>
+					createRealJiraClient({ baseUrl, accessToken }),
 			)
 		: null;
 

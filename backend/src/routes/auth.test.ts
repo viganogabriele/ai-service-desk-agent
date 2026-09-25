@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
-import {
-	type OAuthClient,
-	OAuthError,
-} from "../clients/atlassian/oauth-client";
-import type { JiraClient } from "../clients/jira/jira-client";
+import type { OAuthClient } from "../clients/atlassian/oauth-client";
+import { createFakeOAuthClient } from "../clients/atlassian/oauth-client.fake";
+import { JiraApiError, type JiraClient } from "../clients/jira/jira-client";
 import {
 	createFakeJiraClient,
 	fakeIssue,
@@ -15,26 +13,16 @@ import { createAuth } from "../services/auth";
 import { closureOf } from "../services/core-sync";
 import { toTicketRecord } from "../services/tickets";
 
-const fakeOAuth: OAuthClient = {
-	authorizeUrl: (state) => `https://auth.example/authorize?state=${state}`,
-	async exchangeCode(code) {
-		if (code !== "good") throw new OAuthError("Token exchange failed (400)");
-		return { accessToken: "maria-token", expiresIn: 3600 };
-	},
-	sites: async () => [{ cloudId: "c1", url: "https://jira.invalid/" }],
-	me: async () => ({
-		accountId: "a1",
-		email: "maria.rossi@intcom.com",
-		name: "Maria Rossi",
-	}),
-};
-
-async function setup(oauth = fakeOAuth) {
+async function setup(
+	oauth: OAuthClient = createFakeOAuthClient(),
+	{ revoked = false } = {},
+) {
 	const jira = createFakeJiraClient([fakeIssue("SUP-1")]);
 	const backend = await testBackend({ jira, withCore: false });
 	await backend.syncer.syncNow();
 	const calls: string[] = [];
 	// The user's client: the same fake Jira, recording which token made each call.
+	// A revoked token makes Jira answer 401 to every call.
 	const asUser = (baseUrl: string, token: string): JiraClient =>
 		new Proxy(jira, {
 			get(target, name) {
@@ -42,6 +30,8 @@ async function setup(oauth = fakeOAuth) {
 				return typeof value === "function"
 					? (...args: unknown[]) => {
 							calls.push(`${baseUrl} ${token} ${String(name)}`);
+							if (revoked)
+								throw new JiraApiError(401, "GET", "/", "Unauthorized");
 							return value.apply(target, args);
 						}
 					: value;
@@ -68,15 +58,26 @@ function cookie(res: Response, name: string): string {
 	return found.split(";")[0] ?? "";
 }
 
-async function signIn(app: Awaited<ReturnType<typeof setup>>["app"]) {
-	const login = await app.request("/auth/login");
-	expect(login.status).toBe(302);
-	const state = new URL(login.headers.get("Location") ?? "").searchParams.get(
-		"state",
-	);
+type App = Awaited<ReturnType<typeof setup>>["app"];
+
+/** Starts a sign-in: the state Atlassian must return and the cookie that proves it. */
+async function login(app: App) {
+	const res = await app.request("/auth/login");
+	expect(res.status).toBe(302);
+	const state =
+		new URL(res.headers.get("Location") ?? "").searchParams.get("state") ?? "";
+	return { state, cookie: cookie(res, `tb_oauth_${state}`) };
+}
+
+async function signIn(app: App, previousSession?: string) {
+	const { state, cookie: stateCookie } = await login(app);
 	const callback = await app.request(
 		`/auth/callback?code=good&state=${state}`,
-		{ headers: { Cookie: cookie(login, "tb_oauth_state") } },
+		{
+			headers: {
+				Cookie: [stateCookie, previousSession].filter(Boolean).join("; "),
+			},
+		},
 	);
 	expect(callback.status).toBe(302);
 	expect(callback.headers.get("Location")).toBe("http://localhost:5173/");
@@ -277,28 +278,87 @@ describe("sign in with Atlassian", () => {
 
 	it("rejects a callback whose state does not match", async () => {
 		const { app } = await setup();
-		const login = await app.request("/auth/login");
+		const { cookie: stateCookie } = await login(app);
 		const res = await app.request("/auth/callback?code=good&state=forged", {
-			headers: { Cookie: cookie(login, "tb_oauth_state") },
+			headers: { Cookie: stateCookie },
 		});
 		expect(res.status).toBe(400);
 		expect(res.headers.getSetCookie().join()).not.toContain("tb_session=");
 	});
 
 	it("explains a sign-in that did not authorize this Jira site", async () => {
-		const { app } = await setup({
-			...fakeOAuth,
-			sites: async () => [{ cloudId: "c2", url: "https://other.invalid" }],
-		});
-		const login = await app.request("/auth/login");
-		const state = new URL(login.headers.get("Location") ?? "").searchParams.get(
-			"state",
+		const { app } = await setup(
+			createFakeOAuthClient({
+				sites: async () => [{ cloudId: "c2", url: "https://other.invalid" }],
+			}),
 		);
+		const { state, cookie: stateCookie } = await login(app);
 		const res = await app.request(`/auth/callback?code=good&state=${state}`, {
-			headers: { Cookie: cookie(login, "tb_oauth_state") },
+			headers: { Cookie: stateCookie },
 		});
 		expect(res.status).toBe(502);
 		expect(await res.text()).toContain("https://jira.invalid");
+	});
+
+	it("tells a declined consent apart from a tampered callback", async () => {
+		const { app } = await setup();
+		const { state, cookie: stateCookie } = await login(app);
+		const res = await app.request(
+			`/auth/callback?error=access_denied&state=${state}`,
+			{ headers: { Cookie: stateCookie } },
+		);
+		expect(res.status).toBe(400);
+		expect(await res.text()).toContain("cancelled");
+	});
+
+	it("completes a sign-in started in another tab first", async () => {
+		const { app } = await setup();
+		const first = await login(app);
+		const second = await login(app);
+		const res = await app.request(
+			`/auth/callback?code=good&state=${first.state}`,
+			{ headers: { Cookie: `${first.cookie}; ${second.cookie}` } },
+		);
+		expect(res.status).toBe(302);
+		expect(cookie(res, "tb_session")).not.toBe("tb_session=");
+	});
+
+	it("replaces the previous session when signing in again", async () => {
+		const { app } = await setup();
+		const first = await signIn(app);
+		const second = await signIn(app, first);
+		expect(second).not.toBe(first);
+		const me = await app.request("/auth/me", { headers: { Cookie: first } });
+		expect(((await me.json()) as { user: unknown }).user).toBeNull();
+	});
+
+	it("ends the session when Jira refuses the user's token", async () => {
+		const { app } = await setup(undefined, { revoked: true });
+		const session = await signIn(app);
+		const write = await app.request("/tickets", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: session,
+				"X-Atlassian-Account-Id": "a1",
+			},
+			body: JSON.stringify({ Key: "SUP-1", Urgency: "High" }),
+		});
+		expect(write.status).toBe(200);
+		const { results } = (await write.json()) as {
+			results: { ok: boolean }[];
+		};
+		expect(results[0]?.ok).toBe(false);
+		const me = await app.request("/auth/me", { headers: { Cookie: session } });
+		expect(((await me.json()) as { user: unknown }).user).toBeNull();
+	});
+
+	it("ends the session a minute before the access token expires", async () => {
+		const { app, auth } = await setup();
+		const session = await signIn(app);
+		const sessionId = session.slice("tb_session=".length);
+		vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3_541_000);
+		expect(auth.user(sessionId)).toBeNull();
 	});
 
 	it("signs out", async () => {

@@ -44,7 +44,7 @@ async function mockGateway(page: Page, result = evaluation(), pending = false) {
   const writes: string[] = [];
   await page.route("**/core/**", async (route) => {
     const request = route.request();
-    const path = new URL(request.url()).pathname;
+    const path = new URL(request.url()).pathname.replace(/^\/api/, "");
     if (request.method() === "POST") {
       writes.push(path);
       if (path !== "/core/evaluations") return route.fulfill({ status: 400 });

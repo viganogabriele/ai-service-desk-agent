@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   HttpError,
   REASON_CODES,
+  UNREACHABLE,
   coreActor,
   createBackendClient,
   levelOf,
@@ -260,8 +261,11 @@ function initialReview(
 }
 
 // fetch rejects with a TypeError when the backend is down; the dev proxy answers 502 instead.
+// A 502 from the backend itself (a failed sync, the Core) keeps its own message.
 function unreachable(failure: Error) {
-  return failure instanceof TypeError || (failure instanceof HttpError && failure.status === 502);
+  return (
+    failure instanceof TypeError || (failure instanceof HttpError && failure.code === UNREACHABLE)
+  );
 }
 
 function failureText(failure: Error) {
@@ -398,7 +402,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       throw new Error("Your sign-in status could not be confirmed. Reload before saving.");
 
     try {
-      return await backend.patch(patches, user);
+      const response = await backend.patch(patches, user);
+
+      // Jira refusing a revoked token ends the session on the backend: show that it did.
+      if (user && response.results.some((result) => !result.ok))
+        await client.invalidateQueries({ queryKey: ["auth"] });
+
+      return response;
     } catch (failure) {
       if (failure instanceof HttpError && (failure.status === 401 || failure.status === 409))
         await client.invalidateQueries({ queryKey: ["auth"] });

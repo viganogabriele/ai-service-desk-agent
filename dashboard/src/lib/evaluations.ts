@@ -63,7 +63,8 @@ interface ShadowRun {
   error: string | null;
 }
 
-const base = (import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:8787").replace(/\/+$/, "");
+// The same backend as the rest of the dashboard: the dev proxy at /api unless overridden.
+const base = (import.meta.env.VITE_BACKEND_URL || "/api").replace(/\/+$/, "");
 
 export const historyKey = `ticketbuddy-evaluations:${base}`;
 

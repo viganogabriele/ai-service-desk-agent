@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createBackendClient, parseComment, signedComment } from "../src/lib/backend.ts";
+import {
+  HttpError,
+  UNREACHABLE,
+  createBackendClient,
+  parseComment,
+  signedComment,
+} from "../src/lib/backend.ts";
 
 const user = { accountId: "a1", name: "Maria Rossi", email: "maria.rossi@intcom.com" };
 
@@ -51,4 +57,48 @@ test("legacy unsigned comments keep their entire text instead of becoming an aut
   for (const text of ["Which environment is affected?", "Resolution: Renewed certificate."]) {
     assert.deepEqual(parseComment(text), { author: null, text });
   }
+});
+
+test("typed text that starts like an email address is not taken for a signature", () => {
+  for (const text of [
+    "git@github.com:org/repo fails to clone over SSH",
+    "ops@intcom.com: please rotate the certificate",
+  ]) {
+    assert.equal(signedComment(text, user.email), `${user.email}: ${text}`);
+  }
+});
+
+test("only a missing backend reads as unreachable, not the backend's own 502", async () => {
+  const failure = (response: Response) =>
+    createBackendClient("/api", async () => response)
+      .tickets()
+      .then(
+        () => assert.fail("expected a failure"),
+        (error: unknown) => {
+          assert.ok(error instanceof HttpError);
+          return error;
+        },
+      );
+
+  const sync = await failure(
+    Response.json(
+      { error: { message: "Sync failed: Jira returned 500", code: "upstream_error" } },
+      { status: 502 },
+    ),
+  );
+  assert.equal(sync.code, "upstream_error");
+  assert.equal(sync.message, "Sync failed: Jira returned 500");
+
+  const proxy = await failure(
+    Response.json(
+      { error: { message: "backend unreachable", code: UNREACHABLE } },
+      { status: 502 },
+    ),
+  );
+  assert.equal(proxy.code, UNREACHABLE);
+
+  const staticHost = await failure(
+    new Response("<!doctype html>", { headers: { "Content-Type": "text/html" } }),
+  );
+  assert.equal(staticHost.code, UNREACHABLE);
 });

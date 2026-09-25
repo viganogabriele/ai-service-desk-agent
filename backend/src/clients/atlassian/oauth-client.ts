@@ -42,11 +42,24 @@ const meResponse = z.object({
 });
 
 export function createRealOAuthClient(config: OAuthConfig): OAuthClient {
-	async function json(res: Response, what: string): Promise<unknown> {
+	async function json<T>(
+		res: Response,
+		what: string,
+		schema: z.ZodType<T>,
+	): Promise<T> {
 		const text = await res.text();
 		// Never echo the body: a token response may carry secrets.
 		if (!res.ok) throw new OAuthError(`${what} failed (${res.status})`);
-		return JSON.parse(text);
+		let body: unknown;
+		try {
+			body = JSON.parse(text);
+		} catch {
+			throw new OAuthError(`${what} returned invalid JSON`);
+		}
+		const parsed = schema.safeParse(body);
+		if (!parsed.success)
+			throw new OAuthError(`${what} returned an unexpected response`);
+		return parsed.data;
 	}
 
 	return {
@@ -76,7 +89,7 @@ export function createRealOAuthClient(config: OAuthConfig): OAuthClient {
 					redirect_uri: config.redirectUri,
 				}),
 			});
-			const data = tokenResponse.parse(await json(res, "Token exchange"));
+			const data = await json(res, "Token exchange", tokenResponse);
 			return { accessToken: data.access_token, expiresIn: data.expires_in };
 		},
 
@@ -85,16 +98,16 @@ export function createRealOAuthClient(config: OAuthConfig): OAuthClient {
 				"https://api.atlassian.com/oauth/token/accessible-resources",
 				{ headers: { Authorization: `Bearer ${accessToken}` } },
 			);
-			return sitesResponse
-				.parse(await json(res, "Reading the authorized sites"))
-				.map((s) => ({ cloudId: s.id, url: s.url }));
+			return (
+				await json(res, "Reading the authorized sites", sitesResponse)
+			).map((s) => ({ cloudId: s.id, url: s.url }));
 		},
 
 		async me(accessToken) {
 			const res = await fetch("https://api.atlassian.com/me", {
 				headers: { Authorization: `Bearer ${accessToken}` },
 			});
-			const data = meResponse.parse(await json(res, "Reading the user"));
+			const data = await json(res, "Reading the user", meResponse);
 			return { accountId: data.account_id, email: data.email, name: data.name };
 		},
 	};

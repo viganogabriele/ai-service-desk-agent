@@ -215,7 +215,12 @@ async function changeWorkType(
 		await client.updateIssue(key, { fields: { issuetype: { id: target.id } } });
 	} catch (error) {
 		// Refused when the two work types use different workflows.
-		if (!(error instanceof JiraApiError) || isRetryableStatus(error.status))
+		if (
+			!(error instanceof JiraApiError) ||
+			isRetryableStatus(error.status) ||
+			error.status === 401 ||
+			error.status === 403
+		)
 			throw error;
 		warnings.push(
 			`Work type: Jira refused the change to ${wanted} (${error.status})`,

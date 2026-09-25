@@ -16,7 +16,11 @@ export default defineConfig({
           proxy.on("error", (_error, _request, response) => {
             if ("writeHead" in response && !response.headersSent) {
               response.writeHead(502, { "Content-Type": "application/json" });
-              response.end(JSON.stringify({ error: { message: "backend unreachable" } }));
+              response.end(
+                JSON.stringify({
+                  error: { message: "backend unreachable", code: "backend_unreachable" },
+                }),
+              );
             }
           });
         },

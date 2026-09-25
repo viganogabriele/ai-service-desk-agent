@@ -70,11 +70,14 @@ export interface PatchResponse {
   results: PatchResult[];
 }
 
-// The backend sends {error: {message}}; the Core, through the proxy, {error: code, message}.
+// The backend sends {error: {message, code}}; the Core, through the proxy, {error: code, message}.
 interface ApiError {
-  error?: { message?: string };
+  error?: { message?: string; code?: string };
   message?: string;
 }
+
+/** Set when nothing answered for the backend: the dev proxy's 502, or a host without the backend. */
+export const UNREACHABLE = "backend_unreachable";
 
 /** One field of a Core run (CORE_API §4). */
 interface CoreDecision {
@@ -126,7 +129,8 @@ export function parseComment(comment: string) {
 }
 
 export function signedComment(text: string, author: string) {
-  const body = parseComment(text).text;
+  // Only a copied draft ("email: Resolution: …") carries a signature to replace; typed text is kept.
+  const body = text.trim().replace(/^\S+@\S+:\s*(?=Resolution: )/, "");
 
   return author ? `${author}: ${body}` : body;
 }
@@ -142,10 +146,12 @@ export const REASON_CODES: Record<TriageField | "resolution", string> = {
 
 export class HttpError extends Error {
   readonly status: number;
+  readonly code: string | undefined;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -155,11 +161,19 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetcher(`${base}${path}`, { ...init, credentials: "include" });
 
+    // The backend always answers JSON; a static host serves its HTML page for /api instead.
+    if (!response.headers.get("Content-Type")?.includes("json"))
+      throw new HttpError(response.status, `No backend answered at ${base}.`, UNREACHABLE);
+
     if (!response.ok) {
       const payload: ApiError = await response.json().catch(() => ({}));
       const message = payload.message ?? payload.error?.message;
 
-      throw new HttpError(response.status, message ?? `Request failed (${response.status}).`);
+      throw new HttpError(
+        response.status,
+        message ?? `Request failed (${response.status}).`,
+        payload.error?.code,
+      );
     }
 
     return response.json();
