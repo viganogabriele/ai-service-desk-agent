@@ -156,6 +156,7 @@ triage/
   kb.py            KB version store, applying proposals, closure-note scoring, learning from overrides
   policy.py        lane policy versions (thresholds, autonomy, audit rate, pause)
   metrics.py       CORE_API §9 metrics as pure functions (incl. emerging issues)
+  usage.py         LLM usage ledger: token counts, prices (config.LLM_PRICES), GET /usage summary
   calibration.py   isotonic confidence calibration against human outcomes (adopted via policy)
   evaluation.py    scoring for labelled files (hand-written, dev set)
   llm.py           Ollama wrapper: structured calls, retries, cache

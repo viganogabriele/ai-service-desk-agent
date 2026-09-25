@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from triage import config
+from triage import config, usage
 from triage.state import StateError
 
 from api import events
@@ -23,10 +23,12 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
 
         core = Core(Database(db_path), engine or Engine())
         pool = WorkerPool(core, workers)
+        usage.set_sink(core.db.add_llm_call)
         pool.start()
         app.state.core, app.state.pool = core, pool
         yield
         pool.stop()
+        usage.set_sink(None)
 
     app = FastAPI(title="Triage Core API", version="1", lifespan=lifespan,
                   description="Core integration contract: docs/CORE_API.md")

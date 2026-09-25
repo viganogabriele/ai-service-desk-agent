@@ -1,4 +1,4 @@
-"""Metrics computed on request (CORE_API §9) and the audit trail."""
+"""Metrics computed on request (CORE_API §9), LLM usage and the audit trail."""
 from fastapi import APIRouter, Query, Request
 
 router = APIRouter(tags=["metrics"])
@@ -12,6 +12,12 @@ def core(request: Request):
 def metric(name: str, request: Request, from_: str | None = Query(None, alias="from"),
            to: str | None = None, service: str | None = None):
     return core(request).metric(name, from_, to, service)
+
+
+@router.get("/usage")
+def usage(request: Request, window: str = "30d"):
+    """LLM tokens and estimated cost per model, pipeline stage and purpose over a window."""
+    return core(request).usage_summary(window)
 
 
 @router.get("/audit")
