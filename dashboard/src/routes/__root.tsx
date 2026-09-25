@@ -1,5 +1,6 @@
-import { Link, Outlet, createRootRoute, useMatchRoute } from "@tanstack/react-router";
+import { Link, Outlet, createRootRoute, useMatchRoute, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import {
   ChartColumn,
@@ -16,6 +17,8 @@ import { DashboardProvider, useDashboard } from "../state";
 import type { Notice } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
+import { LoadError } from "../components/load-error";
+import { PageSkeleton } from "../components/skeleton";
 import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import { Button, buttonVariants } from "../components/ui/button";
@@ -49,10 +52,26 @@ function Root() {
     <TicketFiltersProvider>
       <Tooltip.Provider delayDuration={450} skipDelayDuration={400}>
         {playground ? (
-          <Shell playground />
+          <Shell>
+            <Outlet />
+          </Shell>
         ) : (
-          <DashboardProvider>
-            <Shell />
+          <DashboardProvider
+            loading={
+              <Shell>
+                <PageSkeleton />
+              </Shell>
+            }
+            failed={(failure) => (
+              <Shell>
+                <LoadError failure={failure} />
+              </Shell>
+            )}
+          >
+            <Shell operator={<Operator />}>
+              <Outlet />
+            </Shell>
+            <Toast />
           </DashboardProvider>
         )}
       </Tooltip.Provider>
@@ -99,8 +118,11 @@ function Operator() {
   );
 }
 
-function Shell({ playground = false }: { playground?: boolean }) {
+/** The top bar and the page. `operator` needs the tickets, so it is left out until they load. */
+function Shell({ operator, children }: { operator?: ReactNode; children: ReactNode }) {
   const { filters } = useTicketFilters();
+  // Read from the URL as well: the filters only pick up `?view=` once the ticket page mounts.
+  const search: { view?: TicketFilters["view"] } = useSearch({ strict: false });
   const matchRoute = useMatchRoute();
   const onTickets = Boolean(matchRoute({ to: "/tickets", fuzzy: true }));
   const onDetail = Boolean(matchRoute({ to: "/tickets/$ticketId" }));
@@ -122,7 +144,7 @@ function Shell({ playground = false }: { playground?: boolean }) {
           <img src={logo} alt="" width={32} height={32} className="block size-8" />
           <span className="max-lg:hidden">TicketBuddy</span>
         </Link>
-        <ViewSwitch active={onTickets ? filters.view : null} />
+        <ViewSwitch active={onTickets ? (search.view ?? filters.view) : null} />
         <div className="ml-auto flex items-center gap-2">
           <Link
             to="/overview"
@@ -149,7 +171,7 @@ function Shell({ playground = false }: { playground?: boolean }) {
             <FlaskConical size={18} strokeWidth={1.75} />
           </Link>
           <ThemeToggle className={TOPBAR_ICON} />
-          {!playground && <Operator />}
+          {operator}
         </div>
       </header>
       <main
@@ -160,9 +182,8 @@ function Shell({ playground = false }: { playground?: boolean }) {
           onDetail && "max-w-none",
         )}
       >
-        <Outlet />
+        {children}
       </main>
-      {!playground && <Toast />}
       <TooltipLayer />
     </div>
   );
