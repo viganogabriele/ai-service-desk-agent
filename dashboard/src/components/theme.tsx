@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 
 export type Theme = "light" | "dark";
@@ -19,9 +19,26 @@ function subscribe(onChange: () => void) {
   return () => observer.disconnect();
 }
 
+/**
+ * Swaps the theme with every transition switched off for one frame, so the page changes colour at
+ * once instead of hundreds of elements fading on their own schedules.
+ */
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+
+  root.classList.add("theme-switching");
+  root.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => root.classList.remove("theme-switching")),
+  );
+}
+
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const theme = useSyncExternalStore(subscribe, currentTheme);
   const next: Theme = theme === "dark" ? "light" : "dark";
+  // The icon only turns in after a click, not when the page first paints.
+  const [turned, setTurned] = useState(false);
 
   return (
     <button
@@ -30,16 +47,14 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       data-tip={`Switch to ${next} theme`}
       onClick={() => {
         localStorage.setItem(STORAGE_KEY, next);
-        document.documentElement.dataset.theme = next;
-        document
-          .querySelector('meta[name="theme-color"]')
-          ?.setAttribute("content", THEME_COLORS[next]);
+        applyTheme(next);
+        setTurned(true);
       }}
     >
       {theme === "dark" ? (
-        <Sun size={16} strokeWidth={1.75} />
+        <Sun key="sun" size={16} strokeWidth={1.75} className={turned ? "turn-in" : undefined} />
       ) : (
-        <Moon size={16} strokeWidth={1.75} />
+        <Moon key="moon" size={16} strokeWidth={1.75} className={turned ? "turn-in" : undefined} />
       )}
     </button>
   );

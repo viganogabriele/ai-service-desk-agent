@@ -164,6 +164,8 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
           <div
             ref={attach}
             className="ticket-row"
+            data-more-before={atStart ? undefined : ""}
+            data-more-after={atEnd ? undefined : ""}
             role="group"
             aria-labelledby="lane-action"
             tabIndex={0}

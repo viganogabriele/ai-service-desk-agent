@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Flag, Search, X } from "lucide-react";
 import { useDashboard } from "../state";
@@ -207,18 +207,46 @@ export const personName = (email: string | null) =>
 
 export function SearchField({ compact = false }: { compact?: boolean }) {
   const { filters, setFilters } = useTicketFilters();
+  const input = useRef<HTMLInputElement>(null);
+
+  // "/" jumps to the search field from anywhere on the page that is not already taking text.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.closest("input, textarea, [contenteditable], [role=listbox], .modal")
+      )
+        return;
+
+      event.preventDefault();
+      input.current?.focus();
+    };
+
+    window.addEventListener("keydown", onKey);
+
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <label className={compact ? "search compact" : "search"}>
       <Search size={15} strokeWidth={1.75} />
       <span className="sr-only">Search tickets</span>
       <input
+        ref={input}
         type="search"
         placeholder="Search tickets, reporters, services…"
         value={filters.query}
         onChange={(event) => setFilters({ query: event.target.value })}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setFilters({ query: "" });
+            event.currentTarget.blur();
+          }
+        }}
       />
-      {filters.query && (
+      {filters.query ? (
         <button
           type="button"
           className="search-clear"
@@ -227,6 +255,10 @@ export function SearchField({ compact = false }: { compact?: boolean }) {
         >
           <X size={14} strokeWidth={2} />
         </button>
+      ) : (
+        <kbd className="search-kbd" aria-hidden="true">
+          /
+        </kbd>
       )}
     </label>
   );

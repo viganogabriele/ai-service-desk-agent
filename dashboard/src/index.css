@@ -176,10 +176,14 @@
   --radius-float: 18px;
   --radius-pill: 999px;
 
+  /* Motion: a strong ease-out for things that appear or move, a soft one for hover colour. */
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-soft: cubic-bezier(0.25, 0.1, 0.25, 1);
+
   --shadow-*: initial;
   --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset;
   --shadow-popover: 0 12px 32px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.06);
-  --shadow-float: 0 18px 48px rgb(0 0 0 / 0.5);
+  --shadow-float: 0 16px 36px -12px rgb(0 0 0 / 0.6);
 
   --breakpoint-*: initial;
   --breakpoint-sm: 600px;
@@ -227,6 +231,7 @@
   --color-chart-strike: rgb(20 24 28 / 0.3);
   --shadow-card: 0 1px 2px rgb(20 24 28 / 0.05);
   --shadow-popover: 0 12px 32px rgb(20 24 28 / 0.14), 0 0 0 1px rgb(20 24 28 / 0.06);
+  --shadow-float: 0 16px 36px -12px rgb(20 24 28 / 0.2);
   color-scheme: light;
 }
 
@@ -288,6 +293,12 @@ blockquote {
 }
 svg {
   flex: none;
+}
+.theme-switching,
+.theme-switching *,
+.theme-switching ::before,
+.theme-switching ::after {
+  transition: none !important;
 }
 :focus-visible {
   outline: 2px solid var(--color-ring);
@@ -411,8 +422,9 @@ input[type="search"]::-webkit-search-decoration {
     0 4px 16px color-mix(in srgb, var(--color-primary) 18%, transparent);
   opacity: 0;
   transition:
-    transform 320ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 280ms var(--ease-out),
     opacity 150ms ease;
+  will-change: transform;
 }
 .view-switch[data-active] .view-thumb {
   opacity: 1;
@@ -438,8 +450,16 @@ input[type="search"]::-webkit-search-decoration {
   white-space: nowrap;
   transition: color 150ms ease;
 }
+.view-option svg {
+  transition: transform 200ms var(--ease-out);
+}
 .view-option:hover {
   color: var(--color-secondary);
+}
+@media (hover: hover) and (pointer: fine) {
+  .view-option:not([aria-current="page"]):hover svg {
+    transform: translateY(-1px);
+  }
 }
 .view-option[aria-current="page"] {
   color: var(--color-primary-text);
@@ -513,10 +533,11 @@ input[type="search"]::-webkit-search-decoration {
   font-weight: 500;
   white-space: nowrap;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease,
-    transform 120ms ease;
+    background-color 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    box-shadow 200ms var(--ease-soft),
+    scale 150ms ease-out;
 }
 .button {
   padding: 0 14px;
@@ -534,7 +555,28 @@ input[type="search"]::-webkit-search-decoration {
 }
 .button:active:not(:disabled),
 .icon-button:active:not(:disabled) {
-  transform: scale(0.98);
+  scale: 0.97;
+}
+/* Arrows lean the way they point while the pointer is on their button. */
+.button svg,
+.icon-button svg {
+  transition: transform 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .button.primary:hover:not(:disabled) {
+    box-shadow: 0 6px 20px -6px color-mix(in srgb, var(--color-action) 70%, transparent);
+  }
+  .button.danger:hover:not(:disabled) {
+    box-shadow: 0 6px 20px -6px color-mix(in srgb, var(--color-danger) 70%, transparent);
+  }
+  .button:hover:not(:disabled) :is(.lucide-chevrons-right, .lucide-arrow-right),
+  .icon-button:hover:not(:disabled) .lucide-chevron-right {
+    transform: translateX(2px);
+  }
+  .button:hover:not(:disabled) .lucide-arrow-left,
+  .icon-button:hover:not(:disabled) .lucide-chevron-left {
+    transform: translateX(-2px);
+  }
 }
 .button.primary {
   border-color: transparent;
@@ -610,6 +652,15 @@ input[type="search"]::-webkit-search-decoration {
 }
 .spin {
   animation: spin 0.9s linear infinite;
+}
+.turn-in {
+  animation: turn-in 300ms var(--ease-out);
+}
+@keyframes turn-in {
+  from {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.6);
+  }
 }
 @keyframes spin {
   to {
@@ -1042,8 +1093,8 @@ h3 {
 .ticket-row {
   display: flex;
   gap: var(--spacing-card-gap);
-  margin: -6px calc(var(--spacing-page) * -1) 0;
-  padding: 6px var(--spacing-page) 12px;
+  margin: -6px calc(var(--spacing-page) * -1) -20px;
+  padding: 6px var(--spacing-page) 32px;
   overflow-x: auto;
   overflow-y: hidden;
   overscroll-behavior-x: contain;
@@ -1066,6 +1117,23 @@ h3 {
 }
 .ticket-row::-webkit-scrollbar-thumb:hover {
   background-color: var(--color-scrollbar-hover);
+}
+.ticket-row {
+  --fade-before: #000;
+  --fade-after: #000;
+  mask-image: linear-gradient(
+    to right,
+    var(--fade-before) 0,
+    #000 var(--spacing-page),
+    #000 calc(100% - var(--spacing-page)),
+    var(--fade-after) 100%
+  );
+}
+.ticket-row[data-more-before] {
+  --fade-before: transparent;
+}
+.ticket-row[data-more-after] {
+  --fade-after: transparent;
 }
 .ticket-row .ticket-card {
   flex: 0 0 377px;
@@ -1115,6 +1183,21 @@ h3 {
   text-wrap: pretty;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+.ticket-card-title:focus-visible {
+  outline: none;
+}
+.ticket-card:has(.ticket-card-title:focus-visible) {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ticket-card:hover .ticket-card-title {
+    color: var(--color-primary-text);
+  }
+}
+.ticket-card-title {
+  transition: color 150ms var(--ease-soft);
 }
 .ticket-card-title::after {
   content: "";
@@ -1225,6 +1308,9 @@ td.wrap {
   min-width: 140px;
   white-space: normal;
 }
+td {
+  transition: background-color 120ms var(--ease-soft);
+}
 tbody tr:hover td {
   background: var(--color-row);
 }
@@ -1248,8 +1334,11 @@ td small {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.summary-link:hover {
-  color: var(--color-strong);
+.summary-link {
+  transition: color 150ms var(--ease-soft);
+}
+tr:hover .summary-link {
+  color: var(--color-primary-text);
 }
 td .value {
   color: var(--color-foreground);
@@ -1276,12 +1365,20 @@ td.row-action {
   text-align: right;
 }
 td.row-action .icon-button {
+  border-color: transparent;
+  background: transparent;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transform: translateX(-6px);
+  transition:
+    opacity 150ms var(--ease-soft),
+    transform 200ms var(--ease-out),
+    color 150ms var(--ease-soft);
 }
 tr:hover td.row-action .icon-button,
 td.row-action .icon-button:focus-visible {
+  color: var(--color-primary-text);
   opacity: 1;
+  transform: none;
 }
 .old-value {
   color: var(--color-muted);
@@ -1293,6 +1390,7 @@ td.row-action .icon-button:focus-visible {
   color: var(--color-muted);
 }
 .bulk-bar {
+  animation: rise-in 220ms var(--ease-out);
   position: sticky;
   top: 84px;
   z-index: 3;
@@ -1401,6 +1499,7 @@ input[type="checkbox"]:disabled {
     background-color 120ms ease;
 }
 .board-column.drop {
+  border-style: dashed;
   border-color: var(--color-ring);
   background: color-mix(in srgb, var(--color-primary) 5%, var(--color-shell));
 }
@@ -1445,16 +1544,30 @@ input[type="checkbox"]:disabled {
   border-radius: var(--radius-tile);
   background: var(--color-surface);
   cursor: grab;
-  transition: border-color 120ms ease;
+  transition:
+    border-color 150ms var(--ease-soft),
+    box-shadow 200ms var(--ease-soft),
+    transform 200ms var(--ease-out),
+    opacity 150ms var(--ease-soft);
 }
-.board-card:hover {
-  border-color: var(--color-border-hover);
+@media (hover: hover) and (pointer: fine) {
+  .board-card:hover {
+    border-color: var(--color-border-hover);
+    box-shadow: var(--shadow-float);
+    transform: translateY(-1px);
+  }
+  .board-card:hover b {
+    color: var(--color-primary-text);
+  }
 }
 .board-card:active {
   cursor: grabbing;
 }
 .board-card.dragging {
-  opacity: 0.4;
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.45;
+  transform: scale(0.98);
 }
 .board-card-head,
 .board-card-foot {
@@ -1465,6 +1578,7 @@ input[type="checkbox"]:disabled {
   font-size: var(--text-sm);
 }
 .board-card b {
+  transition: color 150ms var(--ease-soft);
   display: -webkit-box;
   overflow: hidden;
   color: var(--color-foreground);
@@ -1649,7 +1763,29 @@ kbd {
 .fold summary .chev {
   margin-left: auto;
   color: var(--color-muted);
-  transition: transform 150ms ease;
+  transition: transform 220ms var(--ease-out);
+}
+.fold summary {
+  transition: color 150ms var(--ease-soft);
+}
+/* Browsers that can animate to auto height unfold the content; the rest just open. */
+@supports (interpolate-size: allow-keywords) {
+  .fold {
+    interpolate-size: allow-keywords;
+  }
+  .fold::details-content {
+    block-size: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      block-size 240ms var(--ease-out),
+      opacity 200ms var(--ease-soft),
+      content-visibility 240ms allow-discrete;
+  }
+  .fold[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
 }
 .fold[open] summary .chev {
   transform: rotate(180deg);
@@ -1723,12 +1859,18 @@ kbd {
   color: var(--color-secondary);
   text-align: left;
   transition:
-    border-color 120ms ease,
-    background-color 120ms ease;
+    border-color 150ms var(--ease-soft),
+    background-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    scale 150ms ease-out;
 }
 .choice:hover {
   border-color: var(--color-border-hover);
+  background: var(--color-elevated-hover);
   color: var(--color-foreground);
+}
+.choice:active {
+  scale: 0.99;
 }
 .choice b {
   display: flex;
@@ -1927,6 +2069,10 @@ textarea:focus-visible {
   font-size: var(--text-sm);
   font-weight: 500;
   white-space: nowrap;
+  transition:
+    background-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft);
 }
 .segmented button:hover {
   color: var(--color-secondary);
@@ -2393,6 +2539,16 @@ textarea:focus-visible {
 .search.compact {
   width: 100%;
 }
+.search-kbd {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  margin-right: -4px;
+  transition: opacity 150ms var(--ease-soft);
+}
+.search:focus-within .search-kbd {
+  opacity: 0;
+}
 .search-clear {
   display: grid;
   flex: none;
@@ -2680,6 +2836,12 @@ textarea:focus-visible {
   box-shadow: var(--shadow-popover);
   animation: toast-in 200ms cubic-bezier(0.32, 0.72, 0, 1);
 }
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -2862,6 +3024,12 @@ textarea:focus-visible {
   border-radius: 6px;
   color: var(--color-secondary);
   font-size: var(--text-sm);
+}
+.bar-fill {
+  transition: filter 150ms var(--ease-soft);
+}
+.bar-row:hover .bar-fill {
+  filter: brightness(1.2);
 }
 .bar-row:hover,
 .bar-row:focus-visible {
@@ -3273,6 +3441,7 @@ textarea:focus-visible {
 /* Touch screens swipe the card strip, so its arrows are only for a mouse. */
 @media (hover: none), (max-width: 600px) {
   .kbd-hint,
+  .search-kbd,
   .strip-nav {
     display: none;
   }
