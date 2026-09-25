@@ -107,6 +107,12 @@ function Shell({ playground = false }: { playground?: boolean }) {
 
   return (
     <div className="flex min-h-dvh flex-col">
+      <a
+        href="#main-content"
+        className="fixed top-2 left-2 z-50 -translate-y-16 rounded-control bg-primary px-4 py-2 font-semibold text-primary-foreground focus-visible:translate-y-0"
+      >
+        Skip to content
+      </a>
       <header className="sticky top-0 z-6 flex h-19 items-center gap-8 bg-background/88 px-page backdrop-blur-bar max-lg:gap-4 max-md:h-16 max-sm:gap-2">
         <Link
           to="/tickets"
@@ -147,6 +153,8 @@ function Shell({ playground = false }: { playground?: boolean }) {
         </div>
       </header>
       <main
+        id="main-content"
+        tabIndex={-1}
         className={cn(
           "mx-auto w-full max-w-430 flex-1 px-page pt-3 pb-16 max-md:has-data-bulk-bar:pb-24",
           onDetail && "max-w-none",

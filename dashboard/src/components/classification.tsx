@@ -30,7 +30,14 @@ import {
   serviceInfo,
   startingTriage,
 } from "../domain";
-import type { Explanation, IncomingTicket, Proposal, Triage, TriageField } from "../domain";
+import type {
+  DecisionField,
+  Explanation,
+  IncomingTicket,
+  Proposal,
+  Triage,
+  TriageField,
+} from "../domain";
 import { cn } from "../lib/utils";
 import {
   optionClass,
@@ -372,6 +379,8 @@ function OptionList({
       )
     : options;
 
+  const tabbableValue = shown.some((option) => option.value === value) ? value : shown[0]?.value;
+
   return (
     <div className="contents" onKeyDown={moveOptionFocus}>
       {searchable && (
@@ -400,7 +409,7 @@ function OptionList({
                 optionClass,
                 "hover:bg-active focus-visible:bg-active focus-visible:outline-none",
               )}
-              tabIndex={0}
+              tabIndex={option.value === tabbableValue ? 0 : -1}
               onClick={() => onPick(option.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -437,6 +446,8 @@ function ProposedTag({
   explanation,
   options,
   modelId,
+  coreBacked,
+  approving,
   onChange,
   onVerify,
 }: {
@@ -447,6 +458,8 @@ function ProposedTag({
   explanation: Explanation | null;
   options: Option[];
   modelId: string | null;
+  coreBacked: boolean;
+  approving: boolean;
   onChange: (value: string) => void;
   onVerify: (on: boolean) => void;
 }) {
@@ -457,7 +470,7 @@ function ProposedTag({
   const chip = (
     <Popover.Trigger asChild>
       <button
-        className={tagChip({ kind })}
+        className={tagChip({ kind, className: "min-w-0 flex-1" })}
         aria-label={`${label}: ${display(field, value)}, ${KIND_LABELS[kind]}`}
         // The reason card follows keyboard focus only; focus handed back by the picker must not reopen it.
         onFocus={(event) => {
@@ -476,68 +489,68 @@ function ProposedTag({
   );
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      {explanation && modelId ? (
-        <Tooltip.Root open={tip && !open} onOpenChange={setTip}>
-          <Tooltip.Trigger asChild>{chip}</Tooltip.Trigger>
-          <Tooltip.Portal>
-            <Tooltip.Content
-              className={reasonPopClass}
-              side="left"
-              sideOffset={10}
-              collisionPadding={12}
-            >
-              <Reason
-                title={
-                  kind === "human"
-                    ? `AI suggested ${display(field, ai ?? "")}`
-                    : `Why ${display(field, ai ?? "")}`
-                }
-                explanation={explanation}
-                modelId={modelId}
-                footer={
-                  kind === "human"
-                    ? `You changed it to ${display(field, value)}`
-                    : kind === "verified"
-                      ? "Confirmed by you"
-                      : "Click to confirm or change"
-                }
-              />
-              <Tooltip.Arrow className={arrowClass} width={12} height={6} />
-            </Tooltip.Content>
-          </Tooltip.Portal>
-        </Tooltip.Root>
-      ) : (
-        chip
-      )}
-      <Popover.Portal>
-        <Popover.Content
-          className={cn(
-            floatingClass,
-            "flex origin-(--radix-popover-content-transform-origin) flex-col data-[state=open]:animate-pop-in",
-          )}
-          side="left"
-          align="start"
-          sideOffset={10}
-          collisionPadding={12}
-        >
-          <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 font-semibold text-foreground">
-            <b>{label}</b>
-            <span className="font-normal text-muted">{KIND_LABELS[kind]}</span>
-          </div>
-          <OptionList
-            label={label}
-            options={options}
-            value={value}
-            ai={ai}
-            onPick={(picked) => {
-              onChange(picked);
-              setOpen(false);
-            }}
-          />
-          {kind !== "declared" && (
-            <div className="flex justify-end border-t border-divider p-1.5">
-              {kind === "human" ? (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        {explanation && modelId ? (
+          <Tooltip.Root open={tip && !open} onOpenChange={setTip}>
+            <Tooltip.Trigger asChild>{chip}</Tooltip.Trigger>
+            <Tooltip.Portal>
+              <Tooltip.Content
+                className={reasonPopClass}
+                side="left"
+                sideOffset={10}
+                collisionPadding={12}
+              >
+                <Reason
+                  title={
+                    kind === "human"
+                      ? `AI suggested ${display(field, ai ?? "")}`
+                      : `Why ${display(field, ai ?? "")}`
+                  }
+                  explanation={explanation}
+                  modelId={modelId}
+                  footer={
+                    kind === "human"
+                      ? `You changed it to ${display(field, value)}`
+                      : kind === "verified"
+                        ? "Confirmed by you"
+                        : "Review the suggestion"
+                  }
+                />
+                <Tooltip.Arrow className={arrowClass} width={12} height={6} />
+              </Tooltip.Content>
+            </Tooltip.Portal>
+          </Tooltip.Root>
+        ) : (
+          chip
+        )}
+        <Popover.Portal>
+          <Popover.Content
+            className={cn(
+              floatingClass,
+              "flex origin-(--radix-popover-content-transform-origin) flex-col data-[state=open]:animate-pop-in",
+            )}
+            side="left"
+            align="start"
+            sideOffset={10}
+            collisionPadding={12}
+          >
+            <div className="flex items-center justify-between gap-2 px-3 pt-2.5 pb-2 font-semibold text-foreground">
+              <b>{label}</b>
+              <span className="font-normal text-muted">{KIND_LABELS[kind]}</span>
+            </div>
+            <OptionList
+              label={label}
+              options={options}
+              value={value}
+              ai={ai}
+              onPick={(picked) => {
+                onChange(picked);
+                setOpen(false);
+              }}
+            />
+            {kind === "human" && (
+              <div className="flex justify-end border-t border-divider p-1.5">
                 <Button
                   variant="ghost"
                   className="h-8 pointer-coarse:h-8"
@@ -549,25 +562,34 @@ function ProposedTag({
                   <Undo2 size={14} strokeWidth={1.75} />
                   Restore AI suggestion
                 </Button>
-              ) : (
-                <Button
-                  variant={kind === "verified" ? "ghost" : "primary"}
-                  className="h-8 pointer-coarse:h-8"
-                  onClick={() => {
-                    onVerify(kind !== "verified");
-                    setOpen(false);
-                  }}
-                >
-                  <Check size={14} strokeWidth={2} />
-                  {kind === "verified" ? "Undo confirmation" : "Confirm suggestion"}
-                </Button>
-              )}
-            </div>
+              </div>
+            )}
+            <Popover.Arrow className={arrowClass} width={12} height={6} />
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      {(kind === "ai" || (kind === "verified" && !coreBacked)) && (
+        <Button
+          size="icon"
+          disabled={approving}
+          className={cn(
+            "size-8 shrink-0 rounded-control pointer-coarse:size-11",
+            kind === "verified"
+              ? "border-success/30 bg-success/8 text-success hover:border-success/60 hover:bg-success/15"
+              : "border-primary/30 bg-primary-subtle text-primary-text hover:border-primary/60 hover:bg-primary-subtle",
           )}
-          <Popover.Arrow className={arrowClass} width={12} height={6} />
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+          aria-label={`${kind === "verified" ? "Undo approval for" : "Approve suggested"} ${label}: ${display(field, value)}`}
+          data-tip={`${kind === "verified" ? "Undo approval for" : "Approve"} ${label.toLowerCase()}`}
+          onClick={() => onVerify(kind === "ai")}
+        >
+          {kind === "verified" ? (
+            <Undo2 size={16} strokeWidth={2} />
+          ) : (
+            <Check size={16} strokeWidth={2.25} />
+          )}
+        </Button>
+      )}
+    </div>
   );
 }
 
@@ -601,6 +623,162 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 const levelOptions = (labels: string[]): Option[] =>
   LEVELS.map((value, place) => ({ value, label: value, hint: labels[place] }));
 
+const CORE_FIELDS: DecisionField[] = [
+  "work_type",
+  "service",
+  "team",
+  "assignee",
+  "urgency",
+  "impact",
+  "priority",
+  "resolution",
+];
+
+const CORE_LABELS: Record<DecisionField, string> = {
+  ...FIELD_LABELS,
+  team: "Team",
+  priority: "Priority",
+  resolution: "Resolution",
+};
+
+const SOURCE_LABELS: Record<NonNullable<Explanation["source"]>, string> = {
+  rule: "Rule",
+  pattern_match: "Historical ticket pattern",
+  ai_judgment: "Model judgment",
+  fallback: "Fallback",
+};
+
+function CoreEvidence({ proposal }: { proposal: Proposal }) {
+  const core = proposal.core;
+
+  if (!core) return null;
+
+  const lane = {
+    human_only: "Human review required",
+    needs_review: "Review required",
+    auto_applied: core.audit_sampled ? "Auto applied · audit sample" : "Auto applied",
+  }[core.lane];
+
+  return (
+    <Fold
+      layout="sidebar"
+      icon={<FileText size={16} strokeWidth={1.75} />}
+      title="Core evidence & risk"
+    >
+      <div className="grid gap-4 text-sm text-secondary">
+        <div className="rounded-tile border bg-shell p-3">
+          <p className="font-semibold text-foreground">{lane}</p>
+          {core.risk !== null && <p>Risk score: {core.risk.toFixed(2)}</p>}
+          <p className="text-xs text-muted">
+            Run {core.run_id} · model {core.versions.model}
+          </p>
+          {core.lane_reasons.length > 0 && (
+            <ul className="mt-2 list-disc pl-4">
+              {core.lane_reasons.map((reason) => (
+                <li key={reason}>{reason.replaceAll("_", " ")}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+        {CORE_FIELDS.map((field) => {
+          const item = proposal.explanations?.[field];
+
+          if (!item) return null;
+
+          return (
+            <section key={field} className="border-t border-divider pt-3 first:border-0 first:pt-0">
+              <p className="font-semibold text-foreground">
+                {CORE_LABELS[field]} ·{" "}
+                {item.pinned
+                  ? "Operator override"
+                  : item.source
+                    ? SOURCE_LABELS[item.source]
+                    : "Unknown source"}
+                {item.confidence !== null && ` · ${percent(item.confidence)} confidence`}
+              </p>
+              <p className="mt-1">{item.reason}</p>
+              {item.ticketSpans?.map((span, index) => (
+                <blockquote
+                  key={`${span.field}-${span.start}-${index}`}
+                  className="mt-2 border-l-2 border-primary pl-2 text-foreground"
+                >
+                  <span className="text-xs text-muted">
+                    {span.field} [{span.start}–{span.end}]
+                  </span>
+                  <br />“{span.text}”
+                </blockquote>
+              ))}
+              {item.serviceCard && <p className="mt-2">Service card: {item.serviceCard}</p>}
+              {item.patterns?.map((pattern) => (
+                <p className="mt-1" key={pattern.pattern_id}>
+                  Historical ticket pattern {pattern.pattern_id} · {percent(pattern.similarity)}{" "}
+                  similarity · {pattern.service} · {pattern.resolver}
+                </p>
+              ))}
+              {!item.ticketSpans?.length && !item.patterns?.length && !item.serviceCard && (
+                <p className="mt-1 text-xs text-muted">
+                  No ticket quote, historical pattern or service card attached to this decision.
+                </p>
+              )}
+              {item.signals && Object.keys(item.signals).length > 0 && (
+                <p className="mt-2 text-xs text-muted">
+                  Signals:{" "}
+                  {Object.entries(item.signals)
+                    .map(([name, value]) => `${name.replaceAll("_", " ")} ${value.toFixed(2)}`)
+                    .join(" · ")}
+                </p>
+              )}
+              {item.flags && item.flags.length > 0 && (
+                <p className="mt-1 text-warning">Flags: {item.flags.join(", ")}</p>
+              )}
+            </section>
+          );
+        })}
+        {core.comment && (
+          <section className="border-t border-divider pt-3">
+            <p className="font-semibold text-foreground">Resolution draft provenance</p>
+            {core.comment.stale && <p className="text-warning">Draft is stale after a change.</p>}
+            {core.comment.segments.length > 0 ? (
+              <p className="mt-1 leading-relaxed">
+                {core.comment.segments.map((segment, index) => (
+                  <span
+                    key={index}
+                    title={`Origin: ${segment.origin}`}
+                    className={
+                      segment.origin === "generated"
+                        ? "text-warning"
+                        : segment.origin === "exemplar"
+                          ? "text-primary-text"
+                          : "text-foreground"
+                    }
+                  >
+                    {segment.text}
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <p>No provenance segments available.</p>
+            )}
+            <p className="mt-1 text-xs text-muted">
+              Ticket text · historical exemplar · generated text are marked by color and hover.
+            </p>
+            {core.comment.exemplarPatternIds.length > 0 && (
+              <p className="mt-1">
+                Historical patterns: {core.comment.exemplarPatternIds.join(", ")}
+              </p>
+            )}
+            {core.comment.unsupportedSpecifics.length > 0 && (
+              <p className="mt-2 text-warning">
+                Unsupported details: {core.comment.unsupportedSpecifics.join(", ")}
+              </p>
+            )}
+          </section>
+        )}
+      </div>
+    </Fold>
+  );
+}
+
 export function ClassificationSidebar({ index }: { index: number }) {
   const { data, review, proposalFor, update, verify, regenerate, stronger } = useDashboard();
   const ticket = data.challenge[index];
@@ -612,6 +790,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
   const [strongerOpen, setStrongerOpen] = useState(false);
   const [hint, setHint] = useState("");
   const [pending, setPending] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const kinds = new Map(
@@ -621,6 +800,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
   );
 
   const remaining = TRIAGE_FIELDS.filter((field) => kinds.get(field) === "ai");
+  const confirmed = TRIAGE_FIELDS.filter((field) => kinds.get(field) === "verified");
   const changed = TRIAGE_FIELDS.filter((field) => kinds.get(field) === "human");
   const settled = TRIAGE_FIELDS.length - remaining.length;
   const info = serviceInfo(triage.service);
@@ -635,6 +815,18 @@ export function ClassificationSidebar({ index }: { index: number }) {
       ? "Instruction-like text was removed from this ticket before the AI read it."
       : "",
   ].filter(Boolean);
+
+  async function approve(fields: Verifiable[], on: boolean) {
+    if (approving) return;
+
+    setApproving(true);
+
+    try {
+      await verify(index, fields, on);
+    } finally {
+      setApproving(false);
+    }
+  }
 
   async function askStronger() {
     setPending(true);
@@ -697,6 +889,8 @@ export function ClassificationSidebar({ index }: { index: number }) {
       explanation={proposal ? explain(field, ticket, proposal) : null}
       options={options}
       modelId={proposal?.model_id ?? null}
+      coreBacked={Boolean(proposal?.core)}
+      approving={approving}
       onChange={(value) => {
         if (field === "urgency" || field === "impact") {
           const known = LEVELS.find((item) => item === value);
@@ -704,7 +898,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
           if (known) set({ [field]: known });
         } else set({ [field]: value });
       }}
-      onVerify={(on) => verify(index, [field], on)}
+      onVerify={(on) => void approve([field], on)}
     />
   );
 
@@ -712,7 +906,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
 
   return (
     <aside
-      className="sticky top-23 flex max-h-rail flex-col gap-4 overflow-y-auto rounded-card border bg-surface shadow-card max-lg:static max-lg:max-h-none"
+      className="sticky top-23 col-start-2 row-span-2 flex max-h-rail flex-col gap-4 overflow-y-auto rounded-card border bg-surface shadow-card max-lg:static max-lg:col-auto max-lg:row-auto max-lg:max-h-none"
       aria-label="Classification"
     >
       <div className="flex items-center gap-3.5 border-b border-divider px-card-pad py-4.5">
@@ -726,7 +920,7 @@ export function ClassificationSidebar({ index }: { index: number }) {
         </span>
         <div>
           <CardTitle className="text-lg">Classification</CardTitle>
-          <p className="mt-0.5 text-sm text-muted">
+          <p className="mt-0.5 text-sm text-muted" aria-live="polite">
             {!proposal
               ? "No AI suggestion. Values are what the reporter declared."
               : done
@@ -808,11 +1002,30 @@ export function ClassificationSidebar({ index }: { index: number }) {
           </Row>
         </div>
 
-        {remaining.length > 0 && (
-          <Button className="w-full" onClick={() => verify(index, remaining, true)}>
-            <CheckCheck size={16} strokeWidth={1.75} />
-            Confirm the {remaining.length} remaining suggestion{remaining.length > 1 ? "s" : ""}
+        {(remaining.length > 0 || (confirmed.length > 0 && !proposal?.core)) && (
+          <Button
+            className="w-full"
+            disabled={approving}
+            onClick={() =>
+              void approve(remaining.length > 0 ? remaining : confirmed, remaining.length > 0)
+            }
+          >
+            {remaining.length > 0 ? (
+              <CheckCheck size={16} strokeWidth={1.75} />
+            ) : (
+              <Undo2 size={16} strokeWidth={1.75} />
+            )}
+            {remaining.length > 0
+              ? `${proposal?.core ? "Record approval for" : "Approve locally"} ${remaining.length} suggestion${remaining.length > 1 ? "s" : ""}`
+              : `Undo ${confirmed.length} approval${confirmed.length > 1 ? "s" : ""}`}
           </Button>
+        )}
+        {proposal && (
+          <p className="text-xs text-muted">
+            {proposal.core
+              ? "Field approvals are recorded in the Core immediately. Operator overrides are saved when you assign or resolve."
+              : "These saved suggestions can only be reviewed in this browser."}
+          </p>
         )}
 
         {proposal && (
@@ -834,6 +1047,8 @@ export function ClassificationSidebar({ index }: { index: number }) {
             </div>
           </Fold>
         )}
+
+        {proposal?.core && <CoreEvidence proposal={proposal} />}
 
         {stronger.configured && current.status !== "resolved" && (
           <div>

@@ -75,6 +75,8 @@ function TicketList() {
   const moveTo = (row: TicketRow, target: Status) => {
     if (target === row.current.status) return;
 
+    if (row.current.status === "waiting" || row.current.status === "resolved") return;
+
     if (target === "resolved" || target === "waiting") setPending({ row, target });
     else if (target === "assigned") assign(row.index);
     else move(row.index, target);
@@ -121,9 +123,6 @@ function TicketList() {
             <UserPlus size={16} strokeWidth={1.75} />
             Assign to service teams
           </Button>
-          <span className="text-muted max-md:hidden">
-            Each ticket goes to the team of its current service.
-          </span>
           <Button
             variant="ghost"
             className="ml-auto"
@@ -172,7 +171,9 @@ function TicketList() {
               Kanban
               <SectionCount>{visible.length}</SectionCount>
             </SectionTitle>
-            <SectionText>Drag a ticket between columns to change its status</SectionText>
+            <SectionText>
+              Drop into Closed · clarification to post a question and close the Jira ticket.
+            </SectionText>
           </SectionHead>
           <Board rows={visible} onMove={moveTo} />
         </>
@@ -304,17 +305,19 @@ function BoardCard({
   onDragEnd: () => void;
 }) {
   const { ticket, current, id } = row;
+  const closed = current.status === "waiting" || current.status === "resolved";
 
   return (
     <Link
       to="/tickets/$ticketId"
       params={{ ticketId: id }}
       className={cn(
-        "group/card grid cursor-grab gap-2.5 rounded-tile border bg-surface p-3.5 transition duration-200 ease-soft hover:-translate-y-px hover:border-border-hover hover:shadow-float active:cursor-grabbing",
+        "group/card grid gap-2.5 rounded-tile border bg-surface p-3.5 transition duration-200 ease-soft hover:-translate-y-px hover:border-border-hover hover:shadow-float",
+        closed ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
         dragging &&
           "scale-98 border-dashed opacity-45 shadow-none hover:translate-y-0 hover:shadow-none",
       )}
-      draggable
+      draggable={!closed}
       onDragStart={(event) => {
         event.dataTransfer.setData("text/plain", id);
         event.dataTransfer.effectAllowed = "move";
@@ -368,7 +371,7 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
       title={
         target === "resolved"
           ? `Resolve ${row.id}`
-          : `Ask ${personName(row.ticket.Reporter)} for information`
+          : `Request clarification from ${personName(row.ticket.Reporter)}`
       }
       description={row.ticket.Summary}
       onClose={onClose}
@@ -384,7 +387,7 @@ function MoveDialog({ pending, onClose }: { pending: PendingMove; onClose: () =>
           </Button>
           <SubmitHint />
           <Button variant="primary" disabled={!ready} onClick={confirm}>
-            {target === "resolved" ? "Resolve ticket" : "Send question"}
+            {target === "resolved" ? "Resolve ticket" : "Send question and close"}
           </Button>
         </>
       }

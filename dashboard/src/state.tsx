@@ -41,6 +41,7 @@ export interface Review {
   version: number;
   // AI values the operator explicitly confirmed. A later change makes the confirmation moot.
   verified?: Verifiable[];
+  coreRunId?: string;
   updated_at?: string;
 }
 
@@ -83,7 +84,7 @@ interface DashboardContextValue {
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
   update: (index: number, changes: Editable) => void;
-  verify: (index: number, fields: Verifiable[], on: boolean) => void;
+  verify: (index: number, fields: Verifiable[], on: boolean) => Promise<void>;
   assign: (index: number, changes?: Editable) => void;
   resolve: (index: number, changes?: Editable) => void;
   askReporter: (index: number, changes?: Editable) => void;
@@ -257,7 +258,18 @@ function initialReview(
     question: "",
     outcome: OUTCOMES.find((item) => item === aiResolution) ?? ticketOutcome(ticket),
     version,
+    coreRunId: proposal?.core?.run_id,
+    verified: coreReviewedFields(proposal),
   } satisfies Review;
+}
+
+function coreReviewedFields(proposal: Proposal | null): Verifiable[] {
+  if (!proposal?.core) return [];
+
+  return TRIAGE_FIELDS.filter(
+    (field) =>
+      proposal.core?.acceptedFields.includes(field) || proposal.explanations?.[field]?.pinned,
+  );
 }
 
 // fetch rejects with a TypeError when the backend is down; the dev proxy answers 502 instead.
@@ -361,7 +373,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     if (!draft) return initialReview(ticket, data.proposals[index]);
 
-    return offline ? draft : { ...draft, status: ticketStatus(ticket) };
+    if (offline) return draft;
+
+    const runId = data.proposals[index]?.core?.run_id;
+
+    return {
+      ...draft,
+      status: ticketStatus(ticket),
+      verified:
+        runId && draft.coreRunId !== runId
+          ? coreReviewedFields(data.proposals[index])
+          : [...new Set([...(draft.verified ?? []), ...coreReviewedFields(data.proposals[index])])],
+      coreRunId: runId,
+    };
   };
 
   const proposalFor = (index: number) => proposalAt(index, review(index).version);
@@ -385,14 +409,30 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     write(index, { ...current, ...changes, updated_at: new Date().toISOString() });
   };
 
-  const verify = (index: number, fields: Verifiable[], on: boolean) => {
+  const verify = async (index: number, fields: Verifiable[], on: boolean) => {
     const current = review(index);
+    const proposal = proposalFor(index);
+    const coreFields = fields.filter((field) => field !== "reply");
+
+    if (on && proposal?.core && coreFields.length) {
+      try {
+        await backend.coreAccept(proposal.core, coreFields, coreActor(user));
+      } catch (failure) {
+        const error = failure instanceof Error ? failure : new Error(String(failure));
+
+        show({ message: `Approval was not recorded in the Core: ${failureText(error)}` });
+
+        return;
+      }
+    }
+
     const kept = (current.verified ?? []).filter((field) => !fields.includes(field));
 
     write(index, {
       ...current,
       verified: on ? [...kept, ...fields] : kept,
-      status: current.status === "new" ? "in_progress" : current.status,
+      status: offline && current.status === "new" ? "in_progress" : current.status,
+      coreRunId: proposal?.core?.run_id,
       updated_at: new Date().toISOString(),
     });
   };
@@ -474,8 +514,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         reason_code: REASON_CODES.resolution,
       });
 
-    const coreAccepted = [...TRIAGE_FIELDS, ...(extra.resolution ? ["resolution"] : [])].filter(
+    const approvalFields: (TriageField | "resolution")[] = [...TRIAGE_FIELDS];
+
+    if (extra.resolution) approvalFields.push("resolution");
+
+    const coreAccepted = approvalFields.filter(
       (field) =>
+        (field === "resolution" || !current.verified?.includes(field)) &&
         !changedFields.some((item) => item.field === field) &&
         !coreChanges.some((change) => change.field === field),
     );
@@ -716,7 +761,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
           transition(
             index,
             "ask",
-            `Question sent to ${data.challenge[index].Reporter} for ${idOf(index)}.`,
+            `Question sent to ${data.challenge[index].Reporter}; ${idOf(index)} closed as Clarification.`,
             changes,
             { resolution: "clarification", comment: current.question },
           );

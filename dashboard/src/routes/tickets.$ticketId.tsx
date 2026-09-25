@@ -24,7 +24,7 @@ import { useDashboard } from "../state";
 import type { Verifiable } from "../state";
 import { parseComment } from "../lib/backend";
 import { OUTCOME_LABELS, serviceInfo } from "../domain";
-import type { Ticket } from "../domain";
+import type { Proposal, Ticket } from "../domain";
 import {
   CriticalBadge,
   Initials,
@@ -54,7 +54,7 @@ type Step = "resolve" | "ask" | "assign";
 /* The reply starts as the model's draft and stays flagged until the operator approves or edits it. */
 const DRAFT_FLAGS: Record<TagKind, string> = {
   ai: "AI draft · not reviewed yet",
-  verified: "Approved by you",
+  verified: "Reviewed in this browser",
   human: "Edited by you",
   declared: "",
   derived: "",
@@ -73,6 +73,52 @@ const REFERENCE_SIMILARITY = 0.1;
 const LONG_DESCRIPTION = 420;
 
 const descriptionClass = "text-md leading-relaxed whitespace-pre-line text-pretty text-secondary";
+
+function DescriptionWithEvidence({ text, proposal }: { text: string; proposal: Proposal | null }) {
+  if (!proposal?.core) return text;
+
+  const spans = Object.values(proposal.explanations ?? {})
+    .flatMap((explanation) => explanation?.ticketSpans ?? [])
+    .filter(
+      (span) => span.field === "Description" && text.slice(span.start, span.end) === span.text,
+    )
+    .sort((a, b) => a.start - b.start);
+
+  const ranges: { start: number; end: number }[] = [];
+
+  for (const span of spans) {
+    const previous = ranges.at(-1);
+
+    if (previous && span.start <= previous.end) previous.end = Math.max(previous.end, span.end);
+    else ranges.push({ start: span.start, end: span.end });
+  }
+
+  let cursor = 0;
+
+  const parts = ranges.flatMap(({ start, end }, index) => {
+    const before = text.slice(cursor, start);
+    const quote = text.slice(start, end);
+    cursor = end;
+
+    return [
+      before,
+      <mark
+        key={index}
+        className="rounded-sm bg-primary-subtle text-foreground"
+        title="Quoted by Core as evidence"
+      >
+        {quote}
+      </mark>,
+    ];
+  });
+
+  return (
+    <>
+      {parts}
+      {text.slice(cursor)}
+    </>
+  );
+}
 
 const stepActionsClass = "flex items-center justify-end gap-3 border-t border-divider pt-4";
 
@@ -103,16 +149,15 @@ function TicketWorkspace() {
     );
 
   return (
-    <div className="mx-auto grid max-w-360 grid-cols-workspace items-start gap-7 max-xl:grid-cols-workspace-compact max-lg:grid-cols-1">
-      <QueueNav ticketId={ticketId} index={index} />
+    <div className="mx-auto grid max-w-360 gap-5">
+      <QueueNav index={index} />
       <TicketDetail key={ticketId} ticketId={ticketId} index={index} />
-      <ClassificationSidebar key={`classify-${ticketId}`} index={index} />
     </div>
   );
 }
 
 /** Previous and next walk the queue as it is filtered on the list page; J and K do the same. */
-function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
+function QueueNav({ index }: { index: number }) {
   const navigate = useNavigate();
   const { rows, visible } = useTicketRows();
   const order = visible.some((row) => row.index === index) ? visible : rows;
@@ -125,7 +170,7 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
       if (
         event.target instanceof HTMLElement &&
         event.target.closest(
-          "input, textarea, [role=listbox], [aria-haspopup=listbox], [aria-modal=true]",
+          "input, textarea, select, button, a, [role=listbox], [role=option], [contenteditable=true], [aria-modal=true]",
         )
       )
         return;
@@ -161,24 +206,29 @@ function QueueNav({ ticketId, index }: { ticketId: string; index: number }) {
         <Kbd>K</Kbd>
         <Kbd>J</Kbd>
       </span>
-      <Link
-        to="/tickets/$ticketId"
-        params={{ ticketId: previousId ?? ticketId }}
-        className={cn(buttonVariants({ size: "icon" }), "bg-surface")}
+      <Button
+        size="icon"
+        className="bg-surface"
         aria-label="Previous ticket"
         disabled={!previousId}
+        onClick={() => {
+          if (previousId)
+            void navigate({ to: "/tickets/$ticketId", params: { ticketId: previousId } });
+        }}
       >
         <ChevronLeft size={16} strokeWidth={1.75} />
-      </Link>
-      <Link
-        to="/tickets/$ticketId"
-        params={{ ticketId: nextId ?? ticketId }}
-        className={cn(buttonVariants({ size: "icon" }), "bg-surface")}
+      </Button>
+      <Button
+        size="icon"
+        className="bg-surface"
         aria-label="Next ticket"
         disabled={!nextId}
+        onClick={() => {
+          if (nextId) void navigate({ to: "/tickets/$ticketId", params: { ticketId: nextId } });
+        }}
       >
         <ChevronRight size={16} strokeWidth={1.75} />
-      </Link>
+      </Button>
     </nav>
   );
 }
@@ -204,7 +254,7 @@ function Comments({ comments }: { comments: string[] }) {
 }
 
 function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) {
-  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move, signIn } =
+  const { data, review, proposalFor, update, verify, assign, resolve, askReporter, move } =
     useDashboard();
 
   const current = review(index);
@@ -231,7 +281,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
     (item) => item.service === triage.service && item.similarity >= REFERENCE_SIMILARITY,
   );
 
-  const closed = current.status === "resolved";
+  const closed = current.status === "resolved" || current.status === "waiting";
   const decided = current.status !== "new" && current.status !== "in_progress";
   const canResolve = Boolean(triage.assignee) && current.reply.trim().length > 0;
   const canAsk = Boolean(triage.assignee) && current.question.trim().length > 0;
@@ -246,7 +296,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
     {
       value: "ask",
       title: "Ask the reporter",
-      help: `Send ${personName(ticket.Reporter)} a question and wait`,
+      help: `Post a question to ${personName(ticket.Reporter)} and close as Clarification`,
       icon: MessageCircleQuestion,
     },
     {
@@ -258,112 +308,119 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
   ];
 
   return (
-    <div className="grid min-w-0 gap-5">
-      <header className="grid gap-3 pt-1 pb-2">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <PriorityBadge triage={triage} />
-          {info?.[2] === "Critical" && <CriticalBadge />}
-          <StatusPill status={current.status} />
-          <span className="text-base font-medium whitespace-nowrap text-muted tabular-nums">
-            {ticketId} · {ticket["Request type"] ?? ticket["Work type"]}
-          </span>
-        </div>
-        <h1 className="font-display text-4xl leading-heading font-semibold tracking-snug text-pretty max-sm:text-2xl">
-          {ticket.Summary}
-        </h1>
-        <Tiles className="grid-cols-tiles-wide">
-          <Tile>
-            <TileLabel>
-              <UserRound size={12} strokeWidth={2} />
-              Requested by
-            </TileLabel>
-            <TileValue data-tip={ticket.Reporter ?? undefined}>
-              <Initials email={ticket.Reporter} small />
-              <span>{personName(ticket.Reporter) || "Unknown"}</span>
-            </TileValue>
-          </Tile>
-          <Tile>
-            <TileLabel>
-              <CalendarClock size={12} strokeWidth={2} />
-              Opened
-            </TileLabel>
-            <TileValue>
-              <span>{formatDate(ticket["Created date"]) || "Unknown"}</span>
-            </TileValue>
-          </Tile>
-          <Tile>
-            <TileLabel>
-              <Building2 size={12} strokeWidth={2} />
-              Entity
-            </TileLabel>
-            <TileValue>
-              <span>{ticket["Business Entity"].join(", ") || "None"}</span>
-            </TileValue>
-          </Tile>
-          {ticket["Due date"] && (
+    <div className="grid min-w-0 grid-cols-workspace items-start gap-x-7 gap-y-5 max-xl:grid-cols-workspace-compact max-lg:grid-cols-1">
+      <div className="grid min-w-0 gap-5">
+        <header className="grid gap-3 pt-1 pb-2">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <PriorityBadge triage={triage} />
+            {info?.[2] === "Critical" && <CriticalBadge />}
+            <StatusPill status={current.status} />
+            <span className="text-base font-medium whitespace-nowrap text-muted tabular-nums">
+              {ticketId} · {ticket["Request type"] ?? ticket["Work type"]}
+            </span>
+          </div>
+          <h1 className="font-display text-4xl leading-heading font-semibold tracking-snug text-pretty max-sm:text-2xl">
+            {ticket.Summary}
+          </h1>
+          <Tiles className="grid-cols-tiles-wide">
+            <Tile>
+              <TileLabel>
+                <UserRound size={12} strokeWidth={2} />
+                Requested by
+              </TileLabel>
+              <TileValue data-tip={ticket.Reporter ?? undefined}>
+                <Initials email={ticket.Reporter} small />
+                <span>{personName(ticket.Reporter) || "Unknown"}</span>
+              </TileValue>
+            </Tile>
             <Tile>
               <TileLabel>
                 <CalendarClock size={12} strokeWidth={2} />
-                Due
+                Opened
               </TileLabel>
               <TileValue>
-                <span>{formatDate(ticket["Due date"])}</span>
+                <span>{formatDate(ticket["Created date"]) || "Unknown"}</span>
               </TileValue>
             </Tile>
-          )}
-        </Tiles>
-      </header>
+            <Tile>
+              <TileLabel>
+                <Building2 size={12} strokeWidth={2} />
+                Entity
+              </TileLabel>
+              <TileValue>
+                <span>{ticket["Business Entity"].join(", ") || "None"}</span>
+              </TileValue>
+            </Tile>
+            {ticket["Due date"] && (
+              <Tile>
+                <TileLabel>
+                  <CalendarClock size={12} strokeWidth={2} />
+                  Due
+                </TileLabel>
+                <TileValue>
+                  <span>{formatDate(ticket["Due date"])}</span>
+                </TileValue>
+              </Tile>
+            )}
+          </Tiles>
+        </header>
 
-      <Card className="p-0" aria-label="Request">
-        <div className="grid gap-4.5 p-card-pad">
-          <p className={cn(descriptionClass, longDescription && !expanded && "line-clamp-6")}>
-            {ticket.Description}
-          </p>
-          {longDescription && (
-            <div>
-              <button className={linkButtonClass} onClick={() => setExpanded(!expanded)}>
-                {expanded ? "Show less" : "Read the full request"}
-              </button>
-            </div>
-          )}
-        </div>
-        <Fold
-          icon={<MessageSquare size={16} strokeWidth={1.75} />}
-          title="Comments"
-          count={ticket["All Comments"].length}
-        >
-          {ticket["All Comments"].length ? (
-            <Comments comments={ticket["All Comments"]} />
-          ) : (
-            <p className="text-muted">No comments yet.</p>
-          )}
-        </Fold>
-        <Fold icon={<Info size={16} strokeWidth={1.75} />} title="Jira details">
-          <dl className="grid gap-2.5 [&>div]:grid [&>div]:grid-cols-details [&>div]:gap-3 max-sm:[&>div]:grid-cols-1 max-sm:[&>div]:gap-0.5 [&_dd]:wrap-anywhere [&_dt]:text-muted">
-            <div>
-              <dt>Reporter</dt>
-              <dd>{ticket.Reporter}</dd>
-            </div>
-            <div>
-              <dt>Linked issues</dt>
-              <dd>{ticket["Linked issues"].join(", ") || "None"}</dd>
-            </div>
-            <div>
-              <dt>Declared priority</dt>
-              <dd>
-                {ticket.Priority ?? "None"} (Urgency {ticket.Urgency ?? "unknown"} × Impact{" "}
-                {ticket.Impact ?? "unknown"})
-              </dd>
-            </div>
-            <div>
-              <dt>Declared service</dt>
-              <dd>{ticket["Affected Business or IT Services"].join(", ") || "None"}</dd>
-            </div>
-          </dl>
-        </Fold>
-      </Card>
+        <Card className="p-0" aria-label="Request">
+          <div className="grid gap-4.5 p-card-pad">
+            <p className={cn(descriptionClass, longDescription && !expanded && "line-clamp-6")}>
+              <DescriptionWithEvidence text={ticket.Description} proposal={proposal} />
+            </p>
+            {longDescription && (
+              <div>
+                <button className={linkButtonClass} onClick={() => setExpanded(!expanded)}>
+                  {expanded ? "Show less" : "Read the full request"}
+                </button>
+              </div>
+            )}
+          </div>
+          <Fold
+            icon={<MessageSquare size={16} strokeWidth={1.75} />}
+            title="Comments"
+            count={ticket["All Comments"].length}
+          >
+            {ticket["All Comments"].length ? (
+              <Comments comments={ticket["All Comments"]} />
+            ) : (
+              <p className="text-muted">No comments yet.</p>
+            )}
+          </Fold>
+          <Fold icon={<Info size={16} strokeWidth={1.75} />} title="Jira details">
+            <dl className="grid gap-2.5 [&>div]:grid [&>div]:grid-cols-details [&>div]:gap-3 max-sm:[&>div]:grid-cols-1 max-sm:[&>div]:gap-0.5 [&_dd]:wrap-anywhere [&_dt]:text-muted">
+              <div>
+                <dt>Reporter</dt>
+                <dd>{ticket.Reporter}</dd>
+              </div>
+              <div>
+                <dt>Linked issues</dt>
+                <dd>{ticket["Linked issues"].join(", ") || "None"}</dd>
+              </div>
+              <div>
+                <dt>Declared priority</dt>
+                <dd>
+                  {ticket.Priority ?? "None"} (Urgency {ticket.Urgency ?? "unknown"} × Impact{" "}
+                  {ticket.Impact ?? "unknown"})
+                </dd>
+              </div>
+              <div>
+                <dt>Declared service</dt>
+                <dd>{ticket["Affected Business or IT Services"].join(", ") || "None"}</dd>
+              </div>
+            </dl>
+          </Fold>
+        </Card>
+      </div>
 
-      <Card className="p-0" aria-label="Next step">
+      <ClassificationSidebar key={`classify-${ticketId}`} index={index} />
+
+      <Card
+        className="col-start-1 row-start-2 p-0 max-lg:col-auto max-lg:row-auto"
+        aria-label="Next step"
+      >
         <div className="flex items-center gap-3.5 border-b border-divider px-card-pad py-4.5">
           <span
             className={cn(
@@ -373,14 +430,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
           >
             {decided ? <Check size={14} strokeWidth={2.5} /> : "2"}
           </span>
-          <div>
-            <CardTitle className="text-lg">Decide the next step</CardTitle>
-            <p className="mt-0.5 text-sm text-muted">
-              {signIn?.user
-                ? `Comments are posted to Jira by ${signIn.user.name}.`
-                : `Comments are posted to Jira by the shared account, signed ${personName(triage.assignee) || "by the assignee"}.`}
-            </p>
-          </div>
+          <CardTitle className="text-lg">Next step</CardTitle>
         </div>
         <div className="grid gap-4.5 p-card-pad">
           {decided && (
@@ -390,7 +440,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                 {current.status === "resolved"
                   ? `Resolved as “${OUTCOME_LABELS[current.outcome]}”.`
                   : current.status === "waiting"
-                    ? `Waiting for ${personName(ticket.Reporter)} to answer.`
+                    ? `Closed as Clarification after asking ${personName(ticket.Reporter)}.`
                     : `Assigned to ${team}${triage.assignee ? ` · ${personName(triage.assignee)}` : ""}.`}
               </span>
               <Button
@@ -408,19 +458,18 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
             <>
               <div
                 className="grid grid-cols-3 gap-2.5 max-md:grid-cols-1"
-                role="radiogroup"
+                role="group"
                 aria-label="Next step"
               >
                 {choices.map(({ value, title, help, icon: Icon }) => (
                   <button
                     key={value}
                     type="button"
-                    role="radio"
-                    className="group/choice grid gap-1.5 rounded-tile border bg-elevated p-3.5 text-left text-secondary transition duration-150 ease-soft hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-99 aria-checked:border-primary aria-checked:bg-primary-subtle aria-checked:text-secondary"
-                    aria-checked={step === value}
+                    className="group/choice grid gap-1.5 rounded-tile border bg-elevated p-3.5 text-left text-secondary transition duration-150 ease-soft hover:border-border-hover hover:bg-elevated-hover hover:text-foreground active:scale-99 aria-pressed:border-primary aria-pressed:bg-primary-subtle aria-pressed:text-secondary"
+                    aria-pressed={step === value}
                     onClick={() => setStep(value)}
                   >
-                    <b className="flex items-center gap-2 font-display text-base font-semibold text-foreground group-aria-checked/choice:text-primary-text">
+                    <b className="flex items-center gap-2 font-display text-base font-semibold text-foreground group-aria-pressed/choice:text-primary-text">
                       <Icon size={16} strokeWidth={1.75} />
                       {title}
                     </b>
@@ -487,19 +536,19 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                             }
                           }
                           modelId={proposal.model_id}
-                          footer="Edit the note or approve it as is"
+                          footer="Edit the note or mark it reviewed locally"
                         />
                       </ReasonTooltip>
                       <span className="ml-auto">
                         {draft === "ai" && (
                           <Button onClick={() => verify(index, ["reply"], true)}>
                             <Check size={16} strokeWidth={2} />
-                            Approve draft
+                            Mark draft reviewed locally
                           </Button>
                         )}
                         {draft === "verified" && (
                           <Button variant="ghost" onClick={() => verify(index, ["reply"], false)}>
-                            Undo approval
+                            Undo local review
                           </Button>
                         )}
                         {draft === "human" && (
@@ -596,7 +645,7 @@ function TicketDetail({ ticketId, index }: { ticketId: string; index: number }) 
                       onClick={() => askReporter(index)}
                     >
                       <Send size={16} strokeWidth={2} />
-                      Send question
+                      Send question and close
                     </Button>
                   </div>
                 </>

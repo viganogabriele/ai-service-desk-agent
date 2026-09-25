@@ -58,7 +58,7 @@ export const STATUS_LABELS: Record<Status, string> = {
   new: "Awaiting review",
   in_progress: "In progress",
   assigned: "Assigned",
-  waiting: "Waiting for reporter",
+  waiting: "Closed · clarification",
   resolved: "Resolved",
 };
 
@@ -66,7 +66,7 @@ export const STATUS_HELP: Record<Status, string> = {
   new: "Not yet reviewed by an operator",
   in_progress: "Triage edited but not yet assigned or resolved",
   assigned: "Routed to the service team; still open",
-  waiting: "A question was sent to the reporter",
+  waiting: "Closed in Jira with the Clarification resolution after a question was sent",
   resolved: "Closed with a resolution note",
 };
 
@@ -168,6 +168,22 @@ export interface Explanation {
   reason: string;
   confidence: number | null;
   evidence: string[];
+  source?: "rule" | "pattern_match" | "ai_judgment" | "fallback";
+  signals?: Record<string, number>;
+  ticketSpans?: { field: string; start: number; end: number; text: string }[];
+  patterns?: { pattern_id: string; similarity: number; service: string; resolver: string }[];
+  serviceCard?: string | null;
+  flags?: string[];
+  pinned?: boolean;
+}
+
+export type DecisionField = TriageField | "team" | "priority" | "resolution";
+
+export interface CoreCommentEvidence {
+  segments: { text: string; origin: "ticket" | "exemplar" | "generated" }[];
+  exemplarPatternIds: string[];
+  unsupportedSpecifics: string[];
+  stale: boolean;
 }
 
 export interface Proposal {
@@ -188,9 +204,19 @@ export interface Proposal {
   review_flags: string[];
   // Service or product names the solver found in the ticket text.
   content_clues?: string[];
-  explanations?: Partial<Record<TriageField | "resolution_comment", Explanation>>;
+  explanations?: Partial<Record<DecisionField | "resolution_comment", Explanation>>;
   // The Core run this proposal comes from; accepts and overrides are recorded against it.
-  core?: { ticket_id: string; run_id: string };
+  core?: {
+    ticket_id: string;
+    run_id: string;
+    lane: "auto_applied" | "needs_review" | "human_only";
+    lane_reasons: string[];
+    risk: number | null;
+    audit_sampled: boolean;
+    acceptedFields: TriageField[];
+    versions: { model: string; prompt?: string; kb?: string; policy?: string };
+    comment: CoreCommentEvidence | null;
+  };
 }
 
 export interface SimilarResolution {

@@ -1,22 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  ChevronLeft,
-  ChevronRight,
-  ChevronsRight,
-  Layers,
-  Sparkles,
-  UserRound,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsRight, Layers, UserRound } from "lucide-react";
 import { useDashboard } from "../state";
-import { LEVELS, STATUS_LABELS, priority, serviceInfo } from "../domain";
+import { LEVELS, STATUS_LABELS, TRIAGE_FIELDS, priority, serviceInfo } from "../domain";
 import type { Level } from "../domain";
 import {
   Initials,
   PriorityBadge,
   SORT_LABELS,
   StatusPill,
-  levelOf,
   opensOnClick,
   personName,
   useTicketFilters,
@@ -37,11 +29,9 @@ const isUrgent = (level: Level | null, critical: boolean) =>
 
 interface Scored {
   row: TicketRow;
-  // The one thing worth knowing before opening the ticket, if anything.
-  note: { text: string; ai: boolean } | null;
+  note: string | null;
   age: number | null;
-  // Lower is more important: priority first, then critical services, then the oldest ticket.
-  rank: [number, number, number];
+  rank: [number, number, number, number];
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -61,30 +51,42 @@ function score(row: TicketRow): Scored | null {
   if (status !== "new" && status !== "in_progress") return null;
   const level = priority(triage.urgency, triage.impact);
   const critical = serviceInfo(triage.service)?.[2] === "Critical";
+  const age = ageInDays(row.ticket["Created date"]);
+  const core = row.proposal?.core;
+
+  if (core) {
+    if (core.lane === "auto_applied" && !core.audit_sampled) return null;
+
+    if (TRIAGE_FIELDS.every((field) => row.current.verified?.includes(field))) return null;
+
+    return {
+      row,
+      note: `${core.lane === "human_only" ? "Human review" : core.audit_sampled ? "Audit review" : "Needs review"}${core.lane_reasons.length ? ` · ${core.lane_reasons[0].replaceAll("_", " ")}` : ""}`,
+      age,
+      rank: [
+        core.lane === "human_only" ? 0 : 1,
+        -(core.risk ?? 0),
+        level ? LEVELS.indexOf(level) : LEVELS.length,
+        -(age ?? 0),
+      ],
+    };
+  }
 
   if (!isUrgent(level, critical)) return null;
-  const age = ageInDays(row.ticket["Created date"]);
-  const declaredService = row.ticket["Affected Business or IT Services"][0];
-  const declaredWork = row.ticket["Work type"];
-  const serviceChanged = row.proposal !== null && row.proposal.proposal.service !== declaredService;
-  const workChanged = row.proposal !== null && row.proposal.proposal.work_type !== declaredWork;
-
-  let note: Scored["note"] = null;
-
-  if (serviceChanged) note = { text: `AI moved it from ${declaredService}`, ai: true };
-  else if (workChanged) note = { text: `AI changed it from ${declaredWork}`, ai: true };
-  else if (!triage.assignee) note = { text: "No assignee yet", ai: false };
+  const note = !triage.assignee ? "Unassigned" : null;
 
   return {
     row,
     note,
     age,
-    rank: [level ? LEVELS.indexOf(level) : LEVELS.length, critical ? 0 : 1, -(age ?? 0)],
+    rank: [2, level ? LEVELS.indexOf(level) : LEVELS.length, critical ? 0 : 1, -(age ?? 0)],
   };
 }
 
 function byRank(a: Scored, b: Scored) {
-  return a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.rank[2] - b.rank[2];
+  return (
+    a.rank[0] - b.rank[0] || a.rank[1] - b.rank[1] || a.rank[2] - b.rank[2] || a.rank[3] - b.rank[3]
+  );
 }
 
 /**
@@ -154,9 +156,6 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             Action Required
             <SectionCount>{urgent.length}</SectionCount>
           </SectionTitle>
-          <SectionText>
-            High priority, or medium priority on a critical service, not yet routed
-          </SectionText>
           {!(atStart && atEnd) && (
             // Touch screens swipe the card strip, so its arrows are only for a mouse.
             <span className="ml-auto inline-flex gap-2 touch:hidden max-sm:hidden">
@@ -185,7 +184,7 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
           // One row of cards, the Figma width, scrolling sideways when there are more than fit.
           <div
             ref={attach}
-            className="-mx-page -mt-1.5 -mb-5 flex scroll-px-page snap-x snap-mandatory gap-card-gap overflow-x-auto overflow-y-hidden overscroll-x-contain px-page pt-1.5 pb-8 strip-fade scrollbar-visible"
+            className="-mx-page -mt-1.5 -mb-5 flex scroll-px-page snap-x snap-mandatory gap-card-gap overflow-x-auto overflow-y-hidden overscroll-x-contain px-page pt-1.5 pb-8 strip-fade scrollbar-visible contain-paint"
             data-more-before={atStart ? undefined : ""}
             data-more-after={atEnd ? undefined : ""}
             role="group"
@@ -206,11 +205,12 @@ export function PriorityView({ rows }: { rows: TicketRow[] }) {
             All tickets
             <SectionCount>{rows.length}</SectionCount>
           </SectionTitle>
-          <SectionText>
-            {sort
-              ? `Sorted by ${SORT_LABELS[sort.key].toLowerCase()}${sort.descending ? ", reversed" : ""}`
-              : "Ordered by priority, open tickets first"}
-          </SectionText>
+          {sort && (
+            <SectionText>
+              Sorted by {SORT_LABELS[sort.key].toLowerCase()}
+              {sort.descending ? ", reversed" : ""}
+            </SectionText>
+          )}
         </SectionHead>
         <TicketTable rows={rows} />
       </section>
@@ -226,16 +226,12 @@ function TicketCard({ item }: { item: Scored }) {
   const { triage } = current;
   const info = serviceInfo(triage.service);
   const team = info?.[1] ?? "the service team";
-  const level = levelOf(triage);
 
   return (
     <article
       className={cn(
         "group/card flex min-w-0 flex-none basis-strip-card cursor-pointer snap-start flex-col gap-4 rounded-card border bg-surface p-5 shadow-card transition duration-150 hover:-translate-y-0.5 hover:border-border-hover hover:shadow-float",
         "has-[[data-card-title]:focus-visible]:outline-2 has-[[data-card-title]:focus-visible]:outline-offset-2 has-[[data-card-title]:focus-visible]:outline-ring",
-        // The border picks up the priority badge colour, so a card reads at a glance like its badge.
-        (level === "Highest" || level === "High") && "border-danger/28 hover:border-danger/50",
-        level === "Medium" && "border-warning/28 hover:border-warning/50",
       )}
       // The whole card opens the ticket, but its badges keep their tooltips and the text stays selectable.
       onClick={(event) => {
@@ -255,7 +251,7 @@ function TicketCard({ item }: { item: Scored }) {
       >
         {ticket.Summary}
       </Link>
-      <Tiles className="grid-cols-2">
+      <Tiles className="grid-cols-2 max-sm:grid-cols-1">
         <Tile>
           <TileLabel>
             <Layers size={12} strokeWidth={2} />
@@ -278,13 +274,8 @@ function TicketCard({ item }: { item: Scored }) {
         </Tile>
       </Tiles>
       {(note || age !== null) && (
-        <div className="flex min-w-0 items-center gap-2 text-sm text-secondary [&_svg]:text-primary-text">
-          {note && (
-            <>
-              {note.ai && <Sparkles size={13} strokeWidth={2} />}
-              <span className="truncate">{note.text}</span>
-            </>
-          )}
+        <div className="flex min-w-0 items-center gap-2 text-sm text-secondary">
+          {note && <span className="truncate">{note}</span>}
           {age !== null && (
             <span
               className="ml-auto flex-none whitespace-nowrap text-muted tabular-nums"

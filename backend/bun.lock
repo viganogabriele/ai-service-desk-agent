@@ -1,9 +1,9 @@
 {
-  "lockfileVersion": 2,
+  "lockfileVersion": 1,
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "backend",
+      "name": "jira-sync-backend",
       "dependencies": {
         "@hono/zod-validator": "^0.9.1",
         "hono": "^4.13.9",
