@@ -177,6 +177,37 @@ def test_ticket_view(api):
     assert v["versions"]["model"] == "fake" and [h["type"] for h in v["history"]] == ["run"]
 
 
+def test_list_tickets_expands_views_in_one_pass(api):
+    """`GET /tickets?expand=view` carries what GET /tickets/{id} returns, for every ticket, and
+    the number of SQL statements does not grow with the number of tickets (no N+1)."""
+    api.engine.plan["Overridden"] = {"service": "Cash Management"}
+    outs = [post(api, key=f"K{i}", summary="Overridden" if i == 2 else f"Ticket {i}") for i in range(6)]
+    _override(api, outs[2], [{"field": "urgency", "value": "Highest", "reason_code": "wrong_urgency"}])
+    api.post(f"/tickets/{outs[3]['ticket_id']}/accept", json={"run_id": outs[3]["run_id"], "actor": "lead@x"})
+    api.engine.plan["Broken"] = {"fail": True}
+    broken = post(api, key="K9", summary="Broken")
+
+    statements = []
+    api.app.state.core.db.conn.set_trace_callback(statements.append)
+    try:
+        rows = api.get("/tickets?expand=view").json()["tickets"]
+        plain = api.get("/tickets").json()["tickets"]
+    finally:
+        api.app.state.core.db.conn.set_trace_callback(None)
+
+    assert sorted(r["ticket_id"] for r in rows) == sorted(o["ticket_id"] for o in outs + [broken])
+    assert [{k: v for k, v in r.items() if k != "view"} for r in rows] == plain
+    by_id = {r["ticket_id"]: r for r in rows}
+    for tid, row in by_id.items():
+        assert row["view"] == view(api, tid)
+    pinned, accepted, failed = (by_id[o["ticket_id"]] for o in (outs[2], outs[3], broken))
+    assert pinned["view"]["effective_state"]["urgency"]["pinned"] and pinned["service"] == "Cash Management"
+    assert [h["type"] for h in accepted["view"]["history"]] == ["run", "acceptance"]
+    assert failed["view"]["effective_state"] is None and failed["run_status"] == "failed"
+    assert len(statements) <= 20, statements
+    assert api.get("/tickets?expand=nope").status_code == 422
+
+
 def test_failed_run_is_retryable(api):
     api.engine.plan["Broken"] = {"fail": True}
     out = post(api, summary="Broken")

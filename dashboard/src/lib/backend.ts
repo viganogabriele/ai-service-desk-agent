@@ -128,6 +128,8 @@ interface CoreTicketSummary {
   risk?: number;
   // The latest run of any kind; null before the first one is queued.
   run_status: "queued" | "running" | "completed" | "failed" | null;
+  // Present with `?expand=view`: what GET /tickets/{id} returns for this ticket.
+  view?: CoreTicketView | null;
 }
 
 /** What the Core holds, by Jira key: proposals, and the latest run of every ticket it knows. */
@@ -244,37 +246,29 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
         },
         body: JSON.stringify(patches),
       }),
-    /** Core proposals and runs by Jira key; null when the backend has no Core configured. */
+    /**
+     * Core proposals and runs by Jira key, from one request: the list expanded with each
+     * ticket's view. Null when the backend has no Core configured.
+     */
     coreState: async (signal?: AbortSignal): Promise<CoreState | null> => {
       let summaries: CoreTicketSummary[];
 
       try {
-        summaries = (await request<{ tickets: CoreTicketSummary[] }>("/core/tickets", { signal }))
-          .tickets;
+        summaries = (
+          await request<{ tickets: CoreTicketSummary[] }>("/core/tickets?expand=view", { signal })
+        ).tickets;
       } catch (failure) {
         if (failure instanceof HttpError && failure.status === 503) return null;
 
         throw failure;
       }
 
-      const views = await Promise.all(
-        summaries
-          .filter((summary) => summary.lane !== null)
-          .map((summary) =>
-            request<CoreTicketView>(`/core/tickets/${encodeURIComponent(summary.ticket_id)}`, {
-              signal,
-            }),
-          ),
-      );
-
-      const byId = new Map(summaries.map((summary) => [summary.ticket_id, summary]));
-
       return {
         proposals: new Map(
-          views.flatMap((view) => {
-            const proposal = coreProposal(view, byId.get(view.ticket_id)?.risk ?? null);
+          summaries.flatMap((summary) => {
+            const proposal = summary.view ? coreProposal(summary.view, summary.risk ?? null) : null;
 
-            return proposal ? [[view.external_key, proposal] as const] : [];
+            return proposal ? [[summary.external_key, proposal] as const] : [];
           }),
         ),
         runs: new Map(summaries.map((summary) => [summary.external_key, summary.run_status])),

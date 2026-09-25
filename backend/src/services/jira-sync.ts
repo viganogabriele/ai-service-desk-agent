@@ -10,6 +10,7 @@ import {
 	upsertSnapshot,
 	type WritebackTrigger,
 } from "../db/store";
+import { forEachConcurrent } from "../lib/concurrency";
 import {
 	applyTicketPatch,
 	type TicketPatch,
@@ -26,6 +27,8 @@ import {
 const CURSOR = JIRA_SYNC_CURSOR;
 // Re-read a few minutes before the last sync, so clock skew never loses a change.
 const OVERLAP_MINUTES = 5;
+// Upserts of different tickets are independent; this leaves pool connections for requests.
+const UPSERT_CONCURRENCY = 5;
 
 /** Copies tickets changed since the last sync (all of them the first time) into Postgres. */
 export async function syncFromJira(
@@ -44,7 +47,9 @@ export async function syncFromJira(
 	const issues = (
 		await jira.searchIssues(`${jql} ORDER BY updated ASC`, TICKET_FIELDS)
 	).filter(isTicket);
-	for (const issue of issues) await upsertSnapshot(sql, toSnapshot(issue));
+	await forEachConcurrent(issues, UPSERT_CONCURRENCY, (issue) =>
+		upsertSnapshot(sql, toSnapshot(issue)),
+	);
 	await setCursor(sql, CURSOR, now.toISOString());
 	return { upserted: issues.length };
 }

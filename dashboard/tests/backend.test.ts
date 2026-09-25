@@ -87,6 +87,73 @@ test("Core proposals preserve decision evidence, risk and approvals from the lat
   assert.equal(proposal.explanations?.priority?.confidence, 0.73);
 });
 
+test("the Core state is read in one expanded request, not one per ticket", async () => {
+  const requests: string[] = [];
+  const decision = (value: string) => ({
+    effective_value: value,
+    source: "rule" as const,
+    confidence: 1,
+    confidence_signals: {},
+    reason: "Looked up.",
+    rule_trace: null,
+    evidence: { ticket_spans: [], patterns: [], service_card: null },
+    alternatives: [],
+    flags: [],
+    pinned: false,
+  });
+  const view = {
+    ticket_id: "c-1",
+    external_key: "SUP-1",
+    effective_state: {
+      work_type: decision("Incident"),
+      service: decision("Trading Platform"),
+      team: decision("Investment Operations"),
+      assignee: decision("a@b.com"),
+      urgency: decision("High"),
+      impact: decision("High"),
+      priority: decision("High"),
+      resolution: decision("done"),
+    },
+    latest_run: {
+      run_id: "run-1",
+      versions: { model: "m" },
+      audit_sampled: false,
+      completed_at: null,
+    },
+    resolution_comment: null,
+    lane: "needs_review" as const,
+    lane_reasons: [],
+  };
+  const backend = createBackendClient("/api", async (url) => {
+    requests.push(String(url));
+    return Response.json({
+      tickets: [
+        {
+          ticket_id: "c-1",
+          external_key: "SUP-1",
+          lane: "needs_review",
+          risk: 0.3,
+          run_status: "completed",
+          view,
+        },
+        { ticket_id: "c-2", external_key: "SUP-2", lane: null, run_status: "queued", view: null },
+      ],
+    });
+  });
+  const state = await backend.coreState();
+  assert.deepEqual(requests, ["/api/core/tickets?expand=view"]);
+  assert.ok(state);
+  assert.deepEqual([...state.proposals.keys()], ["SUP-1"]);
+  assert.equal(state.proposals.get("SUP-1")?.core?.risk, 0.3);
+  assert.deepEqual(
+    [...state.runs],
+    [
+      ["SUP-1", "completed"],
+      ["SUP-2", "queued"],
+    ],
+  );
+});
+
 test("approving a Core suggestion records the field against its run", async () => {
   const requests: { url: string; init: RequestInit }[] = [];
   const backend = createBackendClient("/api", async (url, init) => {
