@@ -1,5 +1,10 @@
 # TicketBuddy: AI triage for a service desk
 
+## Useful resources for experts
+- Presentation Video: https://polinet.cc/zhai2026-video
+- Live Dashboard: https://polinet.cc/zhai2026-live
+---
+
 TicketBuddy reads incoming Jira service-desk tickets and proposes how an experienced L2 agent would handle them. For each ticket it proposes the work type, the affected service, the owning team, the assignee, the urgency, the impact, the priority, the resolution status and a draft resolution note. A person reviews the proposal before anything uncertain reaches Jira.
 
 It was built for the [Swiss AI Weeks hackathon challenge](instructions.md). The challenge is sponsored by [SwissLife](https://github.com/Swiss-ai-Weeks/SwissLife-2026), pan-European asset manager. We received 20,000 synthetic historical tickets and a set of new "blind" tickets to triage. Some fields in the new tickets are wrong on purpose: misleading titles, the wrong service, inconsistent priorities.
