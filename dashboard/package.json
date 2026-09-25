@@ -5,7 +5,7 @@
   "packageManager": "pnpm@11.21.0",
   "type": "module",
   "scripts": {
-    "data": "python scripts/prepare_data.py && python3 scripts/prepare_playground.py",
+    "data": "python3 scripts/prepare_data.py && python3 scripts/prepare_playground.py",
     "dev": "pnpm data && vp dev",
     "build": "pnpm data && vp build && tsc -b",
     "lint": "oxlint src --deny-warnings",

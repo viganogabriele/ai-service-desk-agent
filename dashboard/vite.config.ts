@@ -25,6 +25,7 @@ function backendAvailable(): Promise<boolean> {
 export default defineConfig({
   plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
   server: {
+    allowedHosts: ["localhost", "ticketbuddy.polinetwork.org"],
     proxy: {
       // The backend behind the dashboard's own origin, so its sign-in cookie is first-party.
       "/api": {

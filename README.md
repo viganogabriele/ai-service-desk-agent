@@ -2,7 +2,7 @@
 
 ## Useful resources for experts
 - Presentation Video: https://polinet.cc/zhai2026-video
-- Live Dashboard: https://polinet.cc/zhai2026-live
+- Live Dashboard: https://polinet.cc/ticketbuddy
 ---
 
 TicketBuddy reads incoming Jira service-desk tickets and proposes how an experienced L2 agent would handle them. For each ticket it proposes the work type, the affected service, the owning team, the assignee, the urgency, the impact, the priority, the resolution status and a draft resolution note. A person reviews the proposal before anything uncertain reaches Jira.
