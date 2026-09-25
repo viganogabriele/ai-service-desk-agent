@@ -107,6 +107,7 @@ interface CoreTicketView {
     run_id: string;
     versions: { model: string; prompt?: string; kb?: string; policy?: string };
     audit_sampled: boolean;
+    completed_at: string | null;
   } | null;
   resolution_comment: {
     text: string;
@@ -125,6 +126,34 @@ interface CoreTicketSummary {
   external_key: string;
   lane: string | null;
   risk?: number;
+  // The latest run of any kind; null before the first one is queued.
+  run_status: "queued" | "running" | "completed" | "failed" | null;
+}
+
+/** What the Core holds, by Jira key: proposals, and the latest run of every ticket it knows. */
+export interface CoreState {
+  proposals: Map<string, Proposal>;
+  runs: Map<string, CoreTicketSummary["run_status"]>;
+}
+
+/** Where the AI is with a ticket that has no suggestion yet. */
+export type Classification = "queued" | "classifying" | "failed";
+
+/**
+ * Null once the Core has a suggestion, for closed tickets (the backend sends them as closures, not
+ * for triage) and when there is no Core. Open tickets the backend has not sent yet are queued.
+ */
+export function classificationOf(
+  ticket: IncomingTicket,
+  core: CoreState | null,
+): Classification | null {
+  if (!core || ticket.Status === "done" || core.proposals.has(ticket.Key)) return null;
+  const run = core.runs.get(ticket.Key);
+
+  if (run === undefined || run === null || run === "queued") return "queued";
+
+  // A completed run without a usable suggestion failed as far as the operator is concerned.
+  return run === "running" ? "classifying" : "failed";
 }
 
 export interface CoreChange {
@@ -215,15 +244,15 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
         },
         body: JSON.stringify(patches),
       }),
-    /** Core proposals by Jira key; empty when the backend has no Core configured. */
-    coreProposals: async (signal?: AbortSignal) => {
+    /** Core proposals and runs by Jira key; null when the backend has no Core configured. */
+    coreState: async (signal?: AbortSignal): Promise<CoreState | null> => {
       let summaries: CoreTicketSummary[];
 
       try {
         summaries = (await request<{ tickets: CoreTicketSummary[] }>("/core/tickets", { signal }))
           .tickets;
       } catch (failure) {
-        if (failure instanceof HttpError && failure.status === 503) return new Map();
+        if (failure instanceof HttpError && failure.status === 503) return null;
 
         throw failure;
       }
@@ -240,13 +269,16 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
 
       const byId = new Map(summaries.map((summary) => [summary.ticket_id, summary]));
 
-      return new Map(
-        views.flatMap((view) => {
-          const proposal = coreProposal(view, byId.get(view.ticket_id)?.risk ?? null);
+      return {
+        proposals: new Map(
+          views.flatMap((view) => {
+            const proposal = coreProposal(view, byId.get(view.ticket_id)?.risk ?? null);
 
-          return proposal ? [[view.external_key, proposal] as const] : [];
-        }),
-      );
+            return proposal ? [[view.external_key, proposal] as const] : [];
+          }),
+        ),
+        runs: new Map(summaries.map((summary) => [summary.external_key, summary.run_status])),
+      };
     },
     coreOverride: (core: NonNullable<Proposal["core"]>, changes: CoreChange[], actor: string) =>
       request<unknown>(`/core/tickets/${encodeURIComponent(core.ticket_id)}/overrides`, {
@@ -332,6 +364,7 @@ export function coreProposal(view: CoreTicketView, risk: number | null = null): 
   return {
     ticket_id: view.external_key,
     model_id: run.versions.model,
+    classified_at: run.completed_at,
     proposal: {
       work_type: workType,
       service,

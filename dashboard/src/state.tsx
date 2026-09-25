@@ -6,6 +6,7 @@ import {
   HttpError,
   REASON_CODES,
   UNREACHABLE,
+  classificationOf,
   coreActor,
   createBackendClient,
   levelOf,
@@ -15,7 +16,13 @@ import {
   ticketStatus,
   triagePatch,
 } from "./lib/backend";
-import type { CoreChange, SignedInUser, TicketPatch } from "./lib/backend";
+import type {
+  Classification,
+  CoreChange,
+  CoreState,
+  SignedInUser,
+  TicketPatch,
+} from "./lib/backend";
 import {
   LEVELS,
   OUTCOMES,
@@ -95,9 +102,15 @@ interface DashboardContextValue {
   arrival: (id: string) => Arrival | null;
   notice: Notice | null;
   dismissNotice: () => void;
+  /** Show a notice unless one is up already, so it never replaces an Undo. */
+  announce: (notice: Notice) => void;
   idOf: (index: number) => string;
   review: (index: number) => Review;
   proposalFor: (index: number) => Proposal | null;
+  /** Where the AI is with a ticket that has no suggestion yet; null otherwise. */
+  classification: (index: number) => Classification | null;
+  /** The Core is connected, so new tickets are classified as they arrive. */
+  classifying: boolean;
   update: (index: number, changes: Editable) => void;
   verify: (index: number, fields: Verifiable[], on: boolean) => Promise<void>;
   assign: (index: number, changes?: Editable) => void;
@@ -336,11 +349,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const core = useQuery({
     queryKey: ["core-proposals"],
     queryFn: async ({ signal }) => {
-      const proposals = await backend.coreProposals(signal);
-      const before = client.getQueryData<Map<string, Proposal>>(["core-proposals"]);
+      const state = await backend.coreState(signal);
+      const before = client.getQueryData<CoreState | null>(["core-proposals"])?.proposals;
 
       const done = arrived.flatMap(({ id }) =>
-        proposals.has(id) && isWaiting(id, before) ? [id] : [],
+        state?.proposals.has(id) && isWaiting(id, before) ? [id] : [],
       );
 
       if (done.length) {
@@ -351,13 +364,21 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         );
       }
 
-      return proposals;
+      return state;
     },
     // Offline there is no backend to proxy the Core.
     enabled: query.data?.offline === false,
-    // While the AI classifies a simulated ticket, show the result as soon as the Core has it.
-    refetchInterval: (state) =>
-      arrived.some(({ id }) => isWaiting(id, state.state.data)) ? 2_000 : 15_000,
+    // While the AI classifies a simulated ticket, show the result as soon as the Core has it; while
+    // it classifies any other, soon enough that the ticket leaves Upcoming shortly after.
+    refetchInterval: (state) => {
+      const current = state.state.data ?? null;
+
+      if (arrived.some(({ id }) => isWaiting(id, current?.proposals))) return 2_000;
+
+      return query.data?.bundle.challenge.some((ticket) => classificationOf(ticket, current))
+        ? 5_000
+        : 15_000;
+    },
     retry: false,
   });
 
@@ -395,12 +416,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [saved, setSaved] = useState<SavedState>(loadSaved);
   const [notice, setNotice] = useState<Notice | null>(null);
   const dismissNotice = useCallback(() => setNotice(null), []);
+  const announce = useCallback((value: Notice) => setNotice((current) => current ?? value), []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   }, [saved]);
 
-  const waiting = arrived.filter(({ id }) => isWaiting(id, core.data));
+  const waiting = arrived.filter(({ id }) => isWaiting(id, core.data?.proposals));
   const oldest = waiting.at(-1);
 
   // Without a result the oldest waiting ticket becomes an ordinary one, triaged by hand.
@@ -426,15 +448,16 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
   const { bundle, offline } = query.data;
 
+  const coreState = offline ? null : (core.data ?? null);
+
   // Online, the Core's proposals replace the bundle's (live bundles carry none).
-  const data =
-    !offline && core.data?.size
-      ? {
-          ...bundle,
-          proposals: bundle.challenge.map((ticket) => core.data.get(ticket.Key) ?? null),
-          proposal_source: { kind: "core" as const, path: null },
-        }
-      : bundle;
+  const data = coreState?.proposals.size
+    ? {
+        ...bundle,
+        proposals: bundle.challenge.map((ticket) => coreState.proposals.get(ticket.Key) ?? null),
+        proposal_source: { kind: "core" as const, path: null },
+      }
+    : bundle;
 
   const idOf = (index: number) => data.challenge[index].Key;
 
@@ -854,9 +877,17 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         arrival,
         notice,
         dismissNotice,
+        announce,
         idOf,
         review,
         proposalFor,
+        classification: (index) => {
+          const state = classificationOf(data.challenge[index], coreState);
+
+          // A simulated ticket the AI did not classify in time is triaged by hand.
+          return state && unclassified.includes(idOf(index)) ? "failed" : state;
+        },
+        classifying: coreState !== null,
         update,
         verify,
         assign: (index, changes) =>

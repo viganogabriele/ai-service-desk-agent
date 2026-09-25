@@ -16,6 +16,7 @@ import { DashboardProvider, useDashboard } from "../state";
 import type { Notice } from "../state";
 import { TicketFiltersProvider, useTicketFilters } from "../components/tickets";
 import type { TicketFilters } from "../components/tickets";
+import { Notifications } from "../components/notifications";
 import { ThemeToggle } from "../components/theme";
 import { TooltipLayer } from "../components/tooltip";
 import { Button, buttonVariants } from "../components/ui/button";
@@ -148,6 +149,7 @@ function Shell({ playground = false }: { playground?: boolean }) {
           >
             <FlaskConical size={18} strokeWidth={1.75} />
           </Link>
+          {!playground && <Notifications className={TOPBAR_ICON} />}
           <ThemeToggle className={TOPBAR_ICON} />
           {!playground && <Operator />}
         </div>

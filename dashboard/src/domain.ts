@@ -99,6 +99,10 @@ export const PRIORITY_DOTS: Record<Level, string> = {
   Lowest: "",
 };
 
+// Tickets without urgency or impact in Jira keep the priority Jira holds.
+export const triageLevel = (triage: Triage) =>
+  priority(triage.urgency, triage.impact) ?? triage.priority;
+
 export function serviceInfo(name: string) {
   return SERVICES.find((row) => row[0].toLowerCase() === name.toLowerCase());
 }
@@ -191,6 +195,8 @@ export interface Proposal {
   model_id: string;
   latency_ms?: number | null;
   cost_chf?: number | null;
+  // When the Core finished the run (CORE_API §5).
+  classified_at?: string | null;
   proposal: {
     work_type: string;
     service: string;
