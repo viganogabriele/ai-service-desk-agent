@@ -56,7 +56,7 @@ export const TICKET_FIELDS = [
 ] as const;
 
 // upload.py appends "\n\n---\n" plus "Key: value" lines for data Jira has no field for.
-const FOOTER_MARKER = "\n\n---\n";
+export const FOOTER_MARKER = "\n\n---\n";
 
 /** The footer block of a plain-text description, including its marker, or "". */
 export function descriptionFooter(raw: string): string {

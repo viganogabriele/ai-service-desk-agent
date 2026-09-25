@@ -203,6 +203,9 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
     signInUrl: `${base}/auth/login`,
     signOut: () => request<unknown>("/auth/logout", { method: "POST" }),
     sync: () => request<unknown>("/sync", { method: "POST" }),
+    /** Files a ticket the Core writes in Jira; the Core then classifies it like any other. */
+    demoTicket: () =>
+      request<{ key: string; warnings: string[] }>("/demo/tickets", { method: "POST" }),
     patch: (patches: TicketPatch[], user: SignedInUser | null) =>
       request<PatchResponse>("/tickets", {
         method: "POST",

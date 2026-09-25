@@ -12,7 +12,7 @@ from triage.state import StateError
 from api import events
 from api.core import Core
 from api.db import Database
-from api.routers import evaluations, kb, metrics, policy, review, tickets
+from api.routers import demo, evaluations, kb, metrics, policy, review, tickets
 from api.worker import WorkerPool
 
 
@@ -58,6 +58,7 @@ def create_app(db_path=config.API_DB_PATH, engine=None, workers: int = config.AP
     app.include_router(policy.router)
     app.include_router(metrics.router)
     app.include_router(evaluations.router)
+    app.include_router(demo.router)
     return app
 
 

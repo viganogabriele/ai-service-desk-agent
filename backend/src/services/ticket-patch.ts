@@ -6,6 +6,7 @@ import {
 	type JiraClient,
 	type JiraFieldMeta,
 	type JiraOption,
+	type JiraWorkType,
 } from "../clients/jira/jira-client";
 import { matchOption, optionLabel, rank } from "../clients/jira/matching";
 import { isRetryableStatus } from "../lib/errors";
@@ -196,17 +197,25 @@ function buildFields(
 	return w;
 }
 
+/** The Jira work type for a record's work type, never its "with approvals" variant. */
+export function findWorkType(
+	types: readonly JiraWorkType[],
+	wanted: TicketRecord["Work type"],
+): JiraWorkType | undefined {
+	const needle = wanted.toLowerCase();
+	return types.find((t) => {
+		const name = t.name.toLowerCase();
+		return name.includes(needle) && !name.includes("approval");
+	});
+}
+
 async function changeWorkType(
 	client: JiraClient,
 	key: string,
 	wanted: TicketRecord["Work type"],
 	warnings: string[],
 ) {
-	const needle = wanted.toLowerCase();
-	const target = (await client.getWorkTypes()).find((t) => {
-		const name = t.name.toLowerCase();
-		return name.includes(needle) && !name.includes("approval");
-	});
+	const target = findWorkType(await client.getWorkTypes(), wanted);
 	if (!target) {
 		warnings.push(`Work type: no Jira work type matches '${wanted}'`);
 		return;
