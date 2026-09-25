@@ -118,6 +118,19 @@ export function coreActor(user: SignedInUser | null) {
   return user ? `dashboard:${user.email}` : "dashboard";
 }
 
+/** Both the dashboard and Core consume the dataset's "email: text" format. */
+export function parseComment(comment: string) {
+  const match = /^(\S+@\S+):\s*([\s\S]*)$/.exec(comment.trim());
+
+  return { author: match?.[1] ?? null, text: match?.[2] ?? comment.trim() };
+}
+
+export function signedComment(text: string, author: string) {
+  const body = parseComment(text).text;
+
+  return author ? `${author}: ${body}` : body;
+}
+
 export const REASON_CODES: Record<TriageField | "resolution", string> = {
   work_type: "wrong_work_type",
   service: "wrong_service",
@@ -140,7 +153,7 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
   const base = baseUrl.replace(/\/+$/, "");
 
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetcher(`${base}${path}`, init);
+    const response = await fetcher(`${base}${path}`, { ...init, credentials: "include" });
 
     if (!response.ok) {
       const payload: ApiError = await response.json().catch(() => ({}));
@@ -159,10 +172,13 @@ export function createBackendClient(baseUrl: string, fetcher = fetch) {
     signInUrl: `${base}/auth/login`,
     signOut: () => request<unknown>("/auth/logout", { method: "POST" }),
     sync: () => request<unknown>("/sync", { method: "POST" }),
-    patch: (patches: TicketPatch[]) =>
+    patch: (patches: TicketPatch[], user: SignedInUser | null) =>
       request<PatchResponse>("/tickets", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Atlassian-Account-Id": user?.accountId ?? "shared",
+        },
         body: JSON.stringify(patches),
       }),
     /** Core proposals by Jira key; empty when the backend has no Core configured. */

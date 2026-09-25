@@ -9,6 +9,7 @@ import {
   createBackendClient,
   levelOf,
   liveBundle,
+  signedComment,
   ticketOutcome,
   ticketStatus,
   triagePatch,
@@ -392,6 +393,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const patchTickets = async (patches: TicketPatch[]) => {
+    if (!auth.data || auth.isError)
+      throw new Error("Your sign-in status could not be confirmed. Reload before saving.");
+
+    try {
+      return await backend.patch(patches, user);
+    } catch (failure) {
+      if (failure instanceof HttpError && (failure.status === 401 || failure.status === 409))
+        await client.invalidateQueries({ queryKey: ["auth"] });
+      throw failure;
+    }
+  };
+
   /** Apply a workflow transition, log it, and offer a one-step undo. */
   const transition = (
     index: number,
@@ -408,11 +422,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     if (extra.resolution) patch.Resolution = extra.resolution;
 
-    // Signed in, Jira shows the real author; otherwise the dataset's "author: text" form.
     if (comment)
-      patch["All Comments"] = [
-        !user && current.triage.assignee ? `${current.triage.assignee}: ${comment}` : comment,
-      ];
+      patch["All Comments"] = [signedComment(comment, user?.email ?? current.triage.assignee)];
 
     const changedFields = proposal
       ? triageChanges(current.triage, startingTriage(ticket, proposal)).map((item) => ({
@@ -463,7 +474,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     void (async () => {
       try {
-        const [result] = (await backend.patch([patch])).results;
+        const [result] = (await patchTickets([patch])).results;
 
         if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
 
@@ -522,9 +533,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
 
     try {
       const [result] = (
-        await backend.patch([
-          { Key: id, Status: status === "in_progress" ? "in progress" : "open" },
-        ])
+        await patchTickets([{ Key: id, Status: status === "in_progress" ? "in progress" : "open" }])
       ).results;
 
       if (!result?.ok) throw new Error(result?.error ?? "Jira did not accept the change.");
@@ -643,7 +652,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         Status: current.status === "resolved" ? "done" : ticket.Status,
         Resolution: resolution,
         "All Comments": comment.trim()
-          ? [...ticket["All Comments"], `${triage.assignee}: ${comment.trim()}`]
+          ? [...ticket["All Comments"], signedComment(comment, user?.email ?? triage.assignee)]
           : ticket["All Comments"],
         reviewed: current.status !== "new" && current.status !== "in_progress",
       };
@@ -661,7 +670,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
               user,
               url: backend.signInUrl,
               signOut: () => {
-                void backend.signOut().then(() => client.invalidateQueries({ queryKey: ["auth"] }));
+                void backend
+                  .signOut()
+                  .then(() => client.invalidateQueries({ queryKey: ["auth"] }))
+                  .catch(() => show({ message: "Sign out failed. Try again." }));
               },
             }
           : null,

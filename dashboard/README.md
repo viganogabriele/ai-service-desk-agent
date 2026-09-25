@@ -13,6 +13,18 @@ The app is **TicketBuddy**; its visual design follows the [TicketBuddy Figma fil
 
 Run the last three commands from the repository root. The matching commands also work inside `dashboard/`. Python 3 is required for `scripts/prepare_data.py`; `dev` and `build` run it automatically. It reads the historical and challenge JSON files at the repository root and writes a compact bundle to `public/dashboard-data.json`. That bundle is generated and is not committed.
 
+## Atlassian sign-in
+
+Sign-in is optional: visitors use the shared Jira account, while signed-in operators write as themselves. Set `ATLASSIAN_CLIENT_ID` and `ATLASSIAN_CLIENT_SECRET` in the backend environment. Register `OAUTH_REDIRECT_URI` as the exact callback URL in the Atlassian app and enable the `read:jira-work`, `write:jira-work` and `read:me` scopes.
+
+By default, open `http://localhost:5173`: the dashboard calls `/api`, and Vite proxies it to `http://127.0.0.1:8787`. Use `DASHBOARD_ORIGIN=http://localhost:5173` and `OAUTH_REDIRECT_URI=http://localhost:5173/api/auth/callback` on the backend.
+
+For direct access on another port, set `VITE_BACKEND_URL=http://localhost:8787`, keep `DASHBOARD_ORIGIN=http://localhost:5173`, and set `OAUTH_REDIRECT_URI=http://localhost:8787/auth/callback`. Fetch includes credentials and the backend allows credentialed CORS only for `DASHBOARD_ORIGIN`. Use the same hostname and scheme for the dashboard, backend URL and callback: HTTP cookies use `SameSite=Lax`, so mixing `localhost` and `127.0.0.1` will not work. The default proxy avoids this restriction because the browser only sees the dashboard origin.
+
+Sessions expire with the Atlassian access token and are lost on backend restart. A write checks the account shown in the dashboard; if it expired or changed, the write stops, refreshes sign-in status and keeps the draft. Sign in again, or review the shared-account identity before retrying. Comments retain the `email: text` format used by the dashboard and Core, with the signed-in operator's email when available.
+
+Run `pnpm --dir dashboard test` for client and comment-format regression tests (Node.js 22.18+).
+
 ## Data sources
 
 `scripts/prepare_data.py` builds `public/dashboard-data.json` from files only; nothing is generated or simulated.

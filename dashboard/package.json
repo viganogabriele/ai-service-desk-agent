@@ -9,6 +9,7 @@
     "dev": "pnpm data && vp dev",
     "build": "pnpm data && vp build && tsc -b",
     "lint": "oxlint src --deny-warnings",
+    "test": "node --test tests/*.test.ts",
     "format": "oxfmt 'src/**/*.tsx' src/domain.ts 'src/lib/*.ts' src/index.css vite.config.ts oxlint.config.ts && oxlint src --fix",
     "format:check": "oxfmt --check 'src/**/*.tsx' src/domain.ts 'src/lib/*.ts' src/index.css vite.config.ts oxlint.config.ts",
     "preview": "vp preview",

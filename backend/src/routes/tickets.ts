@@ -31,10 +31,27 @@ export function createTicketsRoute(
 				}
 			}),
 			async (c) => {
-				// Signing in is optional, so a demo audience can use the shared account.
-				const writer = auth?.jira(getCookie(c, SESSION_COOKIE)) ?? jira;
+				const sessionId = getCookie(c, SESSION_COOKIE);
+				const user = auth?.user(sessionId);
+				const userClient = auth?.jira(sessionId);
+				const expected = c.req.header("X-Atlassian-Account-Id");
+				if (
+					(auth && sessionId && !userClient) ||
+					(expected && expected !== "shared" && !userClient)
+				) {
+					throw new HTTPException(401, {
+						message:
+							"Your session expired. Sign in again or review the change before using the shared account.",
+					});
+				}
+				if (expected && expected !== (user?.accountId ?? "shared")) {
+					throw new HTTPException(409, {
+						message:
+							"The signed-in account changed. Review the change and try again.",
+					});
+				}
 				const results = await writeToJira(
-					writer,
+					userClient ?? jira,
 					sql,
 					c.req.valid("json"),
 					"api",

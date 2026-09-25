@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useDashboard } from "../state";
 import type { Verifiable } from "../state";
+import { parseComment } from "../lib/backend";
 import { OUTCOME_LABELS, serviceInfo } from "../domain";
 import type { Ticket } from "../domain";
 import {
@@ -186,15 +187,15 @@ function Comments({ comments }: { comments: string[] }) {
   return (
     <div className="grid">
       {comments.map((comment, place) => {
-        const [author, ...rest] = comment.split(":");
+        const { author, text } = parseComment(comment);
 
         return (
           <div key={place} className="border-t border-divider py-3 first:border-t-0 first:pt-0">
             <b className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Initials email={author} small />
-              {personName(author)}
+              {personName(author) || "Unknown author"}
             </b>
-            <p className="mt-1.5 leading-comment text-secondary">{rest.join(":").trim()}</p>
+            <p className="mt-1.5 leading-comment text-secondary">{text}</p>
           </div>
         );
       })}

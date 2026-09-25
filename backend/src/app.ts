@@ -2,7 +2,6 @@ import type { SQL } from "bun";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import type { JiraClient } from "./clients/jira/jira-client";
 import { env } from "./env";
@@ -28,9 +27,16 @@ export type AppDeps = {
 export function createApp({ jira, sql, syncer, core, auth = null }: AppDeps) {
 	const app = new Hono();
 
-	app.use(logger((message) => log.info(message)));
+	app.use(async (c, next) => {
+		// Query strings can contain OAuth authorization codes and state.
+		const request = `${c.req.method} ${c.req.path}`;
+		const started = Date.now();
+		log.info(`<-- ${request}`);
+		await next();
+		log.info(`--> ${request} ${c.res.status} ${Date.now() - started}ms`);
+	});
 	app.use(secureHeaders());
-	app.use("*", cors({ origin: env.DASHBOARD_ORIGIN }));
+	app.use("*", cors({ origin: env.DASHBOARD_ORIGIN, credentials: true }));
 
 	const route = app
 		.route("/health", createHealthRoute(sql, Boolean(core.baseUrl)))

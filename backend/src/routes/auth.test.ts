@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
 import {
 	type OAuthClient,
@@ -10,7 +10,10 @@ import {
 	fakeIssue,
 } from "../clients/jira/jira-client.fake";
 import { testBackend } from "../db/test-db";
+import { log } from "../lib/log";
 import { createAuth } from "../services/auth";
+import { closureOf } from "../services/core-sync";
+import { toTicketRecord } from "../services/tickets";
 
 const fakeOAuth: OAuthClient = {
 	authorizeUrl: (state) => `https://auth.example/authorize?state=${state}`,
@@ -52,8 +55,10 @@ async function setup(oauth = fakeOAuth) {
 		core: { baseUrl: undefined },
 		auth,
 	});
-	return { app, calls };
+	return { app, calls, jira, auth };
 }
+
+afterEach(() => vi.restoreAllMocks());
 
 function cookie(res: Response, name: string): string {
 	const found = res.headers
@@ -79,6 +84,101 @@ async function signIn(app: Awaited<ReturnType<typeof setup>>["app"]) {
 }
 
 describe("sign in with Atlassian", () => {
+	it("keeps callback credentials out of request logs", async () => {
+		const { app } = await setup();
+		const logged = vi.spyOn(log, "info").mockImplementation(() => {});
+		await app.request("/auth/callback?code=private-code&state=private-state");
+		const output = logged.mock.calls.flat().join("\n");
+		expect(output).toContain("/auth/callback");
+		expect(output).not.toContain("private-code");
+		expect(output).not.toContain("private-state");
+	});
+
+	it.each(["expired", "missing", "signed-out", "restarted"])(
+		"rejects an expected user write with a %s session without changing Jira",
+		async (scenario) => {
+			const { app, jira, auth, calls } = await setup();
+			const session = await signIn(app);
+			const sessionId = session.slice("tb_session=".length);
+			if (scenario === "expired")
+				vi.spyOn(Date, "now").mockReturnValue(Date.now() + 3_601_000);
+			if (scenario === "signed-out") auth.end(sessionId);
+			const before = structuredClone(await jira.getIssue("SUP-1", []));
+			const res = await app.request("/tickets", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-Atlassian-Account-Id": "a1",
+					...(scenario === "missing"
+						? {}
+						: {
+								Cookie:
+									scenario === "restarted"
+										? "tb_session=lost-session"
+										: session,
+							}),
+				},
+				body: JSON.stringify({ Key: "SUP-1", Summary: "Must not be written" }),
+			});
+			expect(res.status).toBe(401);
+			expect(await jira.getIssue("SUP-1", [])).toEqual(before);
+			expect(calls).toEqual([]);
+		},
+	);
+
+	it.each(["shared", "other-account"])(
+		"rejects a write when the UI expects %s but the session belongs to a1",
+		async (expected) => {
+			const { app, calls } = await setup();
+			const session = await signIn(app);
+			const res = await app.request("/tickets", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Cookie: session,
+					"X-Atlassian-Account-Id": expected,
+				},
+				body: JSON.stringify({ Key: "SUP-1", Summary: "Must not be written" }),
+			});
+			expect(res.status).toBe(409);
+			expect(calls).toEqual([]);
+		},
+	);
+
+	it("allows credentialed requests and write preflights only from the dashboard origin", async () => {
+		const { app } = await setup();
+		const session = await signIn(app);
+		const res = await app.request("/auth/me", {
+			headers: { Origin: "http://localhost:5173", Cookie: session },
+		});
+		expect(res.headers.get("Access-Control-Allow-Origin")).toBe(
+			"http://localhost:5173",
+		);
+		expect(res.headers.get("Access-Control-Allow-Credentials")).toBe("true");
+		expect(await res.json()).toMatchObject({ user: { accountId: "a1" } });
+		const preflight = await app.request("/tickets", {
+			method: "OPTIONS",
+			headers: {
+				Origin: "http://localhost:5173",
+				"Access-Control-Request-Method": "POST",
+				"Access-Control-Request-Headers": "content-type,x-atlassian-account-id",
+			},
+		});
+		expect(preflight.status).toBe(204);
+		expect(preflight.headers.get("Access-Control-Allow-Credentials")).toBe(
+			"true",
+		);
+		expect(preflight.headers.get("Access-Control-Allow-Headers")).toContain(
+			"x-atlassian-account-id",
+		);
+		const foreign = await app.request("/auth/me", {
+			headers: { Origin: "https://other.invalid" },
+		});
+		expect(foreign.headers.get("Access-Control-Allow-Origin")).not.toBe(
+			"https://other.invalid",
+		);
+	});
+
 	it("writes to Jira as the signed-in user", async () => {
 		const { app, calls } = await setup();
 		const session = await signIn(app);
@@ -112,6 +212,66 @@ describe("sign in with Atlassian", () => {
 			body: JSON.stringify({ Key: "SUP-1", Urgency: "High" }),
 		});
 		expect(res.status).toBe(200);
+		expect(calls).toEqual([]);
+	});
+
+	it("keeps a signed operator comment through Jira and closure extraction", async () => {
+		const { app, jira } = await setup();
+		const session = await signIn(app);
+		const res = await app.request("/tickets", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: session,
+				"X-Atlassian-Account-Id": "a1",
+			},
+			body: JSON.stringify({
+				Key: "SUP-1",
+				Assignee: "another.assignee@intcom.com",
+				Resolution: "done",
+				"All Comments": [
+					"maria.rossi@intcom.com: Resolution: Renewed the certificate.",
+				],
+			}),
+		});
+		expect(res.status).toBe(200);
+		const record = toTicketRecord(await jira.getIssue("SUP-1", []));
+		expect(record["All Comments"]).toEqual([
+			"maria.rossi@intcom.com: Resolution: Renewed the certificate.",
+		]);
+		expect(closureOf(record)).toEqual({
+			resolutionNote: "Resolution: Renewed the certificate.",
+			resolver: "maria.rossi@intcom.com",
+		});
+	});
+
+	it("clears a lost session before an explicit retry with the shared account", async () => {
+		const { app, calls } = await setup();
+		const patch = { Key: "SUP-1", Urgency: "High" };
+		const rejected = await app.request("/tickets", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Cookie: "tb_session=lost",
+			},
+			body: JSON.stringify(patch),
+		});
+		expect(rejected.status).toBe(401);
+		const me = await app.request("/auth/me", {
+			headers: { Cookie: "tb_session=lost" },
+		});
+		expect(await me.json()).toEqual({ enabled: true, user: null });
+		expect(me.headers.get("Cache-Control")).toBe("no-store");
+		expect(cookie(me, "tb_session")).toBe("tb_session=");
+		const retry = await app.request("/tickets", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Atlassian-Account-Id": "shared",
+			},
+			body: JSON.stringify(patch),
+		});
+		expect(retry.status).toBe(200);
 		expect(calls).toEqual([]);
 	});
 

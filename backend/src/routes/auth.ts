@@ -11,12 +11,16 @@ const COOKIE = { httpOnly: true, sameSite: "Lax", path: "/" } as const;
 /** Sign in with Atlassian (OAuth 2.0 3LO); `dashboard` is where the browser returns. */
 export function createAuthRoute(auth: Auth | null, dashboard: string) {
 	return new Hono()
-		.get("/me", (c) =>
-			c.json({
+		.get("/me", (c) => {
+			const sessionId = getCookie(c, SESSION_COOKIE);
+			const user = auth?.user(sessionId) ?? null;
+			if (sessionId && !user) deleteCookie(c, SESSION_COOKIE, COOKIE);
+			c.header("Cache-Control", "no-store");
+			return c.json({
 				enabled: auth !== null,
-				user: auth?.user(getCookie(c, SESSION_COOKIE)) ?? null,
-			}),
-		)
+				user,
+			});
+		})
 		.get("/login", (c) => {
 			if (!auth) return c.text("Sign-in is not configured", 404);
 			const { url, state } = auth.start();
