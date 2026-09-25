@@ -8,7 +8,7 @@ import { Badge, Dot } from "../components/ui/badge";
 import type { Tone } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle, Empty } from "../components/ui/card";
-import { SectionHead, SectionText } from "../components/ui/section";
+import { SectionHead } from "../components/ui/section";
 import {
   METRICS,
   PROVIDER_LABELS,
@@ -105,7 +105,6 @@ function UsagePage() {
         <h1 className="font-display text-3xl leading-title font-semibold tracking-snug text-primary-text">
           Usage
         </h1>
-        <SectionText>Every model call the Core made to classify, explain and draft</SectionText>
         <div className="ml-auto flex flex-wrap items-center gap-2 max-md:ml-0">
           <Segmented
             label="Measure"
